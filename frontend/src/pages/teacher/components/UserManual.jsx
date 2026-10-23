@@ -718,11 +718,23 @@ const UserManual = () => {
                     >
                         <Title level={3}>更新日志 (Changelog)</Title>
                         <Paragraph>
-                            以下是平台每一次更新的具体内容及对应的提交日期。当前版本：<Tag color="blue">v1.5.3</Tag>
+                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.6.0</Tag>
                         </Paragraph>
 
                         <div style={{ marginTop: 24 }}>
                             <Timeline>
+                                <Timeline.Item color="green">
+                                    <strong>v1.6.0 (2026-10-23)</strong>
+                                    <ul>
+                                        <li>完善管理员首次设置流程，使用数据库账号及加密密码进行认证，由管理员创建教师并组织班级、学生管理。</li>
+                                        <li>学生退出密码改为管理员在“系统管理 → AI 模型设置下方”配置，允许空密码和短密码；退出时由后端验证，网络异常或验证失败时保留当前登录状态。</li>
+                                        <li>新增知识库教学助手的管理员开关，可根据教学需要控制功能入口。</li>
+                                        <li>完善页面不存在和页面异常时的提示，提供返回及重试入口，改善异常情况下的访问体验。</li>
+                                        <li>整理源码发布结构，将个人镜像配置与公开示例分离，清理固定凭据及遗留空文件，并补充安全说明和公办学校教学使用许可。</li>
+                                        <li>统一部署与开发文档，提供 npm 源码部署和 Docker 部署两种方式，补充 Windows 开机自启、版本更新、备份回退及常见故障处理流程。</li>
+                                    </ul>
+                                </Timeline.Item>
+
                                 <Timeline.Item color="green">
                                     <strong>v1.5.3 (2026-10-16)</strong>
                                     <ul>
