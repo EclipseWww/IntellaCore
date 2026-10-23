@@ -1,123 +1,340 @@
 # 部署与运维手册
 
-- [新部署](#新部署)
-- [构建和发布自己的镜像](#构建和发布自己的镜像)
-- [已有部署更新与回退](#已有部署更新与回退)
+- [npm 源码部署](#npm-源码部署无需-docker)
+- [Docker 部署](#docker-部署)
+- [更新与回退](#更新与回退)
 - [课时与媒体迁移](#课时与媒体迁移)
 - [Windows 宿主机代理](#windows-宿主机代理)
 
-本文统一说明新部署、镜像发布与端口配置。已有实例更新请先阅读 本文的“已有部署更新与回退”章节，不要用新部署流程覆盖原数据。
+本文说明 npm 与 Docker 两种部署方式，以及日常更新、回退和运维流程。
 
-## 配置文件选择
+## npm 源码部署（无需 Docker）
 
-| 文件 | 用途 | 默认前端 / 后端端口 |
-| --- | --- | --- |
-| docker-compose.yml | 从源码构建并运行 | 3000 / 8080 |
-| deploy/compose/docker-compose.build.yml | 构建并标记待发布镜像 | 不启动服务 |
-| deploy/compose/docker-compose.deploy.yml | 拉取镜像，供宿主机代理访问 | 127.0.0.1:3001 / 127.0.0.1:8080 |
-| deploy/compose/docker-compose.toolbox.yml | 兼容原有 Toolbox 部署 | 3001 / 8080 |
+这是独立于 Docker 的部署方式，不需要访问 Docker 镜像仓库。需要先安装 Node.js（含 npm）、Git 和 MongoDB，并启动本机 MongoDB 服务。npm 不会自动安装或启动数据库。下面以 Windows PowerShell 为例，先按下面步骤验证基本运行，再按“生产运行与开机自启”改为后台部署。
 
-部署配置绑定本机地址时，应通过宿主机代理提供外部访问；相关说明见 本文的“Windows 宿主机代理”章节。已有部署以实际 Compose 文件为准，不要切换文件或项目名称。
-
-## 新部署
-
-安装 Docker 与支持 BuildKit 的 Compose。在仓库根目录复制 `.env.example` 为 `.env`（PowerShell）：
+### 1. 下载源码
 
 ```powershell
-Copy-Item .env.example .env
+git clone https://github.com/EclipseWww/IntellaCore.git
+cd IntellaCore
 ```
 
-编辑 `.env`，填写数据库密码、完整数据库 URI、JWT 密钥、主密码及需要的 AI 服务密钥。根目录 `.env` 用于 Compose 变量替换；本地开发的 `backend/.env` 是另一份配置。前端变量会进入公开构建，不得保存秘密。
+已有源码时，在现有项目根目录开始即可，不必重复克隆。确认 `node -v`、`npm -v` 可以输出版本号，本机 MongoDB 监听 `127.0.0.1:27017`。
 
-`MONGODB_URI` 中的凭据须与 MongoDB 初始用户一致，特殊字符需进行 URI 编码。首次部署使用独立随机凭据，不能照抄占位符。通过 `ALLOWED_ORIGINS` 设置实际访问来源。
+### 2. 配置并启动后端（终端一）
+
+```powershell
+cd backend
+npm install
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+在打开的文件中保留以下设置，并把两个占位密码换成自己的随机字符串：
+
+```dotenv
+PORT=5003
+MONGODB_URI=mongodb://127.0.0.1:27017/student-ai-chat
+JWT_SECRET=replace-with-random-secret
+MASTER_PASSWORD=replace-with-strong-password
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+这是无数据库认证的本机体验示例；若 MongoDB 已启用认证，须填写实际连接 URI。AI Key 可以先留空，不影响先体验账户、课程等功能；AI 对话需要之后配置有效的服务凭据。
+
+保存文件，关闭记事本，再执行：
+
+```powershell
+npm start
+```
+
+浏览器访问 `http://localhost:5003/api/health`，应返回 `status: ok`。后端持续运行后再启动前端。
+
+### 3. 启动前端（终端二）
+
+新开 PowerShell，进入同一份源码根目录，再执行：
+
+```powershell
+cd frontend
+npm install
+$env:PORT = '3000'
+$env:REACT_APP_API_URL = ''
+npm start
+```
+
+打开 `http://localhost:3000`。前端开发服务器会把 API 请求代理到本机 5003 端口，无需 Nginx。请在提示端口被占用时先停止旧实例，避免浏览器打开另一份服务。
+
+当前 `frontend/package.json` 的 `start` 使用 Windows 命令语法。macOS/Linux 在 frontend 目录安装依赖后使用：
 
 ```sh
+PORT=3000 HOST=localhost REACT_APP_API_URL= npx react-scripts start
+```
+
+### 4. 首次使用
+
+1. 访问 `http://localhost:3000/setup`，创建自己的管理员账号；没有公开的默认管理员密码。
+2. 管理员创建教师，再由教师或管理员创建班级、导入学生和课程。全新数据库不会自动生成演示课程和学生。
+3. 在“系统管理”配置 AI 模型和 API；没有自己的 Key 时可先跳过 AI 对话。
+4. 在 AI 模型设置下方保存学生退出密码。允许空密码和短密码，但空密码也要明确点击保存；未配置时学生不能通过退出验证。
+
+手动停止服务时，在前后端两个终端分别按 Ctrl+C。再次运行只需分别进入 backend 和 frontend 启动服务，不要反复覆盖 .env。数据保存在 MongoDB，作业等文件保存在 backend/uploads，停止应用不会清空它们。
+
+### 常见问题
+
+- 数据库连接失败：检查 MongoDB 服务是否启动、URI 和认证是否正确。
+- API 代理报错或登录失败：先确认 5003 健康检查通过，再检查前端进程的 REACT_APP_API_URL 是否为空，修改变量后重启前端。
+- npm 安装失败：保留完整错误信息核对依赖和 Node.js 版本，不要直接使用 npm audit fix --force 修改依赖树。
+- npm 和 Docker 都可部署。长期运行时使用下文的前端生产构建与开机任务，不长期运行 React 开发服务器。
+
+### 生产运行与开机自启（Windows）
+
+在 backend/.env 中设置 NODE_ENV=production。npm 部署长期使用时，前端应先生成生产文件，由 Nginx 提供网页并代理 API；后端运行 Node.js，数据库作为 Windows 服务。无需 Docker。以下示例将源码放在 C:\IntellaCore，Nginx 放在 C:\nginx；请将路径改为自己的实际路径。
+
+#### 1. 构建前端
+
+先停止 frontend 中的 npm start，释放 3000 端口。在源码根目录打开 PowerShell：
+
+```powershell
+cd frontend
+npm install
+$env:REACT_APP_API_URL = ''
+npm run build
+```
+
+生成 frontend/build 后，不再需要前端 npm start 进程。AI Key 和数据库配置仍只放在 backend/.env。
+
+#### 2. 配置本机 Nginx
+
+下载并解压 Windows Nginx 到 C:\nginx。将仓库内 deploy/npm/nginx.example.conf 复制为 C:\nginx\conf\nginx.conf，编辑其中 root 为实际 frontend/build 绝对路径（Nginx 内使用正斜杠）。示例已包含 SPA 路由、API、公开媒体和上传超时配置。
+
+```powershell
+cd C:\nginx
+.\nginx.exe -t
+```
+
+先确认配置检查成功。示例对外端口为 3000；使用学生电脑访问时，ALLOWED_ORIGINS 中加入实际服务器来源，例如 http://服务器IP:3000，并在 Windows 防火墙仅对需要的机房网络放行 TCP 3000。后台和 MongoDB 不必对学生开放端口。若已有代理，合并配置，避免启动第二个进程抢占端口。
+
+#### 3. MongoDB 自动启动
+
+MongoDB 安装时选择作为 Windows 服务运行。管理员 PowerShell 检查：
+
+```powershell
+Get-Service *Mongo*
+```
+
+若服务名为 MongoDB：
+
+```powershell
+Set-Service MongoDB -StartupType Automatic
+Start-Service MongoDB
+```
+
+若服务不存在，先使用 MongoDB 安装程序配置数据库服务，不要仅创建一个空任务。数据库数据目录独立于 Git 源码，升级时保留。
+
+#### 4. 为后端和网页服务创建启动任务
+
+先停止之前手动运行的后端，避免重复占用 5003。通过开始菜单打开“任务计划程序”，选择“创建任务”（不是仅创建登录快捷方式）。分别创建两个任务：
+
+| 设置 | IntellaCore-Backend | IntellaCore-Web |
+| --- | --- | --- |
+| 常规：运行账户 | 有权访问源码、.env、uploads 和日志目录的本机账户 | 有权读取前端构建及 Nginx 配置、写入 Nginx 日志的本机账户 |
+| 常规：运行方式 | 不管用户是否登录都要运行 | 不管用户是否登录都要运行 |
+| 触发器 | 启动时，延迟 1 分钟 | 启动时，延迟 1 分钟 |
+| 操作：程序 | node.exe 的完整路径 | C:\nginx\nginx.exe |
+| 操作：参数 | src/app.js | -p C:/nginx/ -c conf/nginx.conf -g "daemon off;" |
+| 操作：起始于 | C:\IntellaCore\backend | C:\nginx |
+
+node.exe 路径可在 PowerShell 使用 (Get-Command node.exe).Source 查询，常见为 C:\Program Files\nodejs\node.exe。起始目录必须填写，否则后端可能读不到 .env。任务参数中不要填写密钥或账户密码；任务保存时由 Windows 本地提示输入运行账户密码。
+
+两个任务的“设置”均选择：
+
+- 允许按需运行；失败后每 1 分钟重试，最多 999 次。
+- 已在运行时“不启动新实例”。
+- 取消“运行超过指定时间后停止”，避免默认数天后停服。
+- 取消仅交流电源启动、切换电池即停止的条件（如使用笔记本）。
+
+如学校策略禁止保存任务账户凭据，请由管理员按本机策略配置服务账户。不要用仅“用户登录时”触发来代替真正的开机启动。
+
+首次分别右键两个任务选择“运行”，确认 http://localhost:3000 和 http://localhost:3000/api/health 正常。随后在维护时间重启电脑，未登录前从另一台电脑访问 http://服务器IP:3000 验证。只有完成这次重启验收，才能确认自启动在目标电脑生效。
+
+停止时分别“结束”这两个任务。Nginx 使用 daemon off 保持任务进程运行，便于任务计划程序跟踪；不要额外手工启动第二个 Nginx。修改 Nginx 配置后先执行 nginx.exe -t，再重启网页任务。后端日志位于 backend/logs。
+
+### npm 部署如何更新
+
+不是只运行 git pull 就立即生效。先备份数据库、backend/uploads 和 backend/.env，再在维护时间执行：
+
+1. 先禁用 IntellaCore-Backend、IntellaCore-Web 两个任务，再结束正在运行的任务，避免失败重试在维护期间自动启动；保持 MongoDB 服务运行。
+2. 在源码根目录拉取更新；如有本地修改，先处理，不要强制覆盖。
+
+```powershell
+git pull --ff-only
+npm install --prefix backend
+npm install --prefix frontend
+$env:REACT_APP_API_URL = ''
+npm run build --prefix frontend
+```
+
+3. 上述命令每条都应成功后，重新启用并启动后端和网页两个任务；有任何失败先排查，不要把未完成的构建当作成功版本。
+4. 核对首页、登录、课程、历史文件下载及 AI 对话。通常无需重新设置管理员或覆盖 .env。
+
+更新失败时恢复更新前代码并重新安装对应依赖和构建前端；保留数据库及上传目录。涉及数据结构变更时先阅读该版本升级说明。任务设置中的失败重试可能在维护期间启动进程，较长维护先禁用任务，更新结束后重新启用。
+
+## Docker 部署
+
+适合已具备 Docker 环境的电脑或服务器。Docker 与 npm 源码部署是两种独立方式，选择一种即可；不要在相同端口同时启动两套实例。
+
+### 1. 准备环境和源码
+
+安装 Docker Engine 或可运行 Linux 容器的 Docker Desktop，以及 Compose V2。Windows 需先启动 Docker Desktop 的 Linux 容器引擎。
+
+```powershell
+docker version
+docker compose version
+git clone https://github.com/EclipseWww/IntellaCore.git
+cd IntellaCore
+```
+
+已有源码时不必重复克隆。docker version 应同时显示客户端和服务端信息，只有客户端说明 Docker 引擎尚不可用。
+
+中国大陆网络可能无法拉取 MongoDB、Node、Nginx 基础镜像。首次构建前确认所有基础镜像可下载；有单位提供的可信镜像服务时按单位说明配置。自建应用镜像仓库不能自动解决 Dockerfile 基础镜像的拉取问题。不要随意执行来源不明的镜像加速脚本；网络条件不具备时可选择前文的 npm 部署。
+
+### 2. 配置根目录 .env
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+设置 MONGO_ROOT_PASSWORD、MONGODB_URI、JWT_SECRET、MASTER_PASSWORD；AI Key 可先留空。MongoDB URI 必须使用容器服务名 mongodb，而不是 localhost 或 127.0.0.1，例如：
+
+```dotenv
+MONGO_ROOT_PASSWORD=replace-with-your-own-password
+MONGODB_URI=mongodb://admin:replace-with-your-own-password@mongodb:27017/student-ai-chat?authSource=admin
+JWT_SECRET=replace-with-your-own-random-secret
+MASTER_PASSWORD=replace-with-your-own-master-password
+OPENAI_API_KEY=
+DASHSCOPE_API_KEY=
+ALLOWED_ORIGINS=http://localhost:3000
+```
+
+占位值必须自行替换，密码在两个位置保持一致，URI 中的特殊字符须编码。学生通过局域网访问时，将 ALLOWED_ORIGINS 改为实际访问地址，例如 http://服务器IP:3000。不要覆盖已有实例的 .env；数据库已有数据时更改初始化密码不会自动修改数据库用户密码。
+
+根目录 .env 用于 Compose；不必额外创建 backend/.env，也不要把环境文件打包到镜像中。
+
+### 3. 从源码构建并启动
+
+公开仓库默认从源码构建，不需要维护者的个人镜像地址：
+
+```powershell
 docker compose config --quiet
-docker compose up -d --build
+docker compose build backend frontend
+docker compose up -d
 ```
 
-默认源码部署访问 `http://localhost:3000`，健康检查为 `http://localhost:8080/api/health`。先完成网站 `/setup` 管理员初始化，再提供给学生访问。
+逐条执行，上一步成功再继续。首次构建需要下载基础镜像及 npm 依赖，可能较慢。
 
-## 构建和发布自己的镜像
+### 4. 检查服务并完成初始化
 
-仓库构建配置保留了原维护者镜像地址以兼容既有部署。新使用者应先将 build 与 deploy 文件中的前后端 `image` 改为自己的仓库地址和同一个版本标签。不要向原维护者仓库推送。
+```powershell
+docker compose ps
+docker compose logs --tail 100 backend
+```
 
-```sh
+确认三个服务都在运行；仅显示容器 Up 不代表数据库已经连接成功。
+
+- 前端：http://localhost:3000。
+- 后端健康检查：http://localhost:8080/api/health。
+- 经前端代理的健康检查：http://localhost:3000/api/health。
+- 首次设置：http://localhost:3000/setup。
+
+创建自己的管理员账号，再创建教师、班级并导入学生和课程；没有公开默认管理员密码。管理员在系统管理中配置 AI 模型和 Key，并保存学生退出密码。允许空密码和短密码，留空也须点击保存。最后实际验证登录、历史文件下载和 AI 对话。
+
+学生电脑通过 http://服务器IP:3000 访问，防火墙仅向需要的机房网络开放网页端口。根目录 Compose 默认还映射了数据库和后端端口；不需要外部直连时限制其防火墙访问，不要将数据库直接暴露到互联网。
+
+### 5. 数据、停止和开机恢复
+
+默认持久化数据位于源码根目录 data/mongodb 和 data/backend；备份须包含数据库及上传文件、公开媒体，不能只备份源码或镜像。不要执行 down -v 或删除数据目录来解决更新问题。
+
+```powershell
+# 临时停止，保留容器及数据
+docker compose stop
+# 再次启动
+docker compose start
+```
+
+配置使用 restart: always，Docker 引擎运行后会恢复容器，但它不能让尚未启动的 Docker 引擎自行运行。Windows Docker Desktop 的登录启动不等于无人登录时的开机可用；有此需求时应验证目标系统的引擎启动方式，或选择前文 npm 的开机任务方案。Linux 则需配置 Docker 服务开机启动。上线前在维护窗口重启电脑，从学生电脑验证服务恢复。
+
+### 6. 源码构建方式更新
+
+先备份数据库、上传文件及 .env，在原目录执行：
+
+```powershell
+git pull --ff-only
+docker compose config --quiet
+docker compose build backend frontend
+docker compose up -d --no-deps backend frontend
+```
+
+构建成功后再重建应用容器，避免构建失败时先停止旧服务。MongoDB 不参与最后一步重建。git pull 不会自动重新构建镜像；若版本修改了数据库服务配置，应另外审阅升级说明。更新后重复健康检查和业务验收。
+
+### 7. 可选：发布到自己的镜像仓库
+
+仅在需要“一台机器构建、多台机器拉取”时使用，不是普通部署的必需步骤。公开仓库提供占位符示例，个人实际配置被 Git 忽略。
+
+```powershell
+Copy-Item deploy/compose/docker-compose.build.example.yml deploy/compose/docker-compose.build.yml
+Copy-Item deploy/compose/docker-compose.deploy.example.yml deploy/compose/docker-compose.deploy.yml
+```
+
+仅在目标文件不存在时复制，避免覆盖个人配置。编辑两份文件，将前后端 image 改成自己的仓库地址和相同版本标签；基础数据库镜像也需选择可访问、可信的来源。推荐版本标签以便回退。
+
+```powershell
 docker login <你的镜像仓库域名>
 docker compose --project-directory . -f deploy/compose/docker-compose.build.yml build
 docker compose --project-directory . -f deploy/compose/docker-compose.build.yml push
 ```
 
-推荐使用可回退的版本标签。构建完成不代表已经推送；推送完成不代表服务器已经更新。
+在目标服务器保留对应源码目录结构、部署配置及自己的根目录 .env 后，使用：
 
-新服务器放置部署 Compose 文件和本机 `.env` 后执行：
-
-```sh
+```powershell
 docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml config --quiet
-docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml pull backend frontend
+docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml pull
 docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
 ```
 
-Windows SSH 会话可能无法读取 Docker Desktop 的仓库凭据，出现登录会话错误时，在服务器交互桌面的 PowerShell 中完成 `docker login` 和 `pull`。
+此示例前端绑定 127.0.0.1:3001、后端绑定 127.0.0.1:8080，外部访问需要本文的 Windows 宿主机代理，不能照搬源码构建方式的 3000 端口。已有机房以其实际文件路径、端口和 Compose 项目名称为准，不要为了统一文档移动数据目录。
 
-## 数据和验收
+后续镜像更新先 pull backend frontend，成功后 up -d --no-deps backend frontend。Windows SSH 会话若无法读取 Docker Desktop 仓库凭据，应在服务器交互桌面的 PowerShell 中完成登录和拉取。构建、推送、拉取和重建是独立步骤，不会彼此自动执行。
 
-数据库、上传文件、公开媒体及日志应使用原有持久化挂载。备份须覆盖 MongoDB 和上传文件；课时传输暂存目录用途见 本文的“课时与媒体迁移”章节。不要执行 `down -v` 或删除数据目录来解决更新问题。
+### 常见故障
 
-上线后验证首页、`/api/health`、登录、课程列表、历史作业下载和 AI 对话。管理员在“系统管理 → AI 模型设置下方”保存学生退出密码：允许 0 至 72 个字符，保存空密码后学生可直接确认退出；未配置与已保存空密码不同。
+- 无法连接 Docker daemon：先启动 Docker 引擎并确认 docker version 显示服务端。
+- 拉取超时或拒绝访问：区分基础镜像网络问题和私有仓库登录问题，保留原容器，不要删除数据。
+- MongoDB 登录失败：核对现有数据库用户与 .env，初始化密码只对空数据目录生效。
+- 端口占用：检查是否还运行着 npm 实例或另一套容器，不能同时占用 3000/8080。
+- backend 一直重启：查看 backend 和 mongodb 日志；Linux 挂载目录还需检查写入权限。
+- 镜像已拉取但页面未更新：确认已重建前端容器，浏览器刷新后检查实际镜像版本。
 
-旧版 deploy 脚本可能仍含固定端口、镜像来源或历史权限处理逻辑，执行前应审阅；本文优先使用明确的 Compose 命令。
+## 更新与回退
 
-## 个人配置与公开示例
+本文面向当前版本及后续版本的使用者。日常更新按部署方式选择前文“npm 部署如何更新”或“源码构建方式更新”；使用镜像仓库时按“发布到自己的镜像仓库”的流程拉取并重建应用容器。
 
-不带 `.example` 的个人镜像配置与脚本仅保留在本机，已加入 Git 忽略规则。现有维护者继续使用原命令，不必更换路径。其他使用者可直接在根目录运行 `docker compose up -d --build`，无需了解维护者镜像仓库。
+### 更新前准备
 
-需要自行发布镜像时，复制 `deploy/compose/docker-compose.build.example.yml` 为同目录的 `docker-compose.build.yml`，将示例镜像地址换成自己的地址，再执行上文命令。镜像部署和脚本同理：复制对应 `.example` 文件，删除文件名中的 `.example` 后按自己的环境填写。历史脚本只供参考，需先核对路径。
+- 阅读目标版本的发布说明，确认是否有额外的数据迁移或配置要求。
+- 备份数据库、上传文件和本机配置；源码仓库不能替代业务数据备份。
+- 记录当前 Git 提交或镜像版本，保留可用的旧版本及其配置。镜像使用明确的版本标签，避免只有一个不断变化的 latest。
+- 保留原 .env、数据目录、端口和 Compose 项目名称；新增配置按版本说明补充，不要直接覆盖整份配置。
 
-## 已有部署更新与回退
+### 更新后检查
 
+确认首页和健康检查正常，再检查教师/学生登录、课程、历史文件下载、AI 对话和学生退出。通常不需要重新初始化管理员或重新设置已有密码。
 
-本次不修改数据卷名称、挂载目录、容器名称或端口。不要执行 `down -v`，也不要删除 data 目录。
+### 更新失败时回退
 
-### 首次更新
+npm 部署恢复更新前的源码版本及对应依赖，重新构建前端并重启服务。Docker 部署使用保留的旧镜像重建应用容器，继续使用相同数据挂载和项目名称。不要通过删除 data 目录或执行 down -v 回退。
 
-1. 保持旧容器运行，先做好数据库及上传文件备份。
-2. 拉取本次源码后，**先不要重建或停止容器**。在项目根目录执行：
-
-   ```sh
-   python3 deploy/scripts/preserve-config.py
-   ```
-
-   脚本读取现有 backend、mongodb 容器配置，只在根目录没有 `.env` 时创建文件，不输出凭据、不更改容器。需要 Docker 访问权限。若已有根目录 `.env`，脚本会停止，需核对其包含 `.env.example` 中的配置项。请勿把 `.env` 提交到 Git。
-
-3. 按你原来使用的 Compose 文件校验：
-
-   ```sh
-   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml config --quiet
-   ```
-
-4. 镜像部署方式：需要先将本次代码构建为前后端新镜像并推送到你原用的镜像仓库，然后在机房执行：
-
-   ```sh
-   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml pull
-   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
-   ```
-
-   `git pull` 只更新源码；`docker compose pull` 只更新已发布镜像。两者都不会自动构建新镜像。若机房使用源码构建的 docker-compose.yml，则执行 `docker compose up -d --build`，继续使用原配置文件以保留原端口及数据挂载。
-
-5. 管理员登录，在控制台设置新的学生退出密码（0至72字符，允许空密码和短密码）。未设置时学生退出会提示联系管理员。原先前端中的固定密码不再生效。
-6. 检查教师/学生登录、课程列表、历史作业下载、AI 对话、学生退出和数据库持久化。确认无误后再做凭据轮换。
-
-### 后续更新
-
-保留机房根目录 `.env`，继续按原 Compose 文件 pull / up -d 即可。首次迁移保留原数据库密码：修改 MONGO_INITDB_ROOT_PASSWORD 不会自动修改已存在数据库用户的密码，不能直接换一个值后重建。JWT 密钥轮换会使已有登录失效，应在维护窗口进行。
-
-### 回退
-
-升级前记录前后端镜像 ID 并为旧镜像打本地保留标签。需要回退时使用旧镜像标签及相同 Compose 项目和数据挂载重建应用容器，不删除数据库和上传目录。不要把机房部署切换到新的 Compose 项目名称。
-
-本地验证覆盖前端构建、配置解析及代码测试；未连接机房，无法替代上述上线验收。
-
+如目标版本执行了不兼容的数据迁移，仅回退代码或镜像可能无法恢复，须按该版本说明使用升级前备份恢复；恢复备份会丢失备份之后的新数据，应先停止写入并确认恢复范围。
 
 ## 课时与媒体迁移
 

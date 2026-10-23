@@ -2,11 +2,12 @@
 
 面向信息科技课堂的学习平台，提供学生、教师和管理员角色，支持课程与课时、作业提交、AI 问答、测验、Office 作业评分及教学资源迁移。
 
-前端使用 React、Ant Design；后端使用 Node.js、Express 和 Mongoose，数据存储于 MongoDB，支持 Docker 部署。
+前端使用 React、Ant Design；后端使用 Node.js、Express 和 Mongoose，数据存储于 MongoDB，支持 npm 源码部署和 Docker 部署。
 
 ## 开始使用
 
-- 新部署：[部署指南](docs/DEPLOYMENT.md)。
+- npm 源码部署（无需 Docker）：见 [部署与运维手册中的 npm 部署](docs/DEPLOYMENT.md#npm-源码部署无需-docker)。
+- Docker 部署：见 [Docker 部署流程](docs/DEPLOYMENT.md#docker-部署)。
 - 已有实例升级：[更新与回退](docs/DEPLOYMENT.md)。
 - 开发和贡献：[贡献指南](CONTRIBUTING.md)。
 
