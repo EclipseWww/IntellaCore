@@ -7,9 +7,9 @@
 | 文件 | 用途 | 默认前端 / 后端端口 |
 | --- | --- | --- |
 | docker-compose.yml | 从源码构建并运行 | 3000 / 8080 |
-| docker-compose.build.yml | 构建并标记待发布镜像 | 不启动服务 |
-| docker-compose.deploy.yml | 拉取镜像，供宿主机代理访问 | 127.0.0.1:3001 / 127.0.0.1:8080 |
-| docker-compose.toolbox.yml | 兼容原有 Toolbox 部署 | 3001 / 8080 |
+| deploy/compose/docker-compose.build.yml | 构建并标记待发布镜像 | 不启动服务 |
+| deploy/compose/docker-compose.deploy.yml | 拉取镜像，供宿主机代理访问 | 127.0.0.1:3001 / 127.0.0.1:8080 |
+| deploy/compose/docker-compose.toolbox.yml | 兼容原有 Toolbox 部署 | 3001 / 8080 |
 
 部署配置绑定本机地址时，应通过宿主机代理提供外部访问；相关说明见 [Windows Nginx](../deploy/docs/WINDOWS-NGINX-PROXY.md)。已有部署以实际 Compose 文件为准，不要切换文件或项目名称。
 
@@ -38,8 +38,8 @@ docker compose up -d --build
 
 ```sh
 docker login <你的镜像仓库域名>
-docker compose -f docker-compose.build.yml build
-docker compose -f docker-compose.build.yml push
+docker compose --project-directory . -f deploy/compose/docker-compose.build.yml build
+docker compose --project-directory . -f deploy/compose/docker-compose.build.yml push
 ```
 
 推荐使用可回退的版本标签。构建完成不代表已经推送；推送完成不代表服务器已经更新。
@@ -47,9 +47,9 @@ docker compose -f docker-compose.build.yml push
 新服务器放置部署 Compose 文件和本机 `.env` 后执行：
 
 ```sh
-docker compose -f docker-compose.deploy.yml config --quiet
-docker compose -f docker-compose.deploy.yml pull backend frontend
-docker compose -f docker-compose.deploy.yml up -d
+docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml config --quiet
+docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml pull backend frontend
+docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
 ```
 
 Windows SSH 会话可能无法读取 Docker Desktop 的仓库凭据，出现登录会话错误时，在服务器交互桌面的 PowerShell 中完成 `docker login` 和 `pull`。

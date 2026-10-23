@@ -16,14 +16,14 @@
 3. 按你原来使用的 Compose 文件校验：
 
    ```sh
-   docker compose -f docker-compose.deploy.yml config --quiet
+   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml config --quiet
    ```
 
 4. 镜像部署方式：需要先将本次代码构建为前后端新镜像并推送到你原用的镜像仓库，然后在机房执行：
 
    ```sh
-   docker compose -f docker-compose.deploy.yml pull
-   docker compose -f docker-compose.deploy.yml up -d
+   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml pull
+   docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
    ```
 
    `git pull` 只更新源码；`docker compose pull` 只更新已发布镜像。两者都不会自动构建新镜像。若机房使用源码构建的 docker-compose.yml，则执行 `docker compose up -d --build`，继续使用原配置文件以保留原端口及数据挂载。

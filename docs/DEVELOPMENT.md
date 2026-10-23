@@ -93,7 +93,7 @@ The Dockerfile uses BuildKit cache mounts for npm downloads and CRA's Webpack/Ba
 On a Linux build host, run:
 
 ```sh
-DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -f docker-compose.build.yml build frontend
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --project-directory . -f deploy/compose/docker-compose.build.yml build frontend
 ```
 
 For the older Compose command, substitute docker-compose for docker compose. The build-and-push.sh script exports both variables automatically.

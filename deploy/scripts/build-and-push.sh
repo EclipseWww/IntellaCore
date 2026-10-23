@@ -18,11 +18,11 @@ docker login --username=${ALIYUN_USERNAME} ${REGISTRY}
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 echo "构建镜像..."
-docker-compose -f docker-compose.build.yml build
+docker-compose --project-directory . -f deploy/compose/docker-compose.build.yml build
 
 # 推送镜像到阿里云
 echo "推送镜像到阿里云..."
-docker-compose -f docker-compose.build.yml push
+docker-compose --project-directory . -f deploy/compose/docker-compose.build.yml push
 
 echo "镜像已成功构建并推送到阿里云容器服务"
 echo "前端镜像: ${REGISTRY}/eclipsew/ai-chat-edu-frontend:latest"

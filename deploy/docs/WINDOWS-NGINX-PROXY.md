@@ -187,8 +187,8 @@ http {
 
 ```powershell
 cd C:\Users\ghiopppq\Downloads\ai-chat-edu
-docker-compose -f docker-compose.deploy.yml down
-docker-compose -f docker-compose.deploy.yml up -d
+docker-compose --project-directory . -f deploy/compose/docker-compose.deploy.yml down
+docker-compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
 ```
 
 ### 2. 启动宿主机 Nginx
@@ -282,8 +282,8 @@ New-NetFirewallRule -DisplayName "Nginx HTTP" -Direction Inbound -LocalPort 3000
 # 1. 修改 docker-compose.deploy.yml 中的端口配置
 # 2. 重启 Docker 容器
 cd C:\Users\ghiopppq\Downloads\ai-chat-edu
-docker-compose -f docker-compose.deploy.yml down
-docker-compose -f docker-compose.deploy.yml up -d
+docker-compose --project-directory . -f deploy/compose/docker-compose.deploy.yml down
+docker-compose --project-directory . -f deploy/compose/docker-compose.deploy.yml up -d
 
 # 3. 配置并启动宿主机 nginx
 cd C:\nginx
