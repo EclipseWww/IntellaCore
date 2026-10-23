@@ -184,15 +184,15 @@ const AdminDashboard = () => {
   const fetchAISettings = async () => {
     try {
       setAiLoading(true);
-      const [baseUrl, apiKey, model] = await Promise.all([
+      const [baseUrl, apiKey, model, rag] = await Promise.all([
         getSettings('ai.baseUrl').catch(() => null),
         getSettings('ai.apiKey').catch(() => null),
-        getSettings('ai.model').catch(() => null)
+        getSettings('ai.model').catch(() => null), getSettings('rag.enabled').catch(() => null)
       ]);
       aiForm.setFieldsValue({
         aiBaseUrl: baseUrl?.value || '',
         aiApiKey: apiKey?.value || '',
-        aiModel: model?.value || ''
+        aiModel: model?.value || '', ragEnabled: rag?.value === true
       });
     } catch (e) {
       console.error(e);
@@ -208,7 +208,7 @@ const AdminDashboard = () => {
       await Promise.all([
         updateSetting('ai.baseUrl', values.aiBaseUrl),
         updateSetting('ai.apiKey', values.aiApiKey),
-        updateSetting('ai.model', values.aiModel)
+        updateSetting('ai.model', values.aiModel), updateSetting('rag.enabled', values.ragEnabled === true)
       ]);
       message.success('AI 设置已保存');
     } catch (e) {
@@ -1622,8 +1622,8 @@ const AdminDashboard = () => {
                   form={aiForm}
                   layout="vertical"
                   onFinish={saveAISettings}
-                  initialValues={{ aiBaseUrl: '', aiApiKey: '', aiModel: '' }}
-                >
+                  initialValues={{ aiBaseUrl: '', aiApiKey: '', aiModel: '', ragEnabled: false }}
+                ><Form.Item name="ragEnabled" valuePropName="checked"><Checkbox>启用知识库智能助教（需配置外部 RAG，默认关闭；教师刷新后生效）</Checkbox></Form.Item>
                   <Row gutter={16}>
                     <Col span={10}>
                       <Form.Item

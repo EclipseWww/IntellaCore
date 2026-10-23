@@ -1,3 +1,4 @@
+import { getSettings } from '../../services/api';
 import React, { useState, useEffect } from 'react';
 import { ConfigProvider, Layout, Menu } from 'antd';
 import './TeacherDashboard.css';
@@ -72,6 +73,10 @@ const TeacherDashboard = () => {
   const [selectedKey, setSelectedKey] = useState(defaultSelectedKey);
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  const [ragEnabled, setRagEnabled] = useState(false);
+  useEffect(() => {
+    getSettings('rag.enabled').then(s => setRagEnabled(s?.value === true)).catch(() => setRagEnabled(false));
+  }, []);
 
   // 监听 URL 查询参数变化，确保在导航回来时能正确显示选项卡
   useEffect(() => {
@@ -238,6 +243,7 @@ const TeacherDashboard = () => {
   }, []);
 
   const getContent = () => {
+    if (!ragEnabled && ['ai-lesson', 'ai-quiz', 'ai-chat'].includes(selectedKey)) return <DashboardWelcome />;
     switch (selectedKey) {
       case 'classroom':
         return <ClassroomManagement />;
@@ -336,7 +342,7 @@ const TeacherDashboard = () => {
             style={{
               borderRight: 0
             }}
-            items={menuItems}
+            items={menuItems.filter(item => item.key !== 'ai-teaching' || ragEnabled)}
             onClick={({ key }) => handleMenuClick(key)}
           />
         </Sider>

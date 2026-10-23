@@ -39,6 +39,7 @@ const settingController = {
       logger.info('获取设置', { key: req.params.key });
       const { key } = req.params;
       const setting = await Setting.findOne({ key });
+      if (!setting && key === 'rag.enabled') return res.json({ key, value: false });
       if (!setting) {
         logger.warn('设置不存在', { key });
         return res.status(404).json({ message: '设置不存在' });
@@ -56,6 +57,10 @@ const settingController = {
       logger.info('更新设置', { key: req.params.key });
       const { key } = req.params;
       let { value, description } = req.body;
+      if (key === 'rag.enabled') {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: '仅管理员可以修改此开关' });
+        if (typeof value !== 'boolean') return res.status(400).json({ message: '开关必须为布尔值' });
+      }
       if (key === 'studentLogoutPassword') {
         if (req.user.role !== 'admin') return res.status(403).json({ message: '仅管理员可以设置退出密码' });
         if (typeof value !== 'string' || value.length > 72) return res.status(400).json({ message: '密码须为字符串，最多72个字符，可留空' });
