@@ -1,17 +1,12 @@
-# 文档导航
+# 文档
 
-| 需求 | 文档 |
-| --- | --- |
-| 项目介绍与开始使用 | [项目首页](../README.md) |
-| 新部署、镜像构建和推送 | [部署指南](DEPLOYMENT.md) |
-| 已有部署更新及回退 | [Docker 更新](DOCKER_UPGRADE.md) |
-| 系统结构与模块职责 | [架构](ARCHITECTURE.md) |
-| 本地开发、初始化、维护 | [开发与维护](DEVELOPMENT.md) |
-| API 调用 | [API 参考](API.md) |
-| 跨服务器迁移课时与视频 | [课时媒体迁移](LESSON-MEDIA-MIGRATION.md) |
-| Windows 宿主机代理 | [Nginx 专题](../deploy/docs/WINDOWS-NGINX-PROXY.md) |
-| PPT / Excel 评分 | [PPT](../backend/src/services/PPT_GRADING.md)、[Excel](../backend/src/services/EXCEL_GRADING.md) |
-| 参与贡献 | [贡献指南](../CONTRIBUTING.md) |
-| 安全与公开发布 | [安全说明](../SECURITY.md) |
+按你的需求选择一份手册即可，无需阅读全部内容。
 
-旧文档路径保留跳转，避免历史链接失效。第三方资源目录内的 README 和许可证不参与合并。
+| 读者 | 手册 | 内容 |
+| --- | --- | --- |
+| 部署者、教师和运维人员 | [部署与运维](DEPLOYMENT.md) | 安装、配置、镜像发布、更新回退、课时媒体迁移、Windows 代理 |
+| 开发者 | [开发手册](DEVELOPMENT.md) | 架构、初始化、构建、数据一致性、API、PPT 与 Excel 评分 |
+
+其他入口：[项目首页](../README.md) · [参与贡献](../CONTRIBUTING.md) · [安全与公开发布](../SECURITY.md)。
+
+旧版重复说明和仅含跳转的文档已合并移除。第三方资源内的 README 与授权文件保持原样。

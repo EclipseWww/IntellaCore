@@ -7,14 +7,14 @@
 ## 开始使用
 
 - 新部署：[部署指南](docs/DEPLOYMENT.md)。
-- 已有实例升级：[更新与回退](docs/DOCKER_UPGRADE.md)。
+- 已有实例升级：[更新与回退](docs/DEPLOYMENT.md)。
 - 开发和贡献：[贡献指南](CONTRIBUTING.md)。
 
 首次运行访问网站完成管理员初始化。管理员在系统管理中配置 AI 服务和学生退出密码。学生退出密码允许空值与短密码；空值须明确保存才生效。
 
 ## 文档
 
-[全部文档](docs/README.md) · [架构](docs/ARCHITECTURE.md) · [开发与维护](docs/DEVELOPMENT.md) · [API](docs/API.md) · [安全与公开发布](SECURITY.md)
+[文档导航](docs/README.md) · [部署与运维](docs/DEPLOYMENT.md) · [开发手册](docs/DEVELOPMENT.md) · [安全与公开发布](SECURITY.md)
 
 ## 公开发布与授权
 

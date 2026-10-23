@@ -5,7 +5,7 @@
 - compose/：镜像构建、镜像部署及 Toolbox 兼容配置。
 - scripts/build-and-push-windows.ps1：当前 Windows 构建推送入口，可在任意目录调用。
 - scripts/：配置保留与历史部署脚本；历史脚本仍按原文件布局编写，执行前应审阅。
-- docs/：旧文档跳转及 Nginx 专题。
+- 部署、更新和 Nginx 配置说明统一见 [部署与运维手册](../docs/DEPLOYMENT.md)。
 
 完整说明见 [部署指南](../docs/DEPLOYMENT.md)。
 

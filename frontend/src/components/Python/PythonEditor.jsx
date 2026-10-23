@@ -630,6 +630,7 @@ const PythonEditor = ({
 
                 console.log('正在初始化Pyodide...');
                 const pyodide = await window.loadPyodide({
+                    stdLibURL: '/libs/pyodide/python_stdlib.bin',
                     indexURL: '/libs/pyodide/'  // 使用本地路径
                 });
 

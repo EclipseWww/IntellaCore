@@ -216,7 +216,8 @@ asyncio.ensure_future(_test_main())
             }
 
             const pyodide = await window.loadPyodide({
-                indexURL: '/libs/pyodide/'
+                stdLibURL: '/libs/pyodide/python_stdlib.bin',
+                    indexURL: '/libs/pyodide/'
             });
 
             const results = [];
