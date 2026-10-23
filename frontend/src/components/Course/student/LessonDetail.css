@@ -1,0 +1,605 @@
+.lesson-detail {
+  max-width: 1200px;
+  margin: 24px;
+  padding: 20px;
+  background: #f0f2f5;
+  min-height: 100vh;
+}
+
+.lesson-header {
+  margin-bottom: 0;
+  background: linear-gradient(135deg, #1890ff0a 0%, #1890ff1a 100%);
+  border-radius: 12px;
+  border: none;
+}
+
+.lesson-header .ant-card-body {
+  padding: 24px;
+}
+
+.lesson-header h2 {
+  margin-bottom: 16px;
+  color: #1a1a1a;
+}
+
+.lesson-objectives {
+  background: #f5f5f5;
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.lesson-objectives h4 {
+  margin-bottom: 16px;
+}
+
+.lesson-objectives .ant-list-item {
+  padding: 4px 0;
+  border: none;
+}
+
+.lesson-section {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 学习活动样式 */
+.lesson-activities {
+  margin: 24px 0;
+  padding: 0 24px;
+}
+
+.lesson-activities .ant-steps-item {
+  padding-bottom: 0;
+}
+
+.lesson-activities .ant-steps-item-icon {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 20px;
+}
+
+.step-description {
+  margin-top: 8px;
+}
+
+.step-description .ant-tag {
+  margin: 4px 8px 4px 0;
+}
+
+.activity-detail {
+  margin-top: 0;
+  background: transparent;
+}
+
+.activity-content {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #262626;
+}
+
+/* 限制图片和视频的最大宽度 */
+.activity-content img {
+  max-width: 100%;
+  /* 保留这个，确保不超出容器 */
+  height: auto;
+  /* 保持原始纵横比 */
+  display: inline-block;
+  /* 改为inline-block，允许图片以原始尺寸显示 */
+  margin: 1em 0;
+  /* 修改为只有上下边距，不强制居中 */
+  border-radius: 4px;
+}
+
+.activity-content video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em auto;
+  border-radius: 4px;
+}
+
+/* 代码块样式 */
+.activity-content pre {
+
+  padding: 16px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+/* 表格样式 */
+.activity-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.activity-content th,
+.activity-content td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.activity-content th {
+  background-color: #f5f5f5;
+  text-align: left;
+}
+
+/* 引用样式 */
+.activity-content blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 16px;
+  color: #666;
+  margin: 1em 0;
+}
+
+.exercise-content {
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 4px;
+  min-height: 200px;
+}
+
+/* Quill 富文本内容样式 */
+.activity-content.ql-editor {
+  padding: 24px;
+  min-height: 200px;
+  font-size: 16px;
+  line-height: 2;
+  color: #262626;
+}
+
+.activity-content.ql-editor img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  /* 改为inline-block，允许图片以原始尺寸显示 */
+  margin: 1em 0;
+  /* 修改为只有上下边距，不强制居中 */
+  border-radius: 8px;
+}
+
+.activity-content.ql-editor p {
+  margin-bottom: 24px;
+  line-height: 2;
+  font-size: 16px;
+}
+
+.activity-content.ql-editor h1 {
+  font-size: 28px;
+  margin: 32px 0 24px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.activity-content.ql-editor h2 {
+  font-size: 24px;
+  margin: 28px 0 20px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.activity-content.ql-editor h3 {
+  font-size: 20px;
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.activity-content.ql-editor h4,
+.activity-content.ql-editor h5,
+.activity-content.ql-editor h6 {
+  font-size: 18px;
+  margin: 20px 0 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.activity-content.ql-editor ul,
+.activity-content.ql-editor ol {
+  padding-left: 28px;
+  margin-bottom: 24px;
+  font-size: 16px;
+  line-height: 2;
+}
+
+.activity-content.ql-editor li {
+  margin-bottom: 12px;
+}
+
+.activity-content.ql-editor pre {
+  background: #f6f8fa;
+  padding: 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 24px 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.activity-content.ql-editor blockquote {
+  border-left: 4px solid #1890ff;
+  margin: 24px 0;
+  padding: 12px 24px;
+  color: #595959;
+  background: #f8f9fa;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.activity-content.ql-editor .ql-align-center {
+  text-align: center;
+}
+
+.activity-content.ql-editor .ql-align-right {
+  text-align: right;
+}
+
+.activity-content.ql-editor .ql-align-justify {
+  text-align: justify;
+}
+
+/* 作业提交表单样式 */
+.assignment-submission {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.assignment-submission .ant-upload-list {
+  margin-bottom: 16px;
+}
+
+.assignment-submission .ant-form-item-label {
+  font-weight: 500;
+}
+
+.assignment-submission .ant-input {
+  border-radius: 4px;
+}
+
+.assignment-submission .ant-btn-primary {
+  height: 40px;
+  padding: 0 24px;
+}
+
+/* 标签页样式 */
+.lesson-detail .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.lesson-detail .ant-tabs-tab {
+  padding: 12px 24px;
+}
+
+.lesson-detail .ant-tabs-tab-btn {
+  font-size: 16px;
+}
+
+.lesson-detail .ant-tabs-ink-bar {
+  height: 3px;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .lesson-detail {
+    padding: 12px;
+  }
+
+  .lesson-header .ant-card-body {
+    padding: 16px;
+  }
+
+  .lesson-section {
+    margin-bottom: 16px;
+  }
+
+  .lesson-activities {
+    padding: 0;
+  }
+
+  .lesson-activities .ant-steps-item-icon {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    font-size: 16px;
+  }
+
+  .lesson-objectives {
+    margin-top: 16px;
+  }
+
+  .activity-content,
+  .activity-content.ql-editor {
+    padding: 24px;
+    font-size: 15px;
+  }
+
+  .activity-content.ql-editor h1 {
+    font-size: 24px;
+  }
+
+  .activity-content.ql-editor h2 {
+    font-size: 20px;
+  }
+
+  .activity-content.ql-editor h3 {
+    font-size: 18px;
+  }
+
+  .activity-content.ql-editor h4,
+  .activity-content.ql-editor h5,
+  .activity-content.ql-editor h6 {
+    font-size: 16px;
+  }
+}
+
+.lesson-detail .ant-row {
+  margin: 0 !important;
+}
+
+.lesson-detail .ant-col {
+  padding: 0 12px;
+}
+
+@media (max-width: 1200px) {
+  .lesson-detail .ant-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 24px;
+  }
+}
+
+/* AI助手悬浮窗样式 */
+.floating-ai-helper {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+}
+
+.floating-ai-helper .ant-btn {
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s;
+}
+
+.floating-ai-helper .ant-btn.active {
+  background: #52c41a;
+  border-color: #52c41a;
+  transform: rotate(360deg);
+}
+
+.ai-helper-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  width: 480px;
+  height: 600px;
+  max-height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(120%);
+  transition: transform 0.3s ease-in-out;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ai-helper-panel.show {
+  transform: translateX(0);
+}
+
+/* 确保AI助手内容区域可以正确滚动 */
+.ai-helper-panel .ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 0 !important;
+}
+
+.ai-helper-panel .ant-card-body {
+  flex: 1;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 确保 Tabs 内容区域正确显示 */
+.ai-helper-panel .ant-tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.ai-helper-panel .ant-tabs-nav {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 8px 0;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 3;
+}
+
+.ai-helper-panel .ant-tabs-content-holder {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.ai-helper-panel .ant-tabs-content {
+  height: 100%;
+  position: relative;
+}
+
+.ai-helper-panel .ant-tabs-tabpane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 !important;
+  visibility: hidden;
+  position: absolute;
+  width: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.ai-helper-panel .ant-tabs-tabpane-active {
+  visibility: visible;
+  position: relative;
+  opacity: 1;
+  z-index: 2;
+}
+
+/* 消息容器样式 */
+.ai-helper-panel .messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+/* 历史记录列表样式 */
+.ai-helper-panel .ant-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* 调整标签页样式 */
+.ai-helper-panel .ant-tabs-tab {
+  padding: 8px 16px;
+  margin: 0 4px;
+  transition: all 0.3s;
+}
+
+.ai-helper-panel .ant-tabs-tab-active {
+  background: #f0f5ff;
+  border-radius: 4px 4px 0 0;
+}
+
+.ai-helper-panel .ant-tabs-nav-list {
+  width: 100%;
+  display: flex;
+}
+
+.ai-helper-panel .ant-tabs-tab {
+  flex: 1;
+  justify-content: center;
+  text-align: center;
+}
+
+.ai-helper-panel .ant-tabs-nav::before {
+  border-bottom: none;
+}
+
+/* 输入区域样式 */
+.ai-helper-panel .input-area {
+  flex-shrink: 0;
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 3;
+}
+
+/* 在小屏幕上调整AI助手面板的大小 */
+@media (max-width: 768px) {
+  .ai-helper-panel {
+    width: 95vw;
+    height: 70vh;
+    max-height: calc(100vh - 120px);
+    right: 2.5vw;
+    bottom: 80px;
+  }
+}
+
+/* 调整输入框和按钮的布局 */
+.ai-helper-panel .input-group {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* 调整输入框样式 */
+.ai-helper-panel .ant-input-textarea {
+  flex: 1;
+}
+
+/* 调整发送按钮样式 */
+.ai-helper-panel .send-button {
+  min-width: 80px;
+  /* 设置最小宽度 */
+  height: 32px;
+  /* 设置固定高度 */
+  padding: 0 16px;
+  /* 增加水平内边距 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  /* 图标和文字之间的间距 */
+}
+
+/* 调整发送按钮中的图标大小 */
+.ai-helper-panel .send-button .anticon {
+  font-size: 16px;
+}
+
+/* 确保按钮在加载状态下也保持宽度 */
+.ai-helper-panel .send-button .ant-spin {
+  margin-right: 4px;
+}
+
+/* 添加资源列表项的样式 */
+.lesson-detail .ant-list-item .ant-btn-link {
+  white-space: normal;
+  height: auto;
+  text-align: left;
+  padding: 4px 0;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* 确保资源列表项内容不会溢出 */
+.lesson-detail .ant-list-item-meta-title {
+  white-space: normal;
+  word-break: break-all;
+}
+
+.lesson-detail .ant-list-item-meta-description {
+  white-space: normal;
+  word-break: break-all;
+}
+
+/* 调整资源列表项的布局 */
+.lesson-detail .ant-list-item {
+  flex-wrap: wrap;
+}
+
+.lesson-detail .ant-list-item-meta {
+  flex: 1;
+  min-width: 0;
+  /* 确保flex项可以正确收缩 */
+}
+
+/* 确保操作按钮不会被挤压 */
+.lesson-detail .ant-list-item-action {
+  margin-left: 16px;
+  flex-shrink: 0;
+}

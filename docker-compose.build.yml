@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest

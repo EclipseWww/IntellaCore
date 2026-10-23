@@ -1,0 +1,103 @@
+.rich-text-editor {
+  margin-bottom: 24px;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: 200px;
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 12px 15px;
+}
+
+.rich-text-editor .ql-editor img {
+  max-width: 100%;
+  margin: 10px 0;
+}
+
+.rich-text-editor .ql-snow .ql-toolbar {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  background-color: #fafafa;
+  border-color: #d9d9d9;
+  padding: 8px;
+}
+
+.rich-text-editor .ql-snow .ql-container {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-color: #d9d9d9;
+}
+
+.rich-text-editor .ql-snow .ql-picker {
+  color: #595959;
+}
+
+.rich-text-editor .ql-snow .ql-stroke {
+  stroke: #595959;
+}
+
+.rich-text-editor .ql-snow .ql-fill,
+.rich-text-editor .ql-snow .ql-stroke.ql-fill {
+  fill: #595959;
+}
+
+.rich-text-editor .ql-snow.ql-toolbar button:hover,
+.rich-text-editor .ql-snow .ql-toolbar button:hover,
+.rich-text-editor .ql-snow.ql-toolbar button:focus,
+.rich-text-editor .ql-snow .ql-toolbar button:focus,
+.rich-text-editor .ql-snow.ql-toolbar button.ql-active,
+.rich-text-editor .ql-snow .ql-toolbar button.ql-active,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-label:hover,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-label:hover,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-label.ql-active,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-label.ql-active,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-item:hover,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-item:hover,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-item.ql-selected,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-item.ql-selected {
+  color: #1890ff;
+}
+
+.rich-text-editor .ql-snow.ql-toolbar button:hover .ql-stroke,
+.rich-text-editor .ql-snow .ql-toolbar button:hover .ql-stroke,
+.rich-text-editor .ql-snow.ql-toolbar button:focus .ql-stroke,
+.rich-text-editor .ql-snow .ql-toolbar button:focus .ql-stroke,
+.rich-text-editor .ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.rich-text-editor .ql-snow .ql-toolbar button.ql-active .ql-stroke,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-label:hover .ql-stroke,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-label:hover .ql-stroke {
+  stroke: #1890ff;
+}
+
+.rich-text-editor .ql-snow.ql-toolbar button:hover .ql-fill,
+.rich-text-editor .ql-snow .ql-toolbar button:hover .ql-fill,
+.rich-text-editor .ql-snow.ql-toolbar button:focus .ql-fill,
+.rich-text-editor .ql-snow .ql-toolbar button:focus .ql-fill,
+.rich-text-editor .ql-snow.ql-toolbar button.ql-active .ql-fill,
+.rich-text-editor .ql-snow .ql-toolbar button.ql-active .ql-fill,
+.rich-text-editor .ql-snow.ql-toolbar .ql-picker-label:hover .ql-fill,
+.rich-text-editor .ql-snow .ql-toolbar .ql-picker-label:hover .ql-fill,
+.rich-text-editor .ql-snow.ql-toolbar button.ql-active .ql-stroke.ql-fill {
+  fill: #1890ff;
+}
+
+/* 代码块样式 */
+.rich-text-editor .ql-editor pre.ql-syntax {
+  background-color: #f6f8fa;
+  border-radius: 4px;
+  padding: 16px;
+  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-x: auto;
+}
+
+/* 图片调整手柄样式 */
+.rich-text-editor .ql-editor .image-resizer {
+  border: 1px dashed #1890ff;
+}
+
+.rich-text-editor .ql-editor .image-resizer .handle {
+  background-color: #1890ff;
+  border: 1px solid #fff;
+}

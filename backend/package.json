@@ -1,0 +1,43 @@
+{
+  "name": "student-ai-chat-backend",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "init-admin": "node src/scripts/initAdmin.js",
+    "test": "node --test src/controllers/*.test.js src/models/*.test.js src/services/*.test.js src/utils/*.test.js"
+  },
+  "dependencies": {
+    "@types/winston": "^2.4.4",
+    "archiver": "^7.0.1",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-validator": "^7.2.1",
+    "extract-zip": "^2.0.1",
+    "jsonwebtoken": "^9.0.0",
+    "mammoth": "^1.9.0",
+    "mongoose": "^7.0.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "openai": "^3.3.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "temp": "^0.9.4",
+    "uuid": "^11.0.5",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "ws": "^8.18.0",
+    "xlsx": "^0.18.5",
+    "jszip": "^3.10.1",
+    "saxes": "^5.0.1"
+  },
+  "devDependencies": {
+    "@gradio/client": "^1.12.0",
+    "dotenv": "^16.4.7",
+    "nodemon": "^2.0.22"
+  }
+}

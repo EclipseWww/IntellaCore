@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数独游戏</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            overflow: hidden; /* 防止页面滚动 */
+        }
+
+        .sudoku-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            max-width: 95vw;
+            max-height: 95vh;
+            box-sizing: border-box;
+        }
+
+        .game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .game-title {
+            font-size: clamp(24px, 5vw, 32px);
+            font-weight: bold;
+            color: #333;
+        }
+
+        .timer {
+            font-size: clamp(16px, 4vw, 20px);
+            color: #555;
+            background-color: #f0f0f0;
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+
+        #sudoku-board {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            width: 450px;
+            height: 450px;
+            max-width: min(80vw, 80vh); /* 限制最大尺寸并保持正方形 */
+            max-height: min(80vw, 80vh);
+            aspect-ratio: 1 / 1;
+            border: 3px solid #333;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            position: relative; /* 用于绝对定位的数字输入 */
+            overflow: hidden; /* 隐藏超出边框的部分 */
+        }
+
+        .sudoku-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ccc;
+            font-size: clamp(18px, 4vw, 28px);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            box-sizing: border-box;
+            position: relative; /* 用于笔记 */
+            user-select: none; /* 禁止文本选中 */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .sudoku-cell.fixed {
+            background-color: #e9e9e9;
+            color: #333;
+            cursor: default;
+        }
+
+        .sudoku-cell.editable {
+            background-color: #fff;
+            color: #1890ff;
+        }
+        
+        .sudoku-cell.editable:hover {
+            background-color: #f0f8ff;
+        }
+
+        .sudoku-cell.selected {
+            background-color: #badeff !important; /* 更强的选中背景 */
+            /* outline: 2px solid #1890ff; */
+        }
+
+        .sudoku-cell.highlighted {
+            background-color: #d6eaff;
+        }
+        
+        .sudoku-cell.error {
+            background-color: #fff1f0;
+            color: #ff4d4f;
+        }
+
+        /* 加粗九宫格边框 */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 2px solid #888;
+        }
+        .sudoku-cell:nth-child(9n) {
+             border-right: 1px solid #ccc; /* 修复最右侧多出的边框 */
+        }
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27), /* 第3行 */
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) { /* 第6行 */
+            border-bottom: 2px solid #888;
+        }
+
+        /* 修复底部和右侧边框被覆盖 */
+        #sudoku-board > .sudoku-cell:nth-child(n+73) { /* 最后一行 */
+             border-bottom: 1px solid #ccc;
+        }
+        
+        /* 笔记模式相关 */
+        .sudoku-cell .notes {
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            right: 1px;
+            bottom: 1px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            font-size: clamp(8px, 1.5vw, 10px); /* 笔记数字更小 */
+            color: #666;
+            text-align: center;
+            pointer-events: none; /* 允许点击单元格本身 */
+        }
+
+        .sudoku-cell .notes span {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .sudoku-cell .cell-value {
+             z-index: 1; /* 确保主数字在笔记之上 */
+             position: relative;
+             background: inherit; /* 使主数字背景与单元格一致，盖住笔记 */
+             width: 100%;
+             height: 100%;
+             display: flex;
+             justify-content: center;
+             align-items: center;
+        }
+        
+        .sudoku-cell.fixed .cell-value {
+            background: none; /* 固定数字不需要盖住笔记 */
+        }
+        .sudoku-cell:not(.has-value) .cell-value {
+            background: none; /* 没有主数字时，不需要盖住笔记 */
+        }
+
+        .game-controls {
+            display: flex;
+            flex-wrap: wrap; /* 允许换行 */
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+
+        .game-controls button, .game-controls select {
+            padding: 8px 15px;
+            font-size: clamp(14px, 3vw, 16px);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #1890ff;
+            color: white;
+            transition: background-color 0.2s ease;
+            min-width: 80px; /* 保证按钮宽度 */
+        }
+
+        .game-controls button:hover, .game-controls select:hover {
+            background-color: #40a9ff;
+        }
+        
+        .game-controls button.secondary {
+             background-color: #f0f0f0;
+             color: #555;
+        }
+        .game-controls button.secondary:hover {
+             background-color: #e0e0e0;
+        }
+        .game-controls button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .game-controls select {
+            appearance: none;
+            background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="%23fff"><path d="M6 9l-4-4h8z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 10px;
+            padding-right: 30px; /* 为箭头留出空间 */
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 450px; /* 与棋盘宽度保持一致 */
+        }
+
+        .number-pad button {
+            padding: clamp(8px, 2vw, 15px) 0; /* 响应式内边距 */
+            font-size: clamp(18px, 4vw, 24px);
+            font-weight: bold;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #1890ff;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            aspect-ratio: 1 / 1; /* 保持按钮为正方形 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .number-pad button:hover {
+            background-color: #e6f7ff;
+        }
+        
+        .number-pad button.active-tool {
+            background-color: #1890ff;
+            color: white;
+        }
+        
+        .number-pad button.delete {
+             font-size: clamp(14px, 3vw, 18px); /* 删除按钮字体稍小 */
+             color: #ff4d4f;
+        }
+        .number-pad button.note-toggle {
+            font-size: clamp(14px, 3vw, 18px); /* 笔记按钮字体稍小 */
+             color: #faad14;
+        }
+
+        .game-status {
+            margin-top: 10px;
+            font-size: clamp(14px, 3vw, 16px);
+            color: green;
+            min-height: 20px; /* 占位，防止按钮跳动 */
+            text-align: center;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 600px), (max-height: 650px) {
+            .sudoku-container {
+                padding: 10px;
+                justify-content: flex-start; /* 从顶部开始排列 */
+                overflow-y: auto; /* 允许垂直滚动 */
+            }
+            #sudoku-board {
+                 margin-bottom: 10px;
+            }
+            .game-controls {
+                 margin-bottom: 10px;
+                 gap: 5px;
+            }
+            .game-controls button, .game-controls select {
+                 padding: 6px 10px;
+                 min-width: 60px;
+            }
+             .number-pad {
+                gap: 5px;
+                max-width: 100%; /* 数字按钮区域宽度适应 */
+            }
+            .number-pad button {
+                 border-radius: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sudoku-container">
+        <div class="game-header">
+            <h1 class="game-title">数独挑战</h1>
+            <div class="timer" id="timer">00:00</div>
+        </div>
+
+        <div id="sudoku-board"></div>
+
+        <div class="game-controls">
+            <select id="difficulty-select">
+                <option value="easy">简单</option>
+                <option value="medium">中等</option>
+                <option value="hard">困难</option>
+                <option value="expert">专家</option>
+            </select>
+            <button id="new-game-btn">新游戏</button>
+            <button id="check-btn">检查</button>
+            <button id="hint-btn">提示</button>
+        </div>
+
+        <div class="number-pad">
+            <button data-number="1">1</button>
+            <button data-number="2">2</button>
+            <button data-number="3">3</button>
+            <button data-number="4">4</button>
+            <button data-number="5">5</button>
+            <button data-number="6">6</button>
+            <button data-number="7">7</button>
+            <button data-number="8">8</button>
+            <button data-number="9">9</button>
+            <button id="note-toggle-btn" class="note-toggle secondary">笔记</button>
+            <button id="delete-btn" class="delete secondary">删除</button>
+        </div>
+        
+        <div class="game-status" id="game-status"></div>
+    </div>
+
+    <script>
+        const boardElement = document.getElementById('sudoku-board');
+        const timerElement = document.getElementById('timer');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const checkBtn = document.getElementById('check-btn');
+        const hintBtn = document.getElementById('hint-btn');
+        const numberPad = document.querySelector('.number-pad');
+        const deleteBtn = document.getElementById('delete-btn');
+        const noteToggleBtn = document.getElementById('note-toggle-btn');
+        const gameStatusElement = document.getElementById('game-status');
+
+        let board = []; // 9x9 数独棋盘 (0 表示空)
+        let solution = []; // 完整解法
+        let initialBoard = []; // 初始题目，用于重置和检查固定数字
+        let selectedCell = null; // 当前选中的单元格 {row, col}
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let isNoteMode = false;
+        let notes = {}; // 存储笔记 { 'row-col': [1, 2, ...] }
+        let hintCount = 0;
+        const MAX_HINTS = 3; // 最多提示次数
+
+        // --- 数独生成与求解 (核心算法) ---
+        
+        // 检查数字放置是否合法
+        function isValid(grid, row, col, num) {
+            // 检查行
+            for (let x = 0; x < 9; x++) {
+                if (grid[row][x] === num) return false;
+            }
+            // 检查列
+            for (let y = 0; y < 9; y++) {
+                if (grid[y][col] === num) return false;
+            }
+            // 检查 3x3 宫格
+            const startRow = 3 * Math.floor(row / 3);
+            const startCol = 3 * Math.floor(col / 3);
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (grid[i + startRow][j + startCol] === num) return false;
+                }
+            }
+            return true;
+        }
+
+        // 回溯求解数独
+        function solveSudokuHelper(grid) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (grid[row][col] === 0) {
+                        const numbers = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+                        for (let num of numbers) {
+                            if (isValid(grid, row, col, num)) {
+                                grid[row][col] = num;
+                                if (solveSudokuHelper(grid)) {
+                                    return true; // 找到解
+                                } else {
+                                    grid[row][col] = 0; // 回溯
+                                }
+                            }
+                        }
+                        return false; // 此路不通
+                    }
+                }
+            }
+            return true; // 所有格子都填满
+        }
+        
+        // 生成数独解 (先生成完整解)
+        function generateSolution() {
+            const grid = Array(9).fill(0).map(() => Array(9).fill(0));
+            solveSudokuHelper(grid);
+            return grid;
+        }
+
+        // 从完整解中挖空生成谜题
+        function generatePuzzle(difficulty) {
+            solution = generateSolution();
+            board = solution.map(row => [...row]); // 深拷贝
+            initialBoard = solution.map(row => [...row]);
+
+            let squares = 81;
+            let cellsToRemove = 0;
+
+            switch (difficulty) {
+                case 'easy': cellsToRemove = Math.floor(squares * 0.5); break; // 挖掉 50%
+                case 'medium': cellsToRemove = Math.floor(squares * 0.58); break; // 挖掉 58%
+                case 'hard': cellsToRemove = Math.floor(squares * 0.65); break; // 挖掉 65%
+                case 'expert': cellsToRemove = Math.floor(squares * 0.72); break; // 挖掉 72%
+                default: cellsToRemove = Math.floor(squares * 0.58);
+            }
+            
+            // 尝试挖空，并确保解唯一（简化版，不严格保证唯一）
+            let attempts = 5; // 避免过多尝试导致卡死
+            let removedCount = 0;
+            while (removedCount < cellsToRemove && attempts > 0) {
+                 const row = Math.floor(Math.random() * 9);
+                 const col = Math.floor(Math.random() * 9);
+
+                 if (board[row][col] !== 0) {
+                     const temp = board[row][col];
+                     board[row][col] = 0;
+                     initialBoard[row][col] = 0;
+                     
+                     // 简单检查：如果挖掉后有多个解的可能性增加，则恢复
+                     // (这是一个非常简化的唯一解检查，实际需要更复杂的回溯计数)
+                     // if (!hasSingleSolution(board)) { // 假设有 hasSingleSolution 函数
+                     //    board[row][col] = temp;
+                     //    initialBoard[row][col] = temp;
+                     //    attempts--;
+                     // } else {
+                     //    removedCount++;
+                     // }
+                     removedCount++; // 简化处理，直接移除
+                 } 
+            }
+             // 最终确认 initialBoard 哪些是固定的 0
+            for (let r = 0; r < 9; r++) {
+                 for (let c = 0; c < 9; c++) {
+                     if (board[r][c] === 0) {
+                         initialBoard[r][c] = 0;
+                     }
+                 }
+             }
+        }
+        
+        // 洗牌函数
+        function shuffle(array) {
+             for (let i = array.length - 1; i > 0; i--) {
+                 const j = Math.floor(Math.random() * (i + 1));
+                 [array[i], array[j]] = [array[j], array[i]];
+             }
+             return array;
+        }
+
+        // --- UI 渲染与交互 ---
+        
+        // 创建数独棋盘的 HTML 结构
+        function createBoard() {
+            boardElement.innerHTML = ''; // 清空旧棋盘
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('sudoku-cell');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    const cellValueContainer = document.createElement('div');
+                    cellValueContainer.classList.add('cell-value');
+                    cell.appendChild(cellValueContainer);
+                    
+                    const notesContainer = document.createElement('div');
+                    notesContainer.classList.add('notes');
+                    // 创建9个小格子用于笔记
+                    for (let i = 1; i <= 9; i++) {
+                         const noteSpan = document.createElement('span');
+                         noteSpan.dataset.noteNumber = i;
+                         notesContainer.appendChild(noteSpan);
+                    }
+                    cell.appendChild(notesContainer);
+
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // 渲染棋盘数据
+        function renderBoard() {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    const cell = boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                    const cellValueContainer = cell.querySelector('.cell-value');
+                    const notesContainer = cell.querySelector('.notes');
+                    const value = board[row][col];
+                    const initialValue = initialBoard[row][col];
+
+                    cellValueContainer.textContent = value === 0 ? '' : value;
+                    cell.classList.toggle('has-value', value !== 0);
+                    
+                    // 清除旧状态
+                    cell.classList.remove('fixed', 'editable', 'selected', 'highlighted', 'error');
+                    
+                    if (initialValue !== 0) {
+                        cell.classList.add('fixed');
+                        cellValueContainer.textContent = initialValue; // 固定数字
+                        cell.classList.toggle('has-value', true);
+                    } else {
+                        cell.classList.add('editable');
+                    }
+                    
+                    // 渲染笔记
+                    const noteKey = `${row}-${col}`;
+                    const cellNotes = notes[noteKey] || [];
+                    notesContainer.querySelectorAll('span').forEach(span => {
+                         const noteNum = parseInt(span.dataset.noteNumber);
+                         span.textContent = cellNotes.includes(noteNum) ? noteNum : '';
+                    });
+
+                }
+            }
+            highlightCells(); // 渲染后重新高亮
+        }
+
+        // 处理单元格点击
+        function handleCellClick(event) {
+            const cell = event.target.closest('.sudoku-cell'); // 获取单元格元素
+            if (!cell || cell.classList.contains('fixed')) {
+                selectedCell = null; // 点击非可编辑单元格或外部区域，取消选择
+                highlightCells();
+                return;
+            }
+            
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            selectedCell = { row, col };
+            highlightCells();
+        }
+
+        // 高亮选中单元格及相关行列宫
+        function highlightCells() {
+            // 移除所有高亮和选中
+            boardElement.querySelectorAll('.sudoku-cell').forEach(cell => {
+                cell.classList.remove('selected', 'highlighted');
+            });
+
+            if (!selectedCell) return;
+
+            const { row, col } = selectedCell;
+            
+            // 高亮选中单元格
+             const currentCell = boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+             if (currentCell) currentCell.classList.add('selected');
+
+            // 高亮同行、同列、同宫
+            const startRow = 3 * Math.floor(row / 3);
+            const startCol = 3 * Math.floor(col / 3);
+
+            for (let i = 0; i < 9; i++) {
+                // 高亮行
+                 const rowCell = boardElement.querySelector(`[data-row="${row}"][data-col="${i}"]`);
+                 if (rowCell && !(rowCell.dataset.row == row && rowCell.dataset.col == col)) rowCell.classList.add('highlighted');
+                 // 高亮列
+                 const colCell = boardElement.querySelector(`[data-row="${i}"][data-col="${col}"]`);
+                  if (colCell && !(colCell.dataset.row == row && colCell.dataset.col == col)) colCell.classList.add('highlighted');
+            }
+            // 高亮宫
+            for (let i = startRow; i < startRow + 3; i++) {
+                for (let j = startCol; j < startCol + 3; j++) {
+                     const blockCell = boardElement.querySelector(`[data-row="${i}"][data-col="${j}"]`);
+                     if (blockCell && !(blockCell.dataset.row == row && blockCell.dataset.col == col)) blockCell.classList.add('highlighted');
+                }
+            }
+        }
+
+        // 处理数字按钮点击
+        function handleNumberClick(event) {
+            if (!selectedCell) return;
+            
+            const button = event.target.closest('button[data-number]');
+            if (!button) return;
+            
+            const number = parseInt(button.dataset.number);
+            const { row, col } = selectedCell;
+            
+            if (isNoteMode) {
+                // 笔记模式
+                toggleNote(row, col, number);
+            } else {
+                // 输入模式
+                if (initialBoard[row][col] === 0) { // 只能修改非固定格子
+                    // 清除相关笔记
+                    delete notes[`${row}-${col}`];
+                    
+                    const currentVal = board[row][col];
+                    board[row][col] = number;
+                    
+                    // 检查是否冲突
+                    if (!isInputValid(board, row, col, number)) {
+                         const cellElement = boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                         if (cellElement) {
+                              cellElement.classList.add('error');
+                              // 可以选择性地不渲染错误数字，或短时间显示后清除
+                              // board[row][col] = currentVal; // 撤销错误输入
+                         }
+                    } else {
+                         const cellElement = boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                          if (cellElement) cellElement.classList.remove('error');
+                    }
+                    renderBoard(); // 重新渲染以显示数字和可能的错误状态
+                    checkWinCondition();
+                }
+            }
+        }
+        
+        // 检查单步输入是否符合规则（不检查完整解）
+        function isInputValid(grid, row, col, num) {
+             // 检查行
+             for (let x = 0; x < 9; x++) {
+                 if (x !== col && grid[row][x] === num) return false;
+             }
+             // 检查列
+             for (let y = 0; y < 9; y++) {
+                 if (y !== row && grid[y][col] === num) return false;
+             }
+             // 检查 3x3 宫格
+             const startRow = 3 * Math.floor(row / 3);
+             const startCol = 3 * Math.floor(col / 3);
+             for (let i = 0; i < 3; i++) {
+                 for (let j = 0; j < 3; j++) {
+                     const r = startRow + i;
+                     const c = startCol + j;
+                     if (r !== row && c !== col && grid[r][c] === num) return false;
+                 }
+             }
+             return true;
+        }
+
+        // 处理删除按钮点击
+        function handleDeleteClick() {
+            if (!selectedCell) return;
+            const { row, col } = selectedCell;
+
+            if (initialBoard[row][col] === 0) { // 只能删除非固定格子
+                 if (isNoteMode) {
+                      // 清空笔记
+                      delete notes[`${row}-${col}`];
+                 } else {
+                     // 清空数字
+                     board[row][col] = 0;
+                     const cellElement = boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                      if (cellElement) cellElement.classList.remove('error'); // 清除错误状态
+                 }
+                 renderBoard();
+            }
+        }
+        
+        // 处理笔记按钮点击
+        function handleNoteToggleClick() {
+            isNoteMode = !isNoteMode;
+            noteToggleBtn.classList.toggle('active-tool', isNoteMode);
+            noteToggleBtn.textContent = isNoteMode ? '输入' : '笔记';
+             // 切换模式时取消选中，避免误操作
+             selectedCell = null;
+             highlightCells();
+        }
+
+        // 添加或移除笔记数字
+        function toggleNote(row, col, number) {
+            if (initialBoard[row][col] !== 0 || board[row][col] !== 0) return; // 有固定或用户输入的数字时不能加笔记
+            
+            const noteKey = `${row}-${col}`;
+            if (!notes[noteKey]) {
+                notes[noteKey] = [];
+            }
+            
+            const index = notes[noteKey].indexOf(number);
+            if (index > -1) {
+                notes[noteKey].splice(index, 1); // 移除笔记
+            } else {
+                 if(notes[noteKey].length < 9) { // 简单限制笔记数量
+                     notes[noteKey].push(number); // 添加笔记
+                     notes[noteKey].sort((a, b) => a - b); // 排序方便查看
+                 }
+            }
+            renderBoard(); // 只需重渲染单个单元格效率更高，但全量渲染更简单
+        }
+        
+        // 检查是否胜利
+        function checkWinCondition() {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (board[row][col] === 0 || !isInputValid(board, row, col, board[row][col])) {
+                        return false; // 有空格或有冲突，未完成
+                    }
+                }
+            }
+            // 所有格子填满且无冲突
+            stopTimer();
+            gameStatusElement.textContent = `恭喜你！完成用时 ${formatTime(secondsElapsed)}！`;
+            // 可以添加更华丽的胜利效果
+            disableInput();
+            return true;
+        }
+        
+        // 禁用输入
+        function disableInput() {
+            boardElement.removeEventListener('click', handleCellClick);
+            numberPad.removeEventListener('click', handleNumberClick);
+            deleteBtn.disabled = true;
+            noteToggleBtn.disabled = true;
+            checkBtn.disabled = true;
+            hintBtn.disabled = true;
+        }
+        
+        // 启用输入
+        function enableInput() {
+             boardElement.addEventListener('click', handleCellClick);
+             numberPad.addEventListener('click', handleNumberClick);
+             deleteBtn.disabled = false;
+             noteToggleBtn.disabled = false;
+             checkBtn.disabled = false;
+             hintBtn.disabled = hintCount >= MAX_HINTS;
+             // 重置笔记模式按钮状态
+             isNoteMode = false;
+             noteToggleBtn.classList.remove('active-tool');
+             noteToggleBtn.textContent = '笔记';
+        }
+
+        // --- 游戏控制 ---
+        
+        // 开始新游戏
+        function startNewGame() {
+            const difficulty = difficultySelect.value;
+            generatePuzzle(difficulty);
+            notes = {}; // 清空笔记
+            selectedCell = null;
+            hintCount = 0;
+            gameStatusElement.textContent = ''; // 清空状态信息
+            createBoard();
+            renderBoard();
+            startTimer();
+            enableInput();
+        }
+
+        // 检查当前棋盘是否有误 (标记错误，不检查是否完成)
+        function checkBoard() {
+             let hasError = false;
+             boardElement.querySelectorAll('.sudoku-cell.editable').forEach(cell => {
+                 cell.classList.remove('error'); // 先清除之前的错误标记
+                 const row = parseInt(cell.dataset.row);
+                 const col = parseInt(cell.dataset.col);
+                 const value = board[row][col];
+                 
+                 if (value !== 0) {
+                     // 检查与解是否一致
+                     if (value !== solution[row][col]) {
+                         cell.classList.add('error');
+                         hasError = true;
+                     } else {
+                         // 可选：临时检查冲突，但 checkWinCondition 已经包含
+                         // if (!isInputValid(board, row, col, value)) {
+                         //     cell.classList.add('error');
+                         //     hasError = true;
+                         // }
+                     }
+                 }
+             });
+             gameStatusElement.textContent = hasError ? '棋盘中有错误，已标红。' : '当前输入无误！';
+             // 短暂显示后清除状态
+             setTimeout(() => { gameStatusElement.textContent = ''; }, 3000);
+        }
+        
+        // 提供提示
+        function giveHint() {
+             if (hintCount >= MAX_HINTS) {
+                 gameStatusElement.textContent = '提示次数已用完！';
+                 setTimeout(() => { gameStatusElement.textContent = ''; }, 2000);
+                 return;
+             }
+             
+             const emptyCells = [];
+             for (let r = 0; r < 9; r++) {
+                 for (let c = 0; c < 9; c++) {
+                     if (board[r][c] === 0) {
+                         emptyCells.push({ r, c });
+                     }
+                 }
+             }
+             
+             if (emptyCells.length === 0) {
+                 gameStatusElement.textContent = '棋盘已满，无需提示。';
+                 setTimeout(() => { gameStatusElement.textContent = ''; }, 2000);
+                 return;
+             }
+             
+             // 随机选择一个空格子
+             const randomIndex = Math.floor(Math.random() * emptyCells.length);
+             const { r, c } = emptyCells[randomIndex];
+             const correctValue = solution[r][c];
+             
+             // 填入正确数字
+             board[r][c] = correctValue;
+             delete notes[`${r}-${c}`]; // 清除笔记
+             
+             // 高亮提示的格子
+             selectedCell = { row: r, col: c }; // 选中提示的格子
+             renderBoard(); // 渲染棋盘显示提示
+             const hintedCell = boardElement.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+             if (hintedCell) {
+                 hintedCell.classList.add('highlighted'); // 特殊高亮或其他效果
+                 setTimeout(() => hintedCell.classList.remove('highlighted'), 1000); // 短暂高亮
+             }
+             
+             hintCount++;
+             hintBtn.textContent = `提示 (${MAX_HINTS - hintCount})`;
+             if (hintCount >= MAX_HINTS) {
+                 hintBtn.disabled = true;
+             }
+             gameStatusElement.textContent = `提示：(${r+1}, ${c+1}) 已填入 ${correctValue}`;
+             setTimeout(() => { gameStatusElement.textContent = ''; }, 2000);
+             checkWinCondition(); // 检查提示后是否完成
+        }
+
+        // --- 计时器 ---
+        
+        function startTimer() {
+            stopTimer(); // 先停止之前的计时器
+            secondsElapsed = 0;
+            timerElement.textContent = formatTime(secondsElapsed);
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                timerElement.textContent = formatTime(secondsElapsed);
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        // --- 事件监听 ---
+        newGameBtn.addEventListener('click', startNewGame);
+        checkBtn.addEventListener('click', checkBoard);
+        hintBtn.addEventListener('click', giveHint);
+        boardElement.addEventListener('click', handleCellClick);
+        numberPad.addEventListener('click', handleNumberClick);
+        deleteBtn.addEventListener('click', handleDeleteClick);
+        noteToggleBtn.addEventListener('click', handleNoteToggleClick);
+        
+        // --- 初始化 ---
+        startNewGame(); // 页面加载时开始新游戏
+
+    </script>
+</body>
+</html> 

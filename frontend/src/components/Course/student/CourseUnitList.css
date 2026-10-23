@@ -1,0 +1,170 @@
+.course-unit-list {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin: 20px 0;
+}
+
+.course-unit-card {
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.course-unit-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.course-unit-card .ant-card-body {
+  padding: 20px;
+}
+
+/* 课程目标列表样式 */
+.course-objectives {
+  list-style-type: none;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.course-objectives li {
+  position: relative;
+  padding-left: 20px;
+  margin: 8px 0;
+  margin-bottom: 8px;
+}
+
+.course-objectives li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #1890ff;
+}
+
+/* 课时列表样式 */
+.course-lessons {
+  margin-top: 16px;
+}
+
+.course-lesson-item {
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.course-lesson-item:hover {
+  background: #f0f7ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.course-lesson-item.active {
+  border-left: 3px solid #1890ff !important;
+}
+
+.course-lesson-item .ant-space {
+  width: 100%;
+}
+
+/* 折叠面板样式 */
+.course-unit-card .ant-collapse-ghost {
+  background: transparent;
+}
+
+.course-unit-card .ant-collapse-ghost > .ant-collapse-item > .ant-collapse-header {
+  padding: 0;
+}
+
+.course-unit-card .ant-collapse-ghost > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+  padding: 16px 0 0;
+}
+
+.ant-collapse-ghost > .ant-collapse-item {
+  border-bottom: none !important;
+}
+
+.ant-collapse-ghost > .ant-collapse-item > .ant-collapse-content {
+  background-color: transparent;
+}
+
+.course-unit-list .ant-collapse {
+  background-color: transparent;
+}
+
+.course-unit-list .ant-collapse-item {
+  margin-bottom: 16px;
+  border: none !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.course-unit-list .ant-collapse-header {
+  background-color: #fff;
+  border-radius: 8px !important;
+  transition: all 0.3s;
+}
+
+.course-unit-list .ant-collapse-header:hover {
+  background-color: #f0f7ff;
+}
+
+.course-unit-list .ant-collapse-content {
+  border-top: none;
+  background-color: #fff;
+  border-radius: 0 0 8px 8px !important;
+}
+
+.course-unit-list .ant-collapse-content-box {
+  padding: 20px 24px !important;
+}
+
+.unit-progress {
+  margin: 16px 0;
+}
+
+.lesson-duration-tag {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 2px 12px;
+  font-size: 12px;
+  color: #666;
+}
+
+.lesson-status {
+  font-size: 12px;
+  border-radius: 12px;
+  padding: 2px 8px;
+}
+
+.lesson-status.completed {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.lesson-status.in-progress {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+/* 动画效果 */
+.ant-collapse-item {
+  transition: all 0.3s ease;
+}
+
+.ant-collapse-item-active {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .course-unit-list .ant-collapse-header {
+    padding: 8px 12px;
+  }
+  
+  .course-lesson-item {
+    padding: 8px 12px;
+  }
+}

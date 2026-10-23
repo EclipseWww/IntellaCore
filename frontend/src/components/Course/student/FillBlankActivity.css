@@ -1,0 +1,266 @@
+.fillblank-activity {
+    padding: 16px 0;
+}
+
+/* 紧凑状态栏 */
+.fillblank-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-top: 16px;
+    background: linear-gradient(135deg, #f0fff4 0%, #e6fffb 100%);
+    border: 1px solid rgba(82, 196, 26, 0.3);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(82, 196, 26, 0.08);
+}
+
+/* 填空卡片 - 现代渐变设计 */
+.fillblank-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8faff 50%, #f0f7ff 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(24, 144, 255, 0.12);
+    box-shadow:
+        0 4px 16px rgba(24, 144, 255, 0.06),
+        0 1px 4px rgba(0, 0, 0, 0.02),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    position: relative;
+}
+
+.fillblank-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1890ff 0%, #36cfc9 50%, #73d13d 100%);
+    border-radius: 16px 16px 0 0;
+}
+
+.fillblank-card .ant-card-body {
+    padding: 24px;
+}
+
+.fillblank-content {
+    font-size: 16px;
+    line-height: 2.2;
+    color: #262626;
+    letter-spacing: 0.3px;
+}
+
+.fillblank-content p {
+    margin-bottom: 0.8em;
+}
+
+/* Markdown内容内联显示 */
+.fillblank-markdown-inline {
+    display: inline;
+}
+
+.fillblank-markdown-inline p {
+    display: inline;
+    margin: 0;
+}
+
+.fillblank-markdown-inline table {
+    display: table;
+    margin: 16px 0;
+}
+
+/* 填空输入框内联样式 */
+.fillblank-input-inline {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: baseline;
+    margin: 0 4px;
+    position: relative;
+}
+
+.fillblank-input {
+    display: inline-block;
+    min-width: 60px;
+    height: 30px;
+    padding: 4px 12px;
+    font-size: 15px;
+    font-weight: 500;
+    text-align: center;
+    border: none;
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, #1890ff, #36cfc9) 1;
+    border-radius: 0;
+    background: rgba(24, 144, 255, 0.03);
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    vertical-align: baseline;
+    box-sizing: content-box;
+    color: #1890ff;
+}
+
+/* 隐藏的测量span，用于自动宽度计算 */
+.fillblank-measure-span {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+    visibility: hidden;
+    white-space: pre;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 500;
+    padding: 0 12px;
+    border: 2px solid transparent;
+}
+
+.fillblank-input:focus {
+    border-image: linear-gradient(90deg, #40a9ff, #5cdbd3) 1;
+    background: rgba(24, 144, 255, 0.08);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.fillblank-input::placeholder {
+    color: #bfbfbf;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.fillblank-input.correct {
+    background: linear-gradient(135deg, rgba(82, 196, 26, 0.08) 0%, rgba(82, 196, 26, 0.15) 100%);
+    border-image: none;
+    border-bottom: 2px solid #52c41a;
+    color: #389e0d;
+    animation: correctPulse 0.5s ease-out;
+}
+
+@keyframes correctPulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.fillblank-input.incorrect {
+    background: linear-gradient(135deg, rgba(255, 77, 79, 0.08) 0%, rgba(255, 77, 79, 0.12) 100%);
+    border-image: none;
+    border-bottom: 2px solid #ff4d4f;
+    color: #cf1322;
+    animation: incorrectShake 0.4s ease-out;
+}
+
+@keyframes incorrectShake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-3px);
+    }
+
+    75% {
+        transform: translateX(3px);
+    }
+}
+
+.fillblank-input.neutral {
+    background: rgba(24, 144, 255, 0.05);
+    border-image: none;
+    border-bottom: 2px solid #1890ff;
+    color: #1890ff;
+}
+
+.fillblank-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.9;
+}
+
+.correct-answer-hint {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 2px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #389e0d;
+    background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%);
+    border: 1px solid rgba(82, 196, 26, 0.4);
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(82, 196, 26, 0.1);
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 表格样式 */
+.fillblank-content table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin: 20px 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e8e8e8;
+}
+
+.fillblank-content th,
+.fillblank-content td {
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    border-right: 1px solid #f0f0f0;
+    padding: 14px 12px;
+    text-align: center;
+}
+
+.fillblank-content th:last-child,
+.fillblank-content td:last-child {
+    border-right: none;
+}
+
+.fillblank-content tr:last-child td {
+    border-bottom: none;
+}
+
+.fillblank-content th {
+    background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
+    font-weight: 600;
+    color: #262626;
+}
+
+.fillblank-content td {
+    background: #ffffff;
+}
+
+.fillblank-content tr:hover td {
+    background: rgba(24, 144, 255, 0.02);
+}
+
+.fillblank-content td .fillblank-input-inline {
+    margin: 0;
+}
+
+.fillblank-content td .fillblank-input {
+    width: 100%;
+    max-width: none;
+    min-width: 40px;
+}

@@ -1,0 +1,486 @@
+.python-editor-container {
+    width: 100%;
+}
+
+.python-editor-container.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: #fff;
+    padding: 16px;
+}
+
+.python-editor-card {
+    height: 100%;
+}
+
+.python-editor-card .ant-card-body {
+    height: calc(100% - 57px);
+    padding: 12px !important;
+}
+
+/* 主体区域 - 左右两栏布局 */
+.python-editor-body {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    min-height: 600px;
+    gap: 12px;
+}
+
+/* 左侧代码编辑区 */
+.code-editor-wrapper {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #1e1e1e;
+    flex: 1;
+    min-width: 0;
+}
+
+/* 编辑器工具栏 */
+.code-editor-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: #2d2d2d;
+    border-bottom: 1px solid #404040;
+    flex-shrink: 0;
+}
+
+.code-editor-toolbar .ant-btn {
+    background: #3c3c3c;
+    border-color: #505050;
+    color: #ccc;
+}
+
+.code-editor-toolbar .ant-btn:hover:not(:disabled) {
+    background: #505050;
+    border-color: #666;
+    color: #fff;
+}
+
+.code-editor-toolbar .ant-btn:disabled {
+    background: #333;
+    border-color: #444;
+    color: #666;
+}
+
+.font-size-display {
+    color: #aaa;
+    font-size: 12px;
+    min-width: 55px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.current-line-display {
+    color: #888;
+    font-size: 12px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.code-editor-inner {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.line-numbers {
+    width: 50px;
+    background: #252526;
+    padding: 12px 0;
+    text-align: right;
+    color: #858585;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.5;
+    user-select: none;
+    overflow: hidden;
+}
+
+.line-number {
+    padding-right: 8px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.line-number.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* 语法高亮容器 - 用于叠放高亮层和编辑层 */
+.code-highlight-container {
+    position: relative;
+    flex: 1;
+    overflow: auto;
+    background: #1e1e1e;
+}
+
+/* 当前行高亮 */
+.current-line-highlight {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+    z-index: 0;
+    transition: top 0.1s ease-out;
+}
+
+/* 语法高亮层 - 显示彩色代码，在下层 */
+.code-highlight-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    min-height: 100%;
+    pointer-events: none;
+}
+
+.code-highlight-layer pre {
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+.code-highlight-layer code {
+    background: transparent !important;
+}
+
+/* 透明编辑层 - 可以编辑，在上层 */
+.code-textarea-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: transparent;
+    caret-color: #fff;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+    z-index: 1;
+}
+
+.code-textarea-overlay:focus {
+    outline: none;
+}
+
+.code-textarea-overlay::placeholder {
+    color: #6a6a6a;
+}
+
+/* 保留旧的code-textarea样式作为备用 */
+.code-textarea {
+    flex: 1;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+}
+
+.code-textarea:focus {
+    outline: none;
+}
+
+.code-textarea::placeholder {
+    color: #6a6a6a;
+}
+
+/* 右侧输出面板 */
+.output-panel {
+    display: flex;
+    flex-direction: column;
+    width: 45%;
+    min-width: 320px;
+    gap: 8px;
+}
+
+/* Turtle画布区 */
+.turtle-canvas-wrapper {
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.turtle-canvas-header {
+    background: #f5f5f5;
+    padding: 8px 12px;
+    border-bottom: 1px solid #d9d9d9;
+    font-weight: 500;
+}
+
+.turtle-canvas {
+    height: 200px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.turtle-canvas canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.turtle-placeholder {
+    color: #999;
+    font-size: 14px;
+}
+
+/* 终端区域 */
+.terminal-wrapper {
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 300px;
+    background: #0c0c0c;
+}
+
+.terminal-header {
+    background: #2d2d2d;
+    padding: 8px 12px;
+    color: #ccc;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    flex-shrink: 0;
+}
+
+.terminal-body {
+    flex: 1;
+    padding: 12px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.terminal-output {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: #00ff00;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    flex: 1;
+}
+
+/* 等待输入状态容器 */
+.terminal-input-container {
+    margin-top: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(0, 200, 255, 0.15) 0%, rgba(0, 255, 100, 0.1) 100%);
+    border: 2px solid #00d4ff;
+    border-radius: 8px;
+    animation: inputPulse 1.5s ease-in-out infinite;
+    position: relative;
+}
+
+@keyframes inputPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px rgba(0, 212, 255, 0.4), inset 0 0 6px rgba(0, 255, 150, 0.1);
+        border-color: #00d4ff;
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.7), inset 0 0 10px rgba(0, 255, 150, 0.2);
+        border-color: #00ff88;
+    }
+}
+
+.terminal-input-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #00d4ff;
+    font-size: 13px;
+    font-weight: 600;
+    text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+.terminal-input-icon {
+    font-size: 16px;
+    animation: iconBlink 0.8s ease-in-out infinite;
+}
+
+@keyframes iconBlink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-input-prompt {
+    color: #00ff88;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    animation: promptBlink 1s step-end infinite;
+}
+
+@keyframes promptBlink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+.terminal-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #00ff88;
+    border-radius: 4px;
+    color: #00ff88;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    caret-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.terminal-input::placeholder {
+    color: rgba(0, 255, 136, 0.5);
+}
+
+.terminal-input:focus {
+    background: rgba(0, 20, 10, 0.6);
+    border-color: #00ff88;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+}
+
+.terminal-input-hint {
+    margin-top: 8px;
+    color: rgba(200, 200, 200, 0.7);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.terminal-input-hint kbd {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 10px;
+    color: #fff;
+}
+
+/* 全屏模式下的调整 */
+.python-editor-container.fullscreen .python-editor-body {
+    height: calc(100vh - 100px);
+}
+
+/* 只读模式 */
+.code-textarea[readonly] {
+    background: #2d2d2d;
+    cursor: not-allowed;
+}
+
+/* 响应式设计 - 小屏幕时改回上下布局 */
+@media (max-width: 900px) {
+    .python-editor-body {
+        flex-direction: column;
+    }
+
+    .output-panel {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .line-numbers {
+        width: 30px;
+        font-size: 12px;
+    }
+
+    .code-textarea {
+        font-size: 12px;
+    }
+
+    .terminal-output {
+        font-size: 12px;
+    }
+}
+
+/* 语法高亮基础样式 */
+.code-textarea {
+    caret-color: #fff;
+}
+
+/* 滚动条样式 */
+.code-textarea::-webkit-scrollbar,
+.terminal-body::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.code-textarea::-webkit-scrollbar-track,
+.terminal-body::-webkit-scrollbar-track {
+    background: #1e1e1e;
+}
+
+.code-textarea::-webkit-scrollbar-thumb,
+.terminal-body::-webkit-scrollbar-thumb {
+    background: #424242;
+    border-radius: 4px;
+}
+
+.code-textarea::-webkit-scrollbar-thumb:hover,
+.terminal-body::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

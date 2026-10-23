@@ -1,0 +1,52 @@
+.spreadsheet-editor-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.spreadsheet-editor-wrapper {
+  flex: 1;
+  width: 100%;
+  min-height: 500px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.spreadsheet-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 400px;
+}
+
+/* FortuneSheet custom styles */
+.fortune-sheet-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* Toolbar adjustments */
+.fortune-sheet-toolbar {
+  background: #fafafa;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+/* Sheet tabs */
+.fortune-sheet-sheet-tabs {
+  background: #fff;
+  border-top: 1px solid #e8e8e8;
+}
+
+/* Cell selection */
+.fortune-sheet-cell-selected {
+  border: 2px solid #1890ff !important;
+}
+
+/* Header styles */
+.fortune-sheet-row-header,
+.fortune-sheet-column-header {
+  background: #f5f5f5;
+}

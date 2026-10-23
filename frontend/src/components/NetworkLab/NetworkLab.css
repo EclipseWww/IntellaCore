@@ -1,0 +1,1177 @@
+/* ====== 网络实验室主页 ====== */
+.network-lab {
+    padding: 32px;
+    background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+    min-height: calc(100vh - 64px);
+    color: #fff;
+}
+
+.network-lab-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.network-lab-header h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #00d4ff, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.network-lab-header p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.experiment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.experiment-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.experiment-card:hover {
+    transform: translateY(-8px);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+.experiment-card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 16px;
+}
+
+.experiment-card h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.experiment-card p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ====== 实验容器 ====== */
+.experiment-container {
+    min-height: calc(100vh - 64px);
+    background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+    padding: 24px;
+}
+
+.experiment-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.experiment-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.experiment-content {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    padding: 24px;
+    min-height: 500px;
+}
+
+/* ====== 实验报告弹窗 ====== */
+.report-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+}
+
+.experiment-report {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #2a2a40, #1e1e2f);
+    border-radius: 20px;
+    padding: 32px;
+    min-width: 400px;
+    max-width: 500px;
+    z-index: 1001;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.report-header h3 {
+    font-size: 24px;
+    color: #fff;
+    margin: 8px 0;
+}
+
+.report-header .date {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+}
+
+.report-content {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.report-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.report-item:last-child {
+    border-bottom: none;
+}
+
+.report-item .label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.report-item .value {
+    color: #40a9ff;
+    font-weight: 600;
+}
+
+.report-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* ====== 实验工作区 (深色模式) ====== */
+.lab-workspace {
+    background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    min-height: 600px;
+}
+
+.lab-step-bar {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 16px 24px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+
+.lab-main-content {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+.lab-control-panel {
+    flex: 0 0 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lab-interactive-area {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    min-height: 500px;
+}
+
+/* ====== 控制面板样式 ====== */
+.control-group {
+    margin-bottom: 16px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #e6f7ff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.switch-group {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.switch-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e6f7ff;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.action-buttons {
+    margin-top: 8px;
+}
+
+/* ====== 区域标题 ====== */
+.section-title {
+    color: #fff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.instruction-badge {
+    background: linear-gradient(90deg, #f39c12, #e67e22);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+    margin-left: 12px;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 0.9;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+}
+
+/* ====== 拖拽区域样式 ====== */
+.droppable-area {
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 180px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-content: flex-start;
+    transition: all 0.3s;
+}
+
+.droppable-area.active {
+    background: rgba(24, 144, 255, 0.08);
+    border-color: #1890ff;
+    box-shadow: 0 0 20px rgba(24, 144, 255, 0.1);
+}
+
+.buffer-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 16px;
+    min-height: 120px;
+}
+
+/* ====== 数据包卡片样式 ====== */
+.sortable-item {
+    background: #fff;
+    color: #333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    cursor: grab;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sortable-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.sortable-item:active {
+    cursor: grabbing;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    transform: scale(1.05);
+}
+
+.packet-seq {
+    font-size: 11px;
+    color: #fff;
+    margin-bottom: 6px;
+    background: #1890ff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.packet-data {
+    font-size: 16px;
+    color: #333;
+    word-break: break-all;
+}
+
+/* ====== 知识点样式 ====== */
+.knowledge-content {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+    color: #e6f7ff;
+    line-height: 1.8;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.knowledge-list {
+    padding-left: 20px;
+    margin: 0;
+}
+
+.knowledge-list li {
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.highlight {
+    color: #40a9ff;
+    font-weight: 600;
+}
+
+.highlight-warning {
+    color: #faad14;
+    font-weight: 600;
+}
+
+.highlight-success {
+    color: #52c41a;
+    font-weight: 600;
+}
+
+/* ====== Ant Design 深色适配 ====== */
+.lab-workspace .ant-steps-item-title,
+.experiment-content .ant-steps-item-title {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.lab-workspace .ant-steps-item-description,
+.experiment-content .ant-steps-item-description {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.lab-workspace .ant-steps-item-wait .ant-steps-item-icon,
+.experiment-content .ant-steps-item-wait .ant-steps-item-icon {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.lab-workspace .ant-steps-item-wait .ant-steps-item-icon>.ant-steps-icon,
+.experiment-content .ant-steps-item-wait .ant-steps-item-icon>.ant-steps-icon {
+    color: rgba(255, 255, 255, 0.25);
+}
+
+.lab-workspace .ant-slider-rail,
+.experiment-content .ant-slider-rail {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.lab-workspace .ant-slider-track,
+.experiment-content .ant-slider-track {
+    background-color: #1890ff;
+}
+
+.lab-workspace .ant-switch,
+.experiment-content .ant-switch {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.lab-workspace .ant-switch-checked,
+.experiment-content .ant-switch-checked {
+    background-color: #1890ff;
+}
+
+/* ====== 协议分析实验 ====== */
+.protocol-analyzer {
+    display: flex;
+    gap: 24px;
+    color: #fff;
+}
+
+.protocol-samples {
+    flex: 0 0 200px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.protocol-samples h4 {
+    color: #40a9ff;
+    margin-bottom: 16px;
+}
+
+.sample-item {
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.sample-item:hover,
+.sample-item.active {
+    background: rgba(24, 144, 255, 0.15);
+    border-color: #1890ff;
+}
+
+.sample-item .name {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.sample-item .desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.protocol-layers {
+    flex: 1;
+}
+
+.layer-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.layer-header {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 500;
+}
+
+.layer-header .name {
+    display: flex;
+    align-items: center;
+}
+
+.layer-header .arrow {
+    transition: transform 0.3s;
+}
+
+.layer-header .arrow.expanded {
+    transform: rotate(180deg);
+}
+
+.layer-content {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.field {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.field-name {
+    color: rgba(255, 255, 255, 0.6);
+    min-width: 120px;
+}
+
+.field-value {
+    color: #fff;
+    font-family: 'Consolas', monospace;
+}
+
+/* ====== IP地址实验 ====== */
+.ip-lab {
+    display: flex;
+    gap: 24px;
+    color: #fff;
+}
+
+.ip-section {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.ip-section h3 {
+    color: #40a9ff;
+    margin-bottom: 16px;
+}
+
+.binary-game {
+    text-align: center;
+}
+
+.binary-byte {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 0;
+}
+
+.binary-bulb {
+    width: 50px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.binary-bulb.on {
+    background: linear-gradient(135deg, #ffd700, #ffaa00);
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.binary-bulb .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+}
+
+.binary-bulb .weight {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 4px;
+}
+
+.binary-result {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+.binary-result .label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.binary-result .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #52c41a;
+}
+
+.ip-input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.ip-input-group label {
+    min-width: 80px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ip-octet {
+    width: 60px !important;
+    text-align: center;
+}
+
+.ip-dot {
+    color: #fff;
+    font-size: 20px;
+}
+
+.ip-results {
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.ip-result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ip-result-row:last-child {
+    border-bottom: none;
+}
+
+.ip-result-row .label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.ip-result-row .value {
+    color: #40a9ff;
+    font-family: 'Consolas', monospace;
+}
+
+/* ====== IP Visual Enhancements ====== */
+
+/* IP Classes */
+.ip-classes-container {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 16px;
+    border-radius: 12px;
+    overflow-x: auto;
+    padding-bottom: 24px;
+    /* Space for scrollbar */
+}
+
+.ip-class-card {
+    flex: 0 0 160px;
+    /* Fixed basis */
+    min-width: 160px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.ip-class-card:hover,
+.ip-class-card.active {
+    background: rgba(24, 144, 255, 0.15);
+    border-color: #1890ff;
+    transform: translateY(-2px);
+}
+
+.ip-class-card.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #1890ff;
+}
+
+.class-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 4px;
+}
+
+.class-header h4 {
+    margin: 0;
+    color: #fff;
+    font-size: 16px;
+    white-space: nowrap;
+}
+
+.class-range {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    font-family: 'Consolas', monospace;
+    line-height: 1.4;
+    word-break: break-all;
+    margin-bottom: auto;
+}
+
+.class-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 8px;
+}
+
+.class-bits {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.bit-segment {
+    height: 100%;
+}
+
+/* IP Structure Diagram */
+.ip-structure-visual {
+    margin: 24px 0;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+}
+
+.structure-bar-container {
+    position: relative;
+    height: 60px;
+    margin: 30px 0 10px;
+}
+
+.structure-bar {
+    display: flex;
+    height: 40px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+}
+
+.structure-segment {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+    border-right: 1px solid rgba(0, 0, 0, 0.2);
+    position: relative;
+}
+
+.structure-label {
+    position: absolute;
+    top: -25px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+.octet-value {
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+}
+
+.subnet-slider-container {
+    margin-top: 24px;
+    padding: 0 10px;
+}
+
+/* Subnet Visualizer */
+.subnet-visualizer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin-top: 16px;
+}
+
+.subnet-block {
+    aspect-ratio: 1;
+    background: rgba(24, 144, 255, 0.2);
+    border: 1px solid rgba(24, 144, 255, 0.4);
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.2s;
+}
+
+.subnet-block:hover {
+    background: rgba(24, 144, 255, 0.4);
+    transform: scale(1.1);
+}
+
+/* ====== DNS模拟器 ====== */
+.dns-simulator {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    color: #fff;
+}
+
+.dns-input-section {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.dns-input-section .input-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.dns-input-section .input-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.dns-visualization {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.dns-servers {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px 0;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.dns-server {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.dns-server-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: #fff;
+    transition: all 0.3s;
+}
+
+.dns-server-icon.active {
+    transform: scale(1.2);
+}
+
+.dns-server .name {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+}
+
+.dns-time-display {
+    text-align: center;
+    padding: 20px;
+}
+
+.dns-time-display .time {
+    font-size: 48px;
+    font-weight: bold;
+    color: #40a9ff;
+    font-family: 'Consolas', monospace;
+}
+
+.dns-time-display .label {
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 8px;
+}
+
+.dns-cache {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.dns-cache h4 {
+    color: #40a9ff;
+    margin-bottom: 12px;
+}
+
+.dns-cache-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin-bottom: 4px;
+}
+
+.dns-cache-item .domain {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.dns-cache-item .ip {
+    color: #52c41a;
+    font-family: 'Consolas', monospace;
+}
+
+/* ====== 路由实验 ====== */
+.routing-lab {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: #fff;
+}
+
+.routing-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.routing-canvas {
+    height: 350px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.routing-info {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.routing-path {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.routing-path .node {
+    background: #52c41a;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.routing-path .arrow {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 18px;
+}
+
+/* ====== 网络指令实验 ====== */
+.network-commands {
+    display: flex;
+    gap: 24px;
+    height: 600px;
+    color: #fff;
+}
+
+.terminal-section {
+    flex: 1;
+}
+
+.terminal {
+    height: 100%;
+    background: #1a1a1a;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.terminal-header {
+    background: #333;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-header .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.terminal-header .dot.red {
+    background: #ff5f56;
+}
+
+.terminal-header .dot.yellow {
+    background: #ffbd2e;
+}
+
+.terminal-header .dot.green {
+    background: #27c93f;
+}
+
+.terminal-header .title {
+    margin-left: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+.terminal-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #e0e0e0;
+}
+
+.terminal-output .prompt {
+    color: #00ff00;
+}
+
+.terminal-output .info {
+    color: #00bfff;
+}
+
+.terminal-output .success {
+    color: #32cd32;
+}
+
+.terminal-output .error {
+    color: #ff6b6b;
+}
+
+.terminal-output .normal {
+    color: #e0e0e0;
+}
+
+.terminal-input-line {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.terminal-input-line .prompt {
+    color: #00ff00;
+    margin-right: 8px;
+}
+
+.terminal-input-line input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.command-help {
+    flex: 0 0 280px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.command-help h4 {
+    color: #40a9ff;
+    margin-bottom: 16px;
+}
+
+.command-item {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.command-item:hover {
+    background: rgba(24, 144, 255, 0.1);
+}
+
+.command-item .cmd {
+    font-family: 'Consolas', monospace;
+    color: #40a9ff;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.command-item .desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.mini-topology {
+    margin-top: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.mini-topology h4 {
+    color: #40a9ff;
+    font-size: 13px;
+    margin-bottom: 8px;
+}

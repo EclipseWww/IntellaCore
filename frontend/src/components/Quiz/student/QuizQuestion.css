@@ -1,0 +1,48 @@
+/* 处理题目内容的Markdown渲染样式 */
+.quiz-question-content {
+  margin-bottom: 0;
+}
+
+/* 处理选项内容的Markdown渲染样式 */
+.quiz-option-content {
+  display: inline-block;
+}
+
+/* 修复Markdown渲染带来的边距问题 */
+.quiz-question-content > div,
+.quiz-option-content > div,
+.quiz-question-description > div {
+  margin-bottom: 0 !important;
+}
+
+.quiz-question-content p,
+.quiz-option-content p,
+.quiz-question-description p {
+  margin-bottom: 0 !important;
+}
+
+/* 确保Radio和Checkbox内部的Markdown渲染正确对齐 */
+.quiz-option-content > div > div {
+  display: inline;
+}
+
+/* 处理图片的最大宽度，防止溢出 */
+.quiz-question-content img,
+.quiz-option-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 确保代码块有正确的显示样式 */
+.quiz-question-content pre,
+.quiz-option-content pre {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* 修复可能的行内元素垂直对齐问题 */
+.quiz-option-content * {
+  vertical-align: middle;
+} 

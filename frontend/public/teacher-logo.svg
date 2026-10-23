@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+<circle cx="100" cy="100" r="90" fill="#326b59" />
+
+  <!-- 简化的书本/屏幕元素 -->
+  <rect x="60" y="70" width="80" height="60" rx="5" fill="white" />
+
+  <!-- 简单的代码符号 -->
+  <path d="M80 90 L70 100 L80 110" stroke="#326b59" stroke-width="3" fill="none" />
+  <path d="M120 90 L130 100 L120 110" stroke="#326b59" stroke-width="3" fill="none" />
+
+  <!-- 中间简化的连接线 -->
+  <line x1="85" y1="100" x2="115" y2="100" stroke="#648b76" stroke-width="3" />
+
+  <!-- 底部简化的电路元素 -->
+  <rect x="70" y="140" width="60" height="10" rx="2" fill="white" />
+  <circle cx="80" cy="145" r="2" fill="#326b59" />
+  <circle cx="100" cy="145" r="2" fill="#326b59" />
+  <circle cx="120" cy="145" r="2" fill="#326b59" />
+</svg>

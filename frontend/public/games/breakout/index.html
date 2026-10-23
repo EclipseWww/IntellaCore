@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打砖块 - 增强版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px 15px 0 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-bottom: none;
+            gap: 20px;
+        }
+
+        .stats-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .score-display,
+        .lives-display,
+        .level-display {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
+        }
+
+        .score-display span,
+        .lives-display span,
+        .level-display span {
+            color: #00d4ff;
+            font-size: 24px;
+            margin-left: 8px;
+        }
+
+        /* 速度滑块样式 */
+        .speed-control {
+            display: flex;
+            align-items: center;
+            color: #fff;
+            font-size: 14px;
+            gap: 10px;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+            transition: transform 0.2s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: #00d4ff;
+            transform: translateY(-2px);
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 100%);
+            border: 3px solid rgba(0, 212, 255, 0.5);
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            box-shadow:
+                0 0 30px rgba(0, 212, 255, 0.3),
+                inset 0 0 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            border-radius: 15px;
+            z-index: 10;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h1 {
+            color: #00d4ff;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
+            }
+
+            to {
+                text-shadow: 0 0 40px rgba(0, 212, 255, 1), 0 0 60px rgba(0, 212, 255, 0.5);
+            }
+        }
+
+        .overlay p {
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 30px;
+            opacity: 0.8;
+        }
+
+        .overlay .final-score {
+            color: #ffd700;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 212, 255, 0.6);
+            background: linear-gradient(135deg, #00e5ff, #00aadd);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .instructions {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        .instructions kbd {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 0 5px;
+        }
+
+        /* 粒子效果容器 */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(0, 212, 255, 0.6);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 帮助界面样式 */
+        .help-content {
+            text-align: left;
+            max-width: 600px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .help-content h3 {
+            color: #00d4ff;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+        }
+
+        .help-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .help-content p,
+        .help-content li {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .help-content ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .help-content li {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .help-content .powerup-emoji {
+            font-size: 20px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .help-content .powerup-name {
+            color: #ffd700;
+            font-weight: 600;
+            min-width: 80px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 背景粒子 -->
+    <div class="particles" id="particles"></div>
+
+    <div class="game-container">
+        <div class="header">
+            <div class="stats-group">
+                <div class="score-display">得分: <span id="score">0</span></div>
+                <div class="level-display">关卡: <span id="level">1</span></div>
+                <div class="lives-display">生命: <span id="lives">3</span></div>
+            </div>
+
+            <div class="controls-group">
+                <div class="speed-control" title="调整游戏速率">
+                    <span>⚡</span>
+                    <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0">
+                </div>
+                <button class="icon-btn" id="pauseBtn" onclick="togglePause()" title="暂停 (P)">
+                    ⏸
+                </button>
+                <button class="icon-btn" onclick="showHelp()" title="游戏说明">
+                    ❓
+                </button>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+        <!-- 开始界面 -->
+        <div class="overlay" id="startOverlay">
+            <h1>🧱 打砖块 EX</h1>
+            <p>消除砖块有几率分裂出更多球！</p>
+            <button class="btn" onclick="startGame()">开始游戏</button>
+            <div class="instructions">
+                <kbd>←</kbd> <kbd>→</kbd> 移动 &nbsp;|&nbsp; <kbd>空格</kbd> 发射 &nbsp;|&nbsp; <kbd>P</kbd> 暂停
+            </div>
+        </div>
+
+        <!-- 暂停界面 -->
+        <div class="overlay hidden" id="pauseOverlay">
+            <h1>已暂停</h1>
+            <p>休息一下吧</p>
+            <button class="btn" onclick="togglePause()">继续游戏</button>
+        </div>
+
+        <!-- 游戏结束界面 -->
+        <div class="overlay hidden" id="gameOverOverlay">
+            <h1>游戏结束</h1>
+            <div class="final-score">最终得分: <span id="finalScore">0</span></div>
+            <p>到达关卡: <span id="finalLevel">1</span></p>
+            <button class="btn" onclick="restartGame()">再玩一次</button>
+        </div>
+
+        <!-- 胜利界面 -->
+        <div class="overlay hidden" id="winOverlay">
+            <h1>🎉 恭喜通关!</h1>
+            <div class="final-score">最终得分: <span id="winScore">0</span></div>
+            <button class="btn" onclick="restartGame()">再玩一次</button>
+        </div>
+
+        <!-- 关卡过渡界面 -->
+        <div class="overlay hidden" id="levelOverlay">
+            <h1>关卡 <span id="nextLevel">2</span></h1>
+            <p>准备好了吗?</p>
+            <button class="btn" onclick="startNextLevel()">继续</button>
+        </div>
+
+        <!-- 帮助界面 -->
+        <div class="overlay hidden" id="helpOverlay">
+            <h1>📖 游戏说明</h1>
+            <div class="help-content">
+                <h3>🎮 基本操作</h3>
+                <p>使用 <kbd>←</kbd> <kbd>→</kbd> 或 <kbd>A</kbd> <kbd>D</kbd> 或鼠标移动挡板<br>
+                    按 <kbd>空格</kbd> 或点击鼠标发射球<br>
+                    按 <kbd>P</kbd> 暂停/继续游戏</p>
+
+                <h3>🎯 游戏目标</h3>
+                <p>用球击碎所有砖块，通过5个关卡。球掉落会失去生命，3条命用完游戏结束。</p>
+
+                <h3>✨ 特殊机制</h3>
+                <p>• 击碎砖块有10%概率分裂出更多球（黄色）<br>
+                    • 击碎砖块有15%概率掉落道具<br>
+                    • 只有所有球都掉落才会失去生命</p>
+
+                <h3>🎁 道具说明</h3>
+                <ul>
+                    <li><span class="powerup-emoji">📏</span><span class="powerup-name">加宽挡板</span>挡板变宽，持续8秒</li>
+                    <li><span class="powerup-emoji">📐</span><span class="powerup-name">缩小挡板</span>挡板变窄，持续8秒</li>
+                    <li><span class="powerup-emoji">🔫</span><span class="powerup-name">激光</span>按空格发射激光，持续8秒</li>
+                    <li><span class="powerup-emoji">🧲</span><span class="powerup-name">粘性挡板</span>球会粘在挡板上，持续8秒</li>
+                    <li><span class="powerup-emoji">🛡️</span><span class="powerup-name">安全网</span>底部出现保护网，可救一次球</li>
+                    <li><span class="powerup-emoji">⚡</span><span class="powerup-name">加速球</span>所有球速度加快</li>
+                    <li><span class="powerup-emoji">🐢</span><span class="powerup-name">减速球</span>所有球速度减慢</li>
+                </ul>
+
+                <h3>💡 小技巧</h3>
+                <p>• 用挡板边缘击球可以改变角度<br>
+                    • 多球时注意不要让最后一个球掉落<br>
+                    • 调节速度滑块可以改变游戏节奏</p>
+            </div>
+            <button class="btn" onclick="hideHelp()">知道了</button>
+        </div>
+    </div>
+
+    <script>
+        // 创建背景粒子
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (10 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+        createParticles();
+
+        // 游戏变量
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const speedSlider = document.getElementById('speedSlider');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        // 游戏状态
+        let gameRunning = false;
+        let isPaused = false;
+
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        const maxLevel = 5;
+        let gameSpeedRate = 1.0;
+
+        // 挡板
+        const paddle = {
+            width: 120,
+            height: 15,
+            x: 0,
+            y: 0,
+            speed: 10,
+            dx: 0,
+            color: '#00d4ff',
+            glowColor: 'rgba(0, 212, 255, 0.5)'
+        };
+
+        // 球列表 (支持多球)
+        let balls = [];
+
+        // 砖块配置
+        const brickConfig = {
+            rows: 5,
+            cols: 10,
+            width: 68,
+            height: 25,
+            padding: 6,
+            offsetTop: 50,
+            offsetLeft: 33
+        };
+
+        // 砖块颜色（按行）
+        const brickColors = [
+            { fill: '#ff6b6b', glow: 'rgba(255, 107, 107, 0.5)', points: 50 },
+            { fill: '#feca57', glow: 'rgba(254, 202, 87, 0.5)', points: 40 },
+            { fill: '#48dbfb', glow: 'rgba(72, 219, 251, 0.5)', points: 30 },
+            { fill: '#1dd1a1', glow: 'rgba(29, 209, 161, 0.5)', points: 20 },
+            { fill: '#5f27cd', glow: 'rgba(95, 39, 205, 0.5)', points: 10 }
+        ];
+
+        let bricks = [];
+        let particles = []; // 爆炸粒子
+        let powerUps = []; // 道具
+        let lasers = []; // 激光子弹
+
+        // 道具类型定义
+        const POWERUP_TYPES = {
+            EXPAND: { emoji: '📏', color: '#4CAF50', name: '加宽挡板' },
+            SHRINK: { emoji: '📐', color: '#f44336', name: '缩小挡板' },
+            LASER: { emoji: '🔫', color: '#ff9800', name: '激光' },
+            STICKY: { emoji: '🧲', color: '#9c27b0', name: '粘性挡板' },
+            SAFETY: { emoji: '🛡️', color: '#2196F3', name: '安全网' },
+            SPEEDUP: { emoji: '⚡', color: '#ffeb3b', name: '加速球' },
+            SLOWDOWN: { emoji: '🐢', color: '#00bcd4', name: '减速球' }
+        };
+
+        // 挡板状态
+        let paddleBaseWidth = 120;
+        let isSticky = false;
+        let hasLaser = false;
+        let hasSafetyNet = false;
+        let safetyNetY = 0;
+        let powerUpTimers = {}; // 道具计时器
+
+        // 监听速度调整
+        speedSlider.addEventListener('input', (e) => {
+            gameSpeedRate = parseFloat(e.target.value);
+            // 让正在飞行的球获取即时速度反馈（如果需要立即生效而不是等待）
+        });
+
+        // 生成一个新的球
+        function createBall(x, y, isLauncher = false) {
+            return {
+                radius: 10,
+                x: x,
+                y: y,
+                speed: 5,
+                dx: 0,
+                dy: 0,
+                launched: !isLauncher, // 发射器球初始是未发射状态
+                color: isLauncher ? '#fff' : '#ffff00', // 分裂球黄色
+                glowColor: isLauncher ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 0, 0.8)'
+            };
+        }
+
+        // 初始化挡板和球
+        function initPositions() {
+            paddle.x = (canvas.width - paddle.width) / 2;
+            paddle.y = canvas.height - 40;
+            paddle.dx = 0;
+            paddle.width = paddleBaseWidth;
+
+            // 重置道具状态
+            isSticky = false;
+            hasLaser = false;
+            hasSafetyNet = false;
+            powerUps = [];
+            lasers = [];
+            Object.keys(powerUpTimers).forEach(k => clearTimeout(powerUpTimers[k]));
+            powerUpTimers = {};
+
+            // 清空旧球，只留一个主球
+            balls = [createBall(paddle.x + paddle.width / 2, paddle.y - 10, true)];
+        }
+
+        // 创建砖块
+        function createBricks() {
+            bricks = [];
+            const extraRows = Math.min(level - 1, 2); // 每关增加行数
+            const rows = brickConfig.rows + extraRows;
+
+            for (let row = 0; row < rows; row++) {
+                bricks[row] = [];
+                for (let col = 0; col < brickConfig.cols; col++) {
+                    const colorIndex = row % brickColors.length;
+                    const hits = level > 3 && row < 2 ? 2 : 1;
+                    bricks[row][col] = {
+                        x: col * (brickConfig.width + brickConfig.padding) + brickConfig.offsetLeft,
+                        y: row * (brickConfig.height + brickConfig.padding) + brickConfig.offsetTop,
+                        status: hits,
+                        maxHits: hits,
+                        color: brickColors[colorIndex]
+                    };
+                }
+            }
+        }
+
+        // 绘制通用函数
+        function drawRoundedRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        // 绘制挡板
+        function drawPaddle() {
+            ctx.save();
+            ctx.shadowColor = paddle.glowColor;
+            ctx.shadowBlur = 20;
+
+            const gradient = ctx.createLinearGradient(
+                paddle.x, paddle.y,
+                paddle.x, paddle.y + paddle.height
+            );
+            gradient.addColorStop(0, '#00e5ff');
+            gradient.addColorStop(0.5, '#00d4ff');
+            gradient.addColorStop(1, '#0099cc');
+
+            ctx.fillStyle = gradient;
+            drawRoundedRect(ctx, paddle.x, paddle.y, paddle.width, paddle.height, 8);
+            ctx.fill();
+
+            // 高光
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            drawRoundedRect(ctx, paddle.x + 5, paddle.y + 2, paddle.width - 10, paddle.height / 3, 4);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 绘制球
+        function drawBalls() {
+            balls.forEach(ball => {
+                ctx.save();
+                ctx.shadowColor = ball.glowColor;
+                ctx.shadowBlur = 15;
+
+                const gradient = ctx.createRadialGradient(
+                    ball.x - 3, ball.y - 3, 0,
+                    ball.x, ball.y, ball.radius
+                );
+
+                if (ball.color === '#fff') {
+                    // 主球白色
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.5, '#f0f0ff');
+                    gradient.addColorStop(1, '#c0c0ff');
+                } else {
+                    // 分裂球黄色
+                    gradient.addColorStop(0, '#ffffcc');
+                    gradient.addColorStop(0.5, '#ffff66');
+                    gradient.addColorStop(1, '#ffcc00');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        // 绘制砖块
+        function drawBricks() {
+            for (let row = 0; row < bricks.length; row++) {
+                for (let col = 0; col < bricks[row].length; col++) {
+                    const brick = bricks[row][col];
+                    if (brick.status > 0) {
+                        ctx.save();
+                        ctx.shadowColor = brick.color.glow;
+                        ctx.shadowBlur = 10;
+                        const alpha = brick.status / brick.maxHits;
+
+                        const gradient = ctx.createLinearGradient(
+                            brick.x, brick.y,
+                            brick.x, brick.y + brickConfig.height
+                        );
+                        gradient.addColorStop(0, brick.color.fill);
+                        gradient.addColorStop(1, adjustColor(brick.color.fill, -30));
+
+                        ctx.globalAlpha = 0.5 + alpha * 0.5;
+                        ctx.fillStyle = gradient;
+                        drawRoundedRect(ctx, brick.x, brick.y, brickConfig.width, brickConfig.height, 5);
+                        ctx.fill();
+
+                        ctx.globalAlpha = 0.3 * alpha;
+                        ctx.fillStyle = '#ffffff';
+                        drawRoundedRect(ctx, brick.x + 3, brick.y + 2, brickConfig.width - 6, brickConfig.height / 3, 3);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+
+        function adjustColor(hex, amount) {
+            const num = parseInt(hex.slice(1), 16);
+            const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + amount));
+            const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+            const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function createExplosion(x, y, color) {
+            const particleCount = 15;
+            for (let i = 0; i < particleCount; i++) {
+                const angle = (Math.PI * 2 / particleCount) * i;
+                const speed = 2 + Math.random() * 3;
+                particles.push({
+                    x: x,
+                    y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    radius: 3 + Math.random() * 3,
+                    color: color,
+                    life: 1
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.dy += 0.1;
+                p.life -= 0.02;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 5;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 生成道具
+        function spawnPowerUp(x, y) {
+            const types = Object.keys(POWERUP_TYPES);
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            powerUps.push({
+                x: x,
+                y: y,
+                type: randomType,
+                width: 30,
+                height: 30,
+                speed: 2,
+                ...POWERUP_TYPES[randomType]
+            });
+        }
+
+        // 绘制道具
+        function drawPowerUps() {
+            powerUps.forEach(p => {
+                ctx.save();
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 15;
+
+                // 背景圆形
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Emoji
+                ctx.globalAlpha = 1;
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.emoji, p.x, p.y);
+
+                ctx.restore();
+            });
+        }
+
+        // 更新道具位置
+        function updatePowerUps() {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const p = powerUps[i];
+                p.y += p.speed * gameSpeedRate;
+
+                // 检测与挡板碰撞
+                if (
+                    p.y + 15 > paddle.y &&
+                    p.y - 15 < paddle.y + paddle.height &&
+                    p.x > paddle.x &&
+                    p.x < paddle.x + paddle.width
+                ) {
+                    applyPowerUp(p.type);
+                    powerUps.splice(i, 1);
+                    continue;
+                }
+
+                // 超出屏幕
+                if (p.y > canvas.height) {
+                    powerUps.splice(i, 1);
+                }
+            }
+        }
+
+        // 应用道具效果
+        function applyPowerUp(type) {
+            // 清除同类型的旧计时器
+            if (powerUpTimers[type]) {
+                clearTimeout(powerUpTimers[type]);
+            }
+
+            const duration = 8000; // 8秒持续时间
+
+            switch (type) {
+                case 'EXPAND':
+                    paddle.width = Math.min(paddleBaseWidth * 1.5, 200);
+                    powerUpTimers[type] = setTimeout(() => {
+                        paddle.width = paddleBaseWidth;
+                    }, duration);
+                    break;
+
+                case 'SHRINK':
+                    paddle.width = Math.max(paddleBaseWidth * 0.6, 60);
+                    powerUpTimers[type] = setTimeout(() => {
+                        paddle.width = paddleBaseWidth;
+                    }, duration);
+                    break;
+
+                case 'LASER':
+                    hasLaser = true;
+                    powerUpTimers[type] = setTimeout(() => {
+                        hasLaser = false;
+                    }, duration);
+                    break;
+
+                case 'STICKY':
+                    isSticky = true;
+                    powerUpTimers[type] = setTimeout(() => {
+                        isSticky = false;
+                    }, duration);
+                    break;
+
+                case 'SAFETY':
+                    hasSafetyNet = true;
+                    safetyNetY = canvas.height - 10;
+                    powerUpTimers[type] = setTimeout(() => {
+                        hasSafetyNet = false;
+                    }, duration);
+                    break;
+
+                case 'SPEEDUP':
+                    balls.forEach(b => {
+                        if (b.launched) {
+                            const speed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                            const newSpeed = Math.min(speed * 1.3, 12);
+                            const ratio = newSpeed / speed;
+                            b.dx *= ratio;
+                            b.dy *= ratio;
+                        }
+                    });
+                    break;
+
+                case 'SLOWDOWN':
+                    balls.forEach(b => {
+                        if (b.launched) {
+                            const speed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                            const newSpeed = Math.max(speed * 0.7, 3);
+                            const ratio = newSpeed / speed;
+                            b.dx *= ratio;
+                            b.dy *= ratio;
+                        }
+                    });
+                    break;
+            }
+
+            // 显示道具名称提示
+            showPowerUpToast(POWERUP_TYPES[type].name, POWERUP_TYPES[type].color);
+        }
+
+        // 显示道具提示
+        let toastTimeout = null;
+        function showPowerUpToast(text, color) {
+            // 使用粒子系统显示文字效果
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: canvas.width / 2 + (Math.random() - 0.5) * 100,
+                    y: canvas.height / 2,
+                    dx: (Math.random() - 0.5) * 3,
+                    dy: -Math.random() * 2 - 1,
+                    radius: 4,
+                    color: color,
+                    life: 1.5
+                });
+            }
+        }
+
+        // 绘制安全网
+        function drawSafetyNet() {
+            if (!hasSafetyNet) return;
+            ctx.save();
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 4;
+            ctx.shadowColor = '#2196F3';
+            ctx.shadowBlur = 10;
+            ctx.setLineDash([10, 5]);
+            ctx.beginPath();
+            ctx.moveTo(0, safetyNetY);
+            ctx.lineTo(canvas.width, safetyNetY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 发射激光
+        function fireLaser() {
+            if (!hasLaser || !gameRunning || isPaused) return;
+            lasers.push(
+                { x: paddle.x + 10, y: paddle.y, width: 4, height: 15, speed: 10 },
+                { x: paddle.x + paddle.width - 14, y: paddle.y, width: 4, height: 15, speed: 10 }
+            );
+        }
+
+        // 更新激光
+        function updateLasers() {
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const laser = lasers[i];
+                laser.y -= laser.speed * gameSpeedRate;
+
+                // 激光碰撞砖块
+                let hit = false;
+                for (let row = 0; row < bricks.length && !hit; row++) {
+                    for (let col = 0; col < bricks[row].length && !hit; col++) {
+                        const brick = bricks[row][col];
+                        if (brick.status > 0) {
+                            if (
+                                laser.x < brick.x + brickConfig.width &&
+                                laser.x + laser.width > brick.x &&
+                                laser.y < brick.y + brickConfig.height &&
+                                laser.y + laser.height > brick.y
+                            ) {
+                                brick.status--;
+                                if (brick.status === 0) {
+                                    score += brick.color.points * level;
+                                    createExplosion(
+                                        brick.x + brickConfig.width / 2,
+                                        brick.y + brickConfig.height / 2,
+                                        brick.color.fill
+                                    );
+                                    // 激光击碎也有概率掉落道具
+                                    if (Math.random() < 0.15) {
+                                        spawnPowerUp(
+                                            brick.x + brickConfig.width / 2,
+                                            brick.y + brickConfig.height / 2
+                                        );
+                                    }
+                                }
+                                updateScore();
+                                hit = true;
+                            }
+                        }
+                    }
+                }
+
+                if (hit || laser.y < 0) {
+                    lasers.splice(i, 1);
+                }
+            }
+        }
+
+        // 绘制激光
+        function drawLasers() {
+            lasers.forEach(laser => {
+                ctx.save();
+                ctx.fillStyle = '#ff9800';
+                ctx.shadowColor = '#ff9800';
+                ctx.shadowBlur = 10;
+                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+                ctx.restore();
+            });
+
+            // 如果有激光道具，显示挡板上的激光发射器
+            if (hasLaser) {
+                ctx.save();
+                ctx.fillStyle = '#ff9800';
+                ctx.fillRect(paddle.x + 5, paddle.y - 5, 8, 8);
+                ctx.fillRect(paddle.x + paddle.width - 13, paddle.y - 5, 8, 8);
+                ctx.restore();
+            }
+        }
+
+        // 分裂更多球！
+        function triggerMultiball(x, y) {
+            // 在 x, y 处生成两个新球
+            const angle1 = Math.random() * Math.PI * 2;
+            const angle2 = Math.random() * Math.PI * 2;
+            const speed = 5; // 基础速度
+
+            // 限制最大球数，防止性能爆炸
+            if (balls.length > 20) return;
+
+            const ball1 = createBall(x, y);
+            ball1.dx = Math.cos(angle1) * speed;
+            ball1.dy = Math.sin(angle1) * speed;
+            ball1.launched = true;
+
+            const ball2 = createBall(x, y);
+            ball2.dx = Math.cos(angle2) * speed;
+            ball2.dy = Math.sin(angle2) * speed;
+            ball2.launched = true;
+
+            balls.push(ball1, ball2);
+        }
+
+        function collisionDetection() {
+            let bricksRemaining = 0;
+
+            // 对每个球单独处理碰撞
+            balls.forEach(ball => {
+                if (!ball.launched) return;
+
+                for (let row = 0; row < bricks.length; row++) {
+                    for (let col = 0; col < bricks[row].length; col++) {
+                        const brick = bricks[row][col];
+                        if (brick.status > 0) {
+                            if (ball === balls[0]) bricksRemaining++; // 只计算一次剩余砖块
+
+                            if (
+                                ball.x + ball.radius > brick.x &&
+                                ball.x - ball.radius < brick.x + brickConfig.width &&
+                                ball.y + ball.radius > brick.y &&
+                                ball.y - ball.radius < brick.y + brickConfig.height
+                            ) {
+                                ball.dy = -ball.dy;
+                                brick.status--;
+
+                                // 击碎砖块
+                                if (brick.status === 0) {
+                                    score += brick.color.points * level;
+                                    createExplosion(
+                                        brick.x + brickConfig.width / 2,
+                                        brick.y + brickConfig.height / 2,
+                                        brick.color.fill
+                                    );
+
+                                    // 10% 概率触发分裂球
+                                    if (Math.random() < 0.10) {
+                                        triggerMultiball(
+                                            brick.x + brickConfig.width / 2,
+                                            brick.y + brickConfig.height / 2
+                                        );
+                                    }
+                                    // 15% 概率掉落道具
+                                    if (Math.random() < 0.15) {
+                                        spawnPowerUp(
+                                            brick.x + brickConfig.width / 2,
+                                            brick.y + brickConfig.height / 2
+                                        );
+                                    }
+                                }
+                                updateScore();
+                            }
+                        } else if (ball === balls[0]) {
+                            // 即使砖块碎了，也需要统计一次（这里逻辑略有瑕疵，修正如下）
+                            // 其实更好的方式是外层先统计 bricksRemaining
+                        }
+                    }
+                }
+            });
+
+            // 重新统计真正的剩余砖块
+            let realRemaining = 0;
+            for (let r = 0; r < bricks.length; r++) {
+                for (let c = 0; c < bricks[r].length; c++) {
+                    if (bricks[r][c].status > 0) realRemaining++;
+                }
+            }
+
+            if (realRemaining === 0) {
+                if (level >= maxLevel) {
+                    gameWin();
+                } else {
+                    levelComplete();
+                }
+            }
+        }
+
+        function movePaddle() {
+            // 速度受滑块影响
+            let currentPaddleSpeed = paddle.speed * gameSpeedRate;
+            paddle.x += paddle.dx * gameSpeedRate;
+
+            if (paddle.x < 0) paddle.x = 0;
+            if (paddle.x + paddle.width > canvas.width) {
+                paddle.x = canvas.width - paddle.width;
+            }
+
+            // 未发射的球跟随
+            balls.forEach(ball => {
+                if (!ball.launched) {
+                    ball.x = paddle.x + paddle.width / 2;
+                }
+            });
+        }
+
+        function moveBall() {
+            // 移除掉出屏幕的球
+            for (let i = balls.length - 1; i >= 0; i--) {
+                let ball = balls[i];
+                if (!ball.launched) continue;
+
+                // 施加速度倍率
+                let speedMultiplier = gameSpeedRate;
+
+                ball.x += ball.dx * speedMultiplier;
+                ball.y += ball.dy * speedMultiplier;
+
+                // 墙壁反弹
+                if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+                    ball.dx = -ball.dx;
+                }
+                if (ball.y - ball.radius < 0) {
+                    ball.dy = -ball.dy;
+                }
+
+                // 挡板碰撞
+                if (
+                    ball.y + ball.radius > paddle.y &&
+                    ball.y - ball.radius < paddle.y + paddle.height &&
+                    ball.x > paddle.x &&
+                    ball.x < paddle.x + paddle.width
+                ) {
+                    // 只有向下落的球才反弹，防止粘连
+                    if (ball.dy > 0) {
+                        // 粘性挡板效果
+                        if (isSticky && ball.launched) {
+                            ball.launched = false;
+                            ball.dx = 0;
+                            ball.dy = 0;
+                            ball.y = paddle.y - ball.radius;
+                        } else {
+                            const hitPos = (ball.x - paddle.x) / paddle.width;
+                            const angle = (hitPos - 0.5) * Math.PI * 0.7; // -0.35π ~ 0.35π
+
+                            // 保持原速度的大小，只改变方向
+                            const originalSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                            // 如果因为某种原因速度太慢，强制加速
+                            const currentSpeedObj = originalSpeed < 5 ? 5 : originalSpeed;
+
+                            ball.dx = Math.sin(angle) * currentSpeedObj;
+                            ball.dy = -Math.abs(Math.cos(angle) * currentSpeedObj);
+
+                            ball.y = paddle.y - ball.radius - 2;// 稍微提一点防止粘
+                        }
+                    }
+                }
+
+                // 安全网反弹
+                if (hasSafetyNet && ball.y + ball.radius > safetyNetY && ball.dy > 0) {
+                    ball.dy = -ball.dy;
+                    ball.y = safetyNetY - ball.radius;
+                    hasSafetyNet = false; // 使用一次后消失
+                }
+
+                // 掉底
+                if (ball.y - ball.radius > canvas.height) {
+                    balls.splice(i, 1);
+                }
+            }
+
+            // 如果所有球都没了
+            if (balls.length === 0) {
+                lives--;
+                updateLives();
+                if (lives <= 0) {
+                    gameOver();
+                } else {
+                    // 重置
+                    balls = [createBall(paddle.x + paddle.width / 2, paddle.y - 10, true)];
+                    ballLaunched = false; // 标记位重置(其实已经不用这个全局标了，用ball.launched)
+                }
+            }
+        }
+
+        // 更新UI
+        function updateScore() { document.getElementById('score').textContent = score; }
+        function updateLives() { document.getElementById('lives').textContent = lives; }
+        function updateLevel() { document.getElementById('level').textContent = level; }
+
+        function togglePause() {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                document.getElementById('pauseOverlay').classList.remove('hidden');
+                pauseBtn.innerHTML = '▶';
+                pauseBtn.title = "继续 (P)";
+            } else {
+                document.getElementById('pauseOverlay').classList.add('hidden');
+                pauseBtn.innerHTML = '⏸';
+                pauseBtn.title = "暂停 (P)";
+                gameLoop();
+            }
+        }
+
+        function showHelp() {
+            document.getElementById('helpOverlay').classList.remove('hidden');
+            if (gameRunning && !isPaused) {
+                isPaused = true;
+            }
+        }
+
+        function hideHelp() {
+            document.getElementById('helpOverlay').classList.add('hidden');
+            if (gameRunning && isPaused) {
+                isPaused = false;
+                gameLoop();
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning || isPaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawSafetyNet();
+            drawBricks();
+            drawPaddle();
+            drawBalls();
+            drawPowerUps();
+            drawLasers();
+            updateParticles();
+
+            movePaddle();
+            moveBall();
+            updatePowerUps();
+            updateLasers();
+            collisionDetection();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function launchBall() {
+            const mainBall = balls.find(b => !b.launched);
+            if (mainBall && gameRunning && !isPaused) {
+                const angle = (Math.random() - 0.5) * Math.PI * 0.5;
+                const baseSpeed = 5 + (level - 1) * 0.5;
+                mainBall.dx = Math.sin(angle) * baseSpeed;
+                mainBall.dy = -Math.cos(angle) * baseSpeed;
+                mainBall.launched = true;
+            }
+        }
+
+        function startGame() {
+            document.getElementById('startOverlay').classList.add('hidden');
+            score = 0;
+            lives = 3;
+            level = 1;
+            gameSpeedRate = parseFloat(speedSlider.value);
+
+            updateScore();
+            updateLives();
+            updateLevel();
+            initPositions();
+            createBricks();
+            gameRunning = true;
+            isPaused = false;
+            gameLoop();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            document.getElementById('winOverlay').classList.add('hidden');
+            startGame();
+        }
+
+        function levelComplete() {
+            gameRunning = false;
+            level++;
+            document.getElementById('nextLevel').textContent = level;
+            document.getElementById('levelOverlay').classList.remove('hidden');
+        }
+
+        function startNextLevel() {
+            document.getElementById('levelOverlay').classList.add('hidden');
+            updateLevel();
+            initPositions(); // 重置球和挡板
+            createBricks();
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalLevel').textContent = level;
+            document.getElementById('gameOverOverlay').classList.remove('hidden');
+        }
+
+        function gameWin() {
+            gameRunning = false;
+            score += 1000;
+            document.getElementById('winScore').textContent = score;
+            document.getElementById('winOverlay').classList.remove('hidden');
+        }
+
+        // 键鼠控制
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                paddle.dx = -paddle.speed;
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                paddle.dx = paddle.speed;
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                launchBall();
+                if (hasLaser) fireLaser();
+            } else if (e.key === 'p' || e.key === 'P') {
+                togglePause();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(e.key)) {
+                paddle.dx = 0;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameRunning && !isPaused) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                paddle.x = mouseX - paddle.width / 2;
+
+                // 边界
+                if (paddle.x < 0) paddle.x = 0;
+                if (paddle.x + paddle.width > canvas.width) {
+                    paddle.x = canvas.width - paddle.width;
+                }
+
+                // 跟随
+                balls.forEach(ball => {
+                    if (!ball.launched) ball.x = paddle.x + paddle.width / 2;
+                });
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            // 只有在没暂停时发射
+            if (!isPaused) {
+                launchBall();
+                if (hasLaser) fireLaser();
+            }
+        });
+
+        // 触摸
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (gameRunning && !isPaused) {
+                const rect = canvas.getBoundingClientRect();
+                const touchX = e.touches[0].clientX - rect.left;
+                paddle.x = touchX - paddle.width / 2;
+
+                if (paddle.x < 0) paddle.x = 0;
+                if (paddle.x + paddle.width > canvas.width) {
+                    paddle.x = canvas.width - paddle.width;
+                }
+
+                balls.forEach(ball => {
+                    if (!ball.launched) ball.x = paddle.x + paddle.width / 2;
+                });
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!isPaused) launchBall();
+        }, { passive: false });
+
+        // 初始化
+        // initPositions(); // 移到startGame里，或者这里预初始化一下
+        paddle.x = (canvas.width - paddle.width) / 2;
+        paddle.y = canvas.height - 40;
+    </script>
+</body>
+
+</html>

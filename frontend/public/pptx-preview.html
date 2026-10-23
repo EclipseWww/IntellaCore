@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPT Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+        }
+
+        #loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #666;
+        }
+
+        #loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #error {
+            display: none;
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            padding: 16px;
+            border-radius: 8px;
+            color: #cf1322;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        #pptx-container {
+            width: 100%;
+            max-width: 1200px;
+            display: none;
+            /* Hidden until rendering is complete */
+        }
+
+        #pptx-container .slide {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+    </style>
+    <link rel="stylesheet" href="/libs/pptxjs/pptxjs.css">
+    <link rel="stylesheet" href="/libs/pptxjs/nv.d3.min.css">
+</head>
+
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <span>正在加载 PPT 预览...</span>
+    </div>
+    <div id="error"></div>
+    <div id="pptx-container"></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Error handling
+        window.onerror = function (msg, url, line, col, error) {
+            console.error('PPT Preview Error:', msg, error);
+            document.getElementById('loading').style.display = 'none';
+            var errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = '<strong>预览加载失败</strong><br>' + msg;
+            // Notify parent
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'pptx-error', message: msg }, '*');
+            }
+            return true;
+        };
+
+        // Load scripts in order
+        function loadScript(src) {
+            return new Promise(function (resolve, reject) {
+                var script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = function () { reject(new Error('Failed to load: ' + src)); };
+                document.body.appendChild(script);
+            });
+        }
+
+        async function initLibraries() {
+            try {
+                // Load libraries in order
+                await loadScript('/libs/pptxjs/jszip.min.js');
+                await loadScript('/libs/pptxjs/filereader.js');
+
+                // D3 needs special handling to avoid module detection
+                var oldDefine = window.define;
+                var oldModule = window.module;
+                window.define = undefined;
+                window.module = undefined;
+                await loadScript('/libs/pptxjs/d3.min.js');
+                window.define = oldDefine;
+                window.module = oldModule;
+
+                await loadScript('/libs/pptxjs/nv.d3.min.js');
+                await loadScript('/libs/pptxjs/pptxjs.js');
+
+                console.log('All PPT libraries loaded');
+                return true;
+            } catch (err) {
+                console.error('Failed to load libraries:', err);
+                throw err;
+            }
+        }
+
+        // Flag to prevent duplicate rendering
+        let isLoading = false;
+
+        // Listen for messages from parent
+        window.addEventListener('message', async function (event) {
+            if (event.data && event.data.type === 'load-pptx') {
+                // Prevent duplicate loading
+                if (isLoading) {
+                    console.log('Ignoring duplicate load-pptx message');
+                    return;
+                }
+                isLoading = true;
+                console.log('Received load-pptx message');
+                try {
+                    await initLibraries();
+
+                    var blobUrl = event.data.blobUrl;
+                    if (blobUrl) {
+                        document.getElementById('loading').innerHTML = '<div class="spinner"></div><span>正在渲染幻灯片...</span>';
+
+                        // Use MutationObserver to detect when slides are rendered
+                        var container = document.getElementById('pptx-container');
+                        var slideCount = 0;
+                        var checkCompleteTimer = null;
+
+                        var observer = new MutationObserver(function (mutations) {
+                            var currentSlides = container.querySelectorAll('.slide');
+                            if (currentSlides.length > slideCount) {
+                                slideCount = currentSlides.length;
+                                // Reset the timer each time a new slide is added
+                                if (checkCompleteTimer) clearTimeout(checkCompleteTimer);
+                                // Wait a short moment after the last slide is added
+                                checkCompleteTimer = setTimeout(function () {
+                                    console.log('Rendering complete, found slides:', slideCount);
+                                    document.getElementById('loading').style.display = 'none';
+                                    container.style.display = 'block';
+                                    window.parent.postMessage({ type: 'pptx-success', slideCount: slideCount }, '*');
+                                    observer.disconnect();
+                                }, 300);
+                            }
+                        });
+
+                        observer.observe(container, { childList: true, subtree: true });
+
+                        $('#pptx-container').pptxToHtml({
+                            pptxFileUrl: blobUrl,
+                            slidesScale: '50%',
+                            slideMode: false,
+                            keyBoardShortCut: false,
+                            error: function (err) {
+                                console.error('pptxToHtml error:', err);
+                                observer.disconnect();
+                                document.getElementById('loading').style.display = 'none';
+                                document.getElementById('error').style.display = 'block';
+                                document.getElementById('error').innerHTML = '<strong>PPT 渲染失败</strong><br>' + err;
+                                window.parent.postMessage({ type: 'pptx-error', message: String(err) }, '*');
+                            }
+                        });
+
+                        // Fallback timeout in case observer doesn't trigger
+                        setTimeout(function () {
+                            var slides = container.querySelectorAll('.slide');
+                            if (slides.length > 0 && document.getElementById('loading').style.display !== 'none') {
+                                console.log('Fallback: hiding loading, found slides:', slides.length);
+                                document.getElementById('loading').style.display = 'none';
+                                container.style.display = 'block';
+                                window.parent.postMessage({ type: 'pptx-success', slideCount: slides.length }, '*');
+                                observer.disconnect();
+                            }
+                        }, 5000);
+                    }
+                } catch (err) {
+                    console.error('Error loading PPTX:', err);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').innerHTML = '<strong>加载失败</strong><br>' + err.message;
+                    window.parent.postMessage({ type: 'pptx-error', message: err.message }, '*');
+                }
+            }
+        });
+
+        // Notify parent that iframe is ready
+        window.parent.postMessage({ type: 'pptx-ready' }, '*');
+    </script>
+</body>
+
+</html>

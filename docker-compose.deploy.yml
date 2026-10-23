@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: docker.1ms.run/mongo:5.0
+    container_name: mongodb
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongodb/db:/data/db
+      - ./data/mongodb/configdb:/data/configdb
+    networks:
+      - app-network
+
+  backend:
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+    container_name: backend
+    restart: always
+    environment:
+    - PORT=5003
+    - MONGODB_URI=${MONGODB_URI:?Set MONGODB_URI}
+    - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET}
+    - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+    - MASTER_PASSWORD=${MASTER_PASSWORD:?Set MASTER_PASSWORD}
+    - MODEL=${MODEL:-qwen-turbo}
+    - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:3000,http://frontend:80,http://0.0.0.0,http://0.0.0.0:3000,http://*:80,http://192.168.1.4}
+    - MAX_ASSIGNMENT_FILE_SIZE=20
+    - MAX_RESOURCE_FILE_SIZE=50
+    ports:
+      # 宿主机nginx代理模式：只监听本地，由宿主机nginx对外提供服务
+      - "127.0.0.1:8080:5003"
+    expose:
+    - "5003"
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+    volumes:
+      - ./data/backend/uploads:/app/uploads
+      - ./data/backend/logs:/app/logs
+
+  frontend:
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest
+    container_name: frontend
+    restart: always
+    ports:
+      # 宿主机nginx代理模式：端口改为3001，只监听本地
+      - "127.0.0.1:3001:80"
+    environment:
+      - REACT_APP_API_URL=
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,70 @@
+version: '2'
+
+services:
+  mongodb:
+    image: docker.1ms.run/mongo:5.0
+    container_name: mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - app-network
+
+  backend:
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+    container_name: backend
+    restart: always
+    environment:
+      PORT: 5003
+      MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      MASTER_PASSWORD: ${MASTER_PASSWORD:?Set MASTER_PASSWORD}
+      MODEL: ${MODEL:-qwen-turbo}
+      # 添加 Docker Toolbox 虚拟机 IP 192.168.99.100
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://192.168.99.100,http://192.168.99.100:80,http://frontend:80,http://0.0.0.0,http://*:80}
+      MAX_ASSIGNMENT_FILE_SIZE: 20
+      MAX_RESOURCE_FILE_SIZE: 50
+    ports:
+      # Toolbox 不支持 127.0.0.1 绑定，直接暴露端口
+      - "8080:5003"
+    expose:
+      - "5003"
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+
+  frontend:
+    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest
+    container_name: frontend
+    restart: always
+    ports:
+      # 前端映射到 3001，80 端口留给宿主机 Nginx
+      - "3001:80"
+    environment:
+      REACT_APP_API_URL: ""
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  backend_uploads:
+  backend_logs:

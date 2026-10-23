@@ -1,0 +1,76 @@
+Connected to DB
+Total Questions in DB: 155 
+By Type: [
+  {
+    "_id": "SINGLE_CHOICE",
+    "count": 123
+  },
+  {
+    "_id": "TRUE_FALSE",
+    "count": 21
+  },
+  {
+    "_id": "PSYCHOLOGICAL_SCALE",
+    "count": 11
+  }
+]
+By Status (Deleted/Archived): [
+  {
+    "_id": {
+      "isDeleted": true,
+      "isArchived": false
+    },
+    "count": 4
+  },
+  {
+    "_id": {
+      "isDeleted": true
+    },
+    "count": 147
+  },
+  {
+    "_id": {
+      "isDeleted": false,
+      "isArchived": false
+    },
+    "count": 3
+  },
+  {
+    "_id": {
+      "isDeleted": false,
+      "isArchived": true
+    },
+    "count": 1
+  }
+]
+By Difficulty: [
+  {
+    "_id": 6,
+    "count": 1
+  },
+  {
+    "_id": 5,
+    "count": 86
+  },
+  {
+    "_id": 1,
+    "count": 4
+  },
+  {
+    "_id": 4,
+    "count": 10
+  },
+  {
+    "_id": 2,
+    "count": 26
+  },
+  {
+    "_id": 7,
+    "count": 1
+  },
+  {
+    "_id": 3,
+    "count": 27
+  }
+]
+Active & Not Deleted Questions(Any Type): 154 

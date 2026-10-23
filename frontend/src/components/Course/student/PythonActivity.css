@@ -1,0 +1,140 @@
+.python-activity-container {
+    padding: 8px 0;
+    height: 100%;
+}
+
+.python-activity-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}
+
+/* 左右分栏布局 */
+.python-activity-layout {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 100px);
+    min-height: 700px;
+}
+
+/* 左侧说明区域 */
+.python-activity-left {
+    flex: 0 0 35%;
+    max-width: 35%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 右侧编辑器区域 */
+.python-activity-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.instructions-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.instructions-card .ant-card-body {
+    flex: 1;
+    padding: 12px 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.instructions-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* 自定义滚动条样式 */
+.instructions-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.instructions-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.instructions-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.instructions-content::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* 确保编辑器占满右侧区域 */
+.python-activity-right .python-editor-wrapper {
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.python-activity-right .python-editor-wrapper .ant-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.python-activity-right .python-editor-wrapper .ant-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+/* 响应式布局：小屏幕改为上下布局 */
+@media (max-width: 992px) {
+    .python-activity-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .python-activity-left {
+        flex: none;
+        max-width: 100%;
+        max-height: 300px;
+    }
+
+    .python-activity-right {
+        min-height: 500px;
+    }
+}
+
+@media (max-width: 576px) {
+    .status-bar {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .status-bar>.ant-space {
+        justify-content: center;
+    }
+
+    .python-activity-left {
+        max-height: 250px;
+    }
+}

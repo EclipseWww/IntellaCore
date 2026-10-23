@@ -1,0 +1,66 @@
+.student-grade-feedback { width: 100%; margin-top: 16px; color: #1e293b; }
+.student-grade-feedback__summary { display: flex; gap: 24px; align-items: center; justify-content: space-between; padding: 14px 0 20px; margin-bottom: 16px; border: 0; border-bottom: 1px solid #e5ebf2; border-radius: 0; background: transparent; }
+.student-grade-feedback__overview { min-width: 0; }
+.student-grade-feedback__eyebrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: #64748b; font-size: 13px; }
+.student-grade-feedback__number { display: flex; gap: 10px; align-items: baseline; margin-top: 8px; }
+.student-grade-feedback__number strong { font-size: 40px; font-weight: 700; line-height: 1.25; color: #184d87; font-variant-numeric: tabular-nums; }
+.student-grade-feedback__number > span { color: #64748b; font-size: 14px; }
+.student-grade-feedback__overview p { margin: 8px 0 0; font-size: 13px; color: #64748b; }
+.student-grade-feedback__completion { flex: 0 1 240px; min-width: 180px; }
+.student-grade-feedback__counts { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #64748b; }
+.student-grade-feedback__counts strong { font-size: 18px; color: #334155; font-variant-numeric: tabular-nums; }
+.student-grade-feedback__counts > span:first-child strong { color: #b83f3f; }
+.student-grade-feedback__progress-label { font-size: 12px; color: #64748b; }
+.student-grade-feedback__results { margin-top: 20px; }
+.grade-result-group { margin-bottom: 22px; }
+.grade-result-group h4 { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+.grade-result-group h4 > span { padding: 2px 8px; border-radius: 20px; background: #edf1f5; color: #64748b; font-size: 12px; font-weight: 400; }
+.grade-result-list { display: flex; flex-direction: column; gap: 0; }
+.grade-result-item { padding: 14px 12px; border: 0; border-bottom: 1px solid #e9edf3; border-radius: 0; background: transparent; }
+.grade-result-item--failed { margin-bottom: 8px; border: 0; border-left: 2px solid #d06060; border-radius: 4px; background: #fff7f7; }
+.grade-result-item--review { margin-bottom: 8px; border: 0; border-left: 2px solid #d8a03e; border-radius: 4px; background: #fffdf7; }
+.grade-result-item--passed { border-left: 0; }
+.grade-result-item__top { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+.grade-result-item__title { display: flex; gap: 8px; align-items: baseline; font-size: 14px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.grade-result-item__icon { flex-shrink: 0; color: #c65353; }
+.grade-result-item--review .grade-result-item__icon { color: #c48e28; }
+.grade-result-item--passed .grade-result-item__icon { color: #409c73; }
+.grade-result-item__score { flex-shrink: 0; white-space: nowrap; font-size: 13px; color: #64748b; font-variant-numeric: tabular-nums; }
+.grade-result-item__score strong { color: #334155; font-size: 16px; }
+.grade-result-item__feedback { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0 24px; font-size: 13px; color: #64748b; overflow-wrap: anywhere; }
+.grade-result-item__feedback .ant-tag { flex-shrink: 0; margin-right: 0; }
+.grade-result-item__requirement { margin: 7px 0 0 24px; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
+.grade-result-item__details { margin-top: 8px; }
+.grade-result-item__details .ant-collapse-header { padding-left: 24px !important; font-size: 12px; }
+.grade-result-item--compact { padding: 12px 0; }
+.grade-result-item--compact .grade-result-item__title { font-size: 13px; }
+@media (max-width: 600px) {
+  .student-grade-feedback__summary { flex-direction: column; align-items: stretch; gap: 16px; padding: 12px 0 18px; }
+  .student-grade-feedback__completion { flex: auto; min-width: 0; }
+  .student-grade-feedback__number strong { font-size: 34px; }
+  .grade-result-item__top { gap: 10px; }
+  .grade-result-item__score strong { font-size: 14px; }
+  .grade-result-item__feedback, .grade-result-item__requirement { margin-left: 0; }
+}
+
+.assignment-feedback-records { width: 100%; }
+.assignment-feedback-record { width: 100%; }
+.assignment-feedback-record + .assignment-feedback-record { margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5ebf2; }
+.assignment-feedback-modal .ant-modal-title { font-size: 17px; }
+.assignment-feedback-modal .ant-modal-body { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; padding-right: 8px !important; }
+
+.assignment-feedback-note { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e9edf3; }
+.assignment-feedback-note > .ant-typography:first-child { display: block; margin-bottom: 8px; }
+
+.grade-result-item__location { margin: 5px 0 10px 24px; color: #64748b; font-size: 12px; }
+.grade-result-item__instruction { display: flex; gap: 12px; margin: 8px 0 0 24px; font-size: 13px; line-height: 1.7; }
+.grade-result-item__instruction > span { flex: 0 0 28px; color: #64748b; }
+.grade-result-item__instruction > div { min-width: 0; overflow-wrap: anywhere; color: #334155; }
+.grade-result-item__advice { margin: 10px 0 0 24px; color: #8e4141; font-size: 13px; line-height: 1.7; }
+.grade-result-item--detail { background: transparent; border-left: 0; border-bottom: 1px solid #eadede; border-radius: 0; padding: 12px 0; }
+.grade-result-item--detail:last-child { border-bottom: 0; }
+.grade-result-item__toggle { padding: 8px 0; border: 0; background: transparent; color: #1677ff; font-size: 12px; cursor: pointer; text-align: left; }
+.grade-result-group--passed > .ant-collapse-item > .ant-collapse-header { padding-left: 0; font-weight: 600; }
+@media (max-width: 600px) {
+ .grade-result-item__location, .grade-result-item__instruction, .grade-result-item__advice { margin-left: 0; }
+}

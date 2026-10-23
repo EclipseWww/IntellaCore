@@ -1,0 +1,17 @@
+{
+  "layout": {
+    "rows": 7,
+    "cols": 9,
+    "seats": [
+      {"index": 0, "ip": "", "row": 7, "col": 1},
+      {"index": 1, "ip": "", "row": 7, "col": 2},
+      {"index": 2, "ip": "", "row": 7, "col": 3},
+      {"index": 3, "ip": "", "row": 7, "col": 4},
+      {"index": 4, "ip": "", "row": 7, "col": 5},
+      {"index": 5, "ip": "", "row": 7, "col": 6},
+      {"index": 6, "ip": "", "row": 7, "col": 7},
+      {"index": 7, "ip": "", "row": 7, "col": 8},
+      {"index": 8, "ip": "", "row": 7, "col": 9}
+    ]
+  }
+} 

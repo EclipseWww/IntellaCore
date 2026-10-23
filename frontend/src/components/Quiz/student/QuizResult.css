@@ -1,0 +1,77 @@
+/* 覆盖 MarkdownRenderer 的默认边距 */
+.quiz-markdown-content {
+  margin-bottom: 0;
+}
+
+/* 确保 MarkdownRenderer 中的段落没有底部边距 */
+.quiz-markdown-content > div > div {
+  margin-bottom: 0 !important;
+}
+
+/* 选项和题目内容确保没有多余的边距 */
+.quiz-markdown-content p, 
+.quiz-markdown-content div {
+  margin-bottom: 0 !important;
+}
+
+/* 解析部分可以保留少量的段落间距，但不要太多 */
+.quiz-markdown-content.explanation > div > div {
+  margin-bottom: 8px !important;
+}
+.quiz-markdown-content.explanation > div > div:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* 增大测验中的代码块字体 */
+.quiz-markdown-content pre,
+.quiz-markdown-content code {
+  font-size: 16px !important;
+  line-height: 1.6 !important;
+  font-family: Consolas, Monaco, "Andale Mono", monospace !important;
+}
+
+/* 特别针对Python和其他语言的代码块 */
+.quiz-markdown-content pre[class*="language-"] {
+  font-size: 17px !important;
+  border-radius: 8px !important;
+  /* box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important; */
+  border: 1px solid #eaecef !important;
+}
+
+/* 移除代码元素的边框，确保代码行没有单独边框 */
+.quiz-markdown-content code[class*="language-"] {
+  font-size: 17px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 增强测验中的内容显示效果 */
+.quiz-markdown-content {
+  color: #2c3e50 !important;
+}
+
+/* 增强强调效果 */
+.quiz-markdown-content strong {
+  color: #273849 !important;
+  font-weight: 600 !important;
+}
+
+/* 增强行内代码效果 */
+.quiz-markdown-content :not(pre) > code {
+  color: #476582 !important;
+  background-color: #f0f2f7 !important;
+  padding: 3px 6px !important;
+  border: 1px solid #e0e3e9 !important;
+  border-radius: 4px !important;
+}
+
+/* 列表项样式优化 */
+.quiz-markdown-content ul,
+.quiz-markdown-content ol {
+  padding-left: 20px !important;
+}
+
+.quiz-markdown-content li {
+  margin-bottom: 6px !important;
+  line-height: 1.7 !important;
+} 

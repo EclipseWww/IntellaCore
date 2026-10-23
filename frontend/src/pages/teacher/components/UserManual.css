@@ -1,0 +1,35 @@
+.teacher-manual { width: 100%; min-width: 0; }
+.teacher-manual-header { padding: 0 4px 16px; border-bottom: 1px solid #e3e8e3; margin-bottom: 20px; }
+.teacher-manual-header h2.ant-typography { margin: 0 0 8px; font-size: 22px; }
+.teacher-manual-header .ant-typography { margin-bottom: 0; }
+.teacher-manual-header > .ant-typography:last-child { color: #738078; }
+.teacher-manual-body > .ant-tabs { min-width: 0; }
+.teacher-manual-body > .ant-tabs > .ant-tabs-nav { width: 168px; flex-shrink: 0; }
+.teacher-manual-body > .ant-tabs > .ant-tabs-nav .ant-tabs-tab { padding: 9px 16px; margin: 0 0 4px; text-align: left; }
+.teacher-manual-body > .ant-tabs > .ant-tabs-nav .ant-tabs-tab-active { background: #edf3ef; border-radius: 5px 0 0 5px; }
+.teacher-manual-body > .ant-tabs > .ant-tabs-content-holder { min-width: 0; }
+.teacher-manual-body > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane { padding-left: 24px; }
+.teacher-manual-body .ant-tabs-tabpane > h3.ant-typography:first-child { margin-top: 0; font-size: 20px; }
+.teacher-manual-body .ant-typography, .teacher-manual-body li { overflow-wrap: anywhere; }
+.teacher-manual-body .ant-steps { max-width: 900px; }
+.teacher-manual-body .ant-steps-item-description { color: #59675f !important; }
+.teacher-manual-body .ant-steps-item-title { color: #334c3f !important; }
+@media (max-width: 767px) {
+  .teacher-manual-header { padding-bottom: 12px; margin-bottom: 12px; }
+  .teacher-manual-body > .ant-tabs > .ant-tabs-nav { width: auto; }
+  .teacher-manual-body > .ant-tabs > .ant-tabs-nav .ant-tabs-tab { padding: 8px 10px; margin: 0 8px 0 0; }
+  .teacher-manual-body > .ant-tabs > .ant-tabs-content-holder > .ant-tabs-content > .ant-tabs-tabpane { padding-left: 0; }
+}
+
+.teacher-manual .ant-alert-info {
+  background: #f3f8f5;
+  border: 1px solid #dce8df;
+  padding: 14px 16px;
+  border-radius: 6px;
+}
+.teacher-manual .ant-alert-info .ant-alert-icon { color: #326b59; }
+.teacher-manual .ant-alert-info .ant-alert-message { color: #2d493b; font-size: 14px; font-weight: 600; }
+.teacher-manual .ant-alert-info .ant-alert-description { color: #59675f; font-size: 13px; line-height: 1.8; }
+.teacher-manual-rules { margin-top: 16px; color: #59675f; }
+.teacher-manual-rules > strong { color: #334c3f; }
+.teacher-manual-rules ul { margin: 6px 0 0; padding-left: 24px; line-height: 1.8; }

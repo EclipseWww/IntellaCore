@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味人工智能体验 | 初中生AI探索</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #3498db;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2rem;
+        }
+        
+        .intro {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .sections {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .section-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            transition: transform 0.3s ease;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            color: #2980b9;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .ai-demo {
+            background-color: #f1f8fe;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .chat-container {
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            min-height: 200px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #fff;
+            overflow-y: auto;
+        }
+        
+        .chat-message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background-color: #dcf8c6;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        
+        .ai-message {
+            background-color: #f0f0f0;
+        }
+        
+        .message-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .image-recognition {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .dropzone {
+            border: 2px dashed #3498db;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .dropzone:hover {
+            background-color: #f1f8fe;
+        }
+        
+        .result-container {
+            margin-top: 20px;
+            min-height: 100px;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+            display: none;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .resources {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f7fa;
+            border-radius: 10px;
+        }
+        
+        .resources h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .resources ul {
+            list-style-type: none;
+        }
+        
+        .resources li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .resources li::before {
+            content: "•";
+            color: #3498db;
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .sections {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>趣味人工智能体验</h1>
+            <p class="subtitle">探索AI的奇妙世界 - 为初中生设计的人工智能互动平台</p>
+        </header>
+        
+        <div class="intro">
+            <h2>什么是人工智能？</h2>
+            <p>人工智能（AI）是让计算机模拟人类思维和学习能力的科技。它已经融入我们的日常生活，从手机上的语音助手到自动驾驶汽车，AI无处不在。今天，让我们一起探索这个神奇的技术世界！</p>
+        </div>
+        
+        <div class="sections">
+            <div class="section-card">
+                <h3 class="section-title">机器学习</h3>
+                <p>机器学习是AI的核心技术之一，它让计算机能够从数据中学习并做出决策，而不需要明确的编程指令。</p>
+                <p>就像你学习骑自行车一样，机器也能通过大量练习来不断提高自己的能力！</p>
+            </div>
+            
+            <div class="section-card">
+                <h3 class="section-title">自然语言处理</h3>
+                <p>自然语言处理（NLP）让计算机能够理解人类语言。这项技术使得语音助手、翻译软件和聊天机器人成为可能。</p>
+                <p>试试下方的AI聊天体验，看看计算机是如何理解和回应你的问题的！</p>
+            </div>
+            
+            <div class="section-card">
+                <h3 class="section-title">计算机视觉</h3>
+                <p>计算机视觉让AI系统能够"看见"并理解图像和视频的内容，就像人类的眼睛一样。</p>
+                <p>在本页面的图像识别部分，你可以上传图片，看看AI如何识别图片中的内容！</p>
+            </div>
+        </div>
+        
+        <div class="ai-demo">
+            <h2>AI聊天体验</h2>
+            <p>在下方输入框中提问，体验AI如何回答你的问题！你可以尝试提问："什么是人工智能？"、"人工智能能做什么？"或"AI在未来会如何发展？"</p>
+            
+            <div class="demo-controls">
+                <div class="chat-container" id="chatContainer">
+                    <div class="chat-message ai-message">
+                        <p>你好！我是AI助手，很高兴和你聊天。你有什么问题想问我吗？</p>
+                    </div>
+                </div>
+                
+                <div class="message-input">
+                    <input type="text" id="userInput" placeholder="在这里输入你的问题..." />
+                    <button id="sendBtn">发送</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="image-recognition">
+            <h2>图像识别体验</h2>
+            <p>上传一张图片，看看AI能否识别出图中的内容！试试上传动物、建筑物或日常物品的图片。</p>
+            
+            <div class="dropzone" id="imageDropzone">
+                <p>点击这里上传图片，或将图片拖放到此处</p>
+                <input type="file" id="imageInput" style="display: none;" accept="image/*" />
+            </div>
+            
+            <div class="result-container" id="imageResult">
+                <h3>识别结果：</h3>
+                <div id="resultContent"></div>
+            </div>
+        </div>
+        
+        <div class="resources">
+            <h3>想要了解更多？</h3>
+            <ul>
+                <li>《人工智能是什么 - 青少年科普读本》</li>
+                <li>B站搜索"人工智能科普"，有许多适合初中生的视频介绍</li>
+                <li>《与AI同行 - 中学生指南》在线电子书</li>
+                <li>参观本地科技馆的AI互动展览</li>
+                <li>关注"青少年AI教育"微信公众号</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>本页面仅供教育目的使用 | 适合初中学生AI科普体验 | ©2024 学习平台</p>
+        </div>
+    </div>
+
+    <script>
+        // AI聊天功能模拟
+        const chatResponses = {
+            "你好": "你好！很高兴和你聊天。我是一个AI助手，有什么我能帮助你的吗？",
+            "你是谁": "我是一个AI助手，被设计用来回答问题和提供信息。我没有实体，只存在于计算机程序中。",
+            "什么是人工智能": "人工智能是让计算机模仿人类思维和学习能力的技术。它包括机器学习、自然语言处理和计算机视觉等领域。简单来说，它让计算机能够'思考'和'学习'。",
+            "人工智能能做什么": "人工智能可以做很多事情！例如：识别图像和语音、翻译语言、推荐你可能喜欢的内容、辅助医生诊断疾病、控制自动驾驶汽车、在游戏中与你对战等等。它的应用几乎无处不在！",
+            "ai在未来会如何发展": "AI未来发展可能会更加智能化和普及化。它可能会更好地理解人类情感，解决更复杂的问题，融入更多设备和服务中。但也需要注意解决隐私、安全和伦理问题，确保AI的发展对人类社会有益。",
+            "机器学习是什么": "机器学习是AI的一个分支，它让计算机能够从数据中学习并改进，而不需要明确的编程指令。就像你学习骑自行车一样，机器通过'练习'（数据训练）来提高自己的能力！"
+        };
+
+        document.getElementById('sendBtn').addEventListener('click', handleUserMessage);
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleUserMessage();
+            }
+        });
+
+        function handleUserMessage() {
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+            
+            if (message === '') return;
+            
+            // 添加用户消息
+            addMessage(message, 'user-message');
+            userInput.value = '';
+            
+            // 模拟AI处理时间
+            setTimeout(() => {
+                // 查找匹配的回复
+                let response = "对不起，我不确定如何回答这个问题。你可以尝试问我关于人工智能的基本概念，例如'什么是人工智能'或'机器学习是什么'。";
+                
+                // 简单的关键词匹配
+                for (const key in chatResponses) {
+                    if (message.toLowerCase().includes(key.toLowerCase())) {
+                        response = chatResponses[key];
+                        break;
+                    }
+                }
+                
+                addMessage(response, 'ai-message');
+            }, 1000);
+        }
+
+        function addMessage(text, className) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${className}`;
+            
+            const messagePara = document.createElement('p');
+            messagePara.textContent = text;
+            
+            messageDiv.appendChild(messagePara);
+            chatContainer.appendChild(messageDiv);
+            
+            // 自动滚动到底部
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // 图像识别功能模拟
+        const dropzone = document.getElementById('imageDropzone');
+        const imageInput = document.getElementById('imageInput');
+        const imageResult = document.getElementById('imageResult');
+        const resultContent = document.getElementById('resultContent');
+        
+        dropzone.addEventListener('click', () => {
+            imageInput.click();
+        });
+        
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.backgroundColor = '#f1f8fe';
+        });
+        
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.style.backgroundColor = '';
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.backgroundColor = '';
+            
+            if (e.dataTransfer.files.length) {
+                handleImage(e.dataTransfer.files[0]);
+            }
+        });
+        
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files.length) {
+                handleImage(imageInput.files[0]);
+            }
+        });
+        
+        function handleImage(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('请上传图片文件');
+                return;
+            }
+            
+            // 显示上传的图片
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 模拟AI处理时间
+                setTimeout(() => {
+                    // 模拟图像识别结果
+                    const possibleObjects = [
+                        "猫", "狗", "树", "房子", "汽车", "自行车", "书本", 
+                        "笔记本电脑", "手机", "眼镜", "花", "山", "海", "鸟"
+                    ];
+                    
+                    const randomObjects = [];
+                    const numObjects = Math.floor(Math.random() * 3) + 1; // 随机1-3个物体
+                    
+                    for (let i = 0; i < numObjects; i++) {
+                        const randomIndex = Math.floor(Math.random() * possibleObjects.length);
+                        randomObjects.push(possibleObjects[randomIndex]);
+                    }
+                    
+                    const confidence = (Math.random() * 30 + 70).toFixed(1); // 70-100%的置信度
+                    
+                    // 显示结果
+                    resultContent.innerHTML = `
+                        <div style="margin-bottom: 15px;">
+                            <img src="${e.target.result}" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
+                        </div>
+                        <p>我识别到的可能是: <strong>${randomObjects.join(', ')}</strong></p>
+                        <p>置信度: <strong>${confidence}%</strong></p>
+                        <p style="margin-top: 10px; color: #7f8c8d; font-size: 0.9em;">
+                            注意：这是一个模拟演示，实际AI图像识别结果会更准确。
+                        </p>
+                    `;
+                    
+                    imageResult.style.display = 'block';
+                }, 1500);
+            };
+            
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html> 

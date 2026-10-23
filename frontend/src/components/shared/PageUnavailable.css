@@ -1,0 +1,10 @@
+.page-unavailable { min-height: 100vh; display: grid; place-items: center; padding: 32px 20px; box-sizing: border-box; background: radial-gradient(ellipse at 20% 15%, rgba(65,88,208,.06), transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(200,80,192,.05), transparent 50%), #f8fafc; }
+.page-unavailable-card { width: 100%; max-width: 560px; text-align: center; }
+.page-unavailable-label { color: #64748b; font-size: 13px; letter-spacing: 3px; }
+.page-unavailable-number { margin: 30px 0 10px; font-size: clamp(100px, 22vw, 160px); line-height: 1.15; font-weight: 700; letter-spacing: -8px; color: #4158d0; background: linear-gradient(135deg, #4158d0, #c850c0); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.page-unavailable-card h1 { font-size: 26px; font-weight: 600; color: #1e293b; margin: 20px 0 14px; }
+.page-unavailable-card p { color: #64748b; font-size: 15px; line-height: 1.9; margin: 0 auto; max-width: 370px; }
+.page-unavailable-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
+.page-unavailable-actions .ant-btn { border-radius: 10px; padding-inline: 28px; }
+.page-unavailable-actions .ant-btn-primary { background: #4158d0; }
+.page-unavailable-footer { display: block; margin-top: 64px; color: #94a3b8; font-size: 12px; letter-spacing: 1px; }

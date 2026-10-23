@@ -1,0 +1,113 @@
+.free-practice-container {
+    padding: 24px;
+    max-width: 98%;
+    margin: 0 auto;
+}
+
+.practice-header {
+    margin-bottom: 24px;
+}
+
+.timer-card {
+    text-align: center;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.question-area {
+    min-height: 400px;
+}
+
+.question-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+}
+
+.question-card:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.navigation-area {
+    margin-top: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.question-indicators {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.indicator-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    border: 1px solid #d9d9d9;
+}
+
+.indicator-btn.active {
+    background-color: #1890ff;
+    color: white;
+    border-color: #1890ff;
+}
+
+.indicator-btn.answered {
+    background-color: #f6ffed;
+    border-color: #b7eb8f;
+    color: #52c41a;
+}
+
+.indicator-btn.active.answered {
+    background-color: #13c2c2;
+    border-color: #13c2c2;
+    color: white;
+}
+
+/* 结果页样式 */
+.result-card {
+    text-align: center;
+    padding: 40px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.score-display {
+    margin: 24px 0;
+}
+
+.result-stat-item {
+    text-align: center;
+    padding: 16px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.points-earned {
+    color: #faad14;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+.confetti-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+    overflow: hidden;
+}

@@ -1,0 +1,224 @@
+.markdown-editor {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.markdown-editor .rc-md-editor {
+  border-radius: 4px;
+  border-color: #d9d9d9;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.markdown-editor .rc-md-editor .editor-container {
+  min-height: 100px;
+  height: calc(100% - 44px);
+  position: relative;
+}
+
+.markdown-editor.full-toolbar .rc-md-editor .editor-container {
+  height: calc(100% - 56px);
+}
+
+.markdown-editor .rc-md-editor .editor-container .sec-md .input {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100%;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  position: relative;
+}
+
+.markdown-editor .rc-md-editor .editor-container .sec-html {
+  border-left: 1px solid #d9d9d9;
+}
+
+.markdown-editor .rc-md-editor .editor-container .sec-html .html-wrap {
+  padding: 10px 15px;
+  background-color: #fafafa;
+}
+
+.markdown-editor .rc-md-editor .rc-md-navigation {
+  background-color: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-bottom: none;
+  min-height: 44px;
+}
+
+.markdown-editor .rc-md-editor .rc-md-navigation .button-wrap .button {
+  color: #595959;
+}
+
+.markdown-editor .rc-md-editor .rc-md-navigation .button-wrap .button:hover {
+  color: #1890ff;
+}
+
+.markdown-editor .rc-md-editor .rc-md-navigation .button-wrap .button.active {
+  color: #1890ff;
+}
+
+/* Markdown渲染样式 */
+.markdown-content {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-content h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+}
+
+.markdown-content h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 0.3em;
+}
+
+.markdown-content h3 {
+  font-size: 1.25em;
+}
+
+.markdown-content h4 {
+  font-size: 1em;
+}
+
+.markdown-content p,
+.markdown-content blockquote,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content dl,
+.markdown-content table,
+.markdown-content pre {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-content blockquote {
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 0.25em solid #dfe2e5;
+}
+
+.markdown-content pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: #f6f8fa;
+  border-radius: 3px;
+}
+
+.markdown-content pre code {
+  display: inline;
+  max-width: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+}
+
+.markdown-content code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+}
+
+.markdown-content table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-content table tr {
+  background-color: #fff;
+  border-top: 1px solid #c6cbd1;
+}
+
+.markdown-content table tr:nth-child(2n) {
+  background-color: #f6f8fa;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.markdown-content table th {
+  font-weight: 600;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  box-sizing: content-box;
+  background-color: #fff;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+/* 重置section容器样式 */
+.markdown-editor .rc-md-editor .section-container {
+  height: 100%;
+  position: relative;
+}
+
+/* 编辑器内容区域确保不溢出 */
+.markdown-editor .rc-md-editor .editor-container .sec-md {
+  padding: 8px 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  height: 100%;
+  position: relative;
+}
+
+.markdown-editor .rc-md-editor .editor-container .input {
+  height: 100%;
+  min-height: auto;
+}
+
+/* 调整编辑器区域内边距 */
+.markdown-editor .custom-html-style {
+  padding: 8px 16px;
+}
+
+/* 工具图标悬浮效果 */
+.markdown-editor .button-type-menu:hover {
+  color: #1890ff;
+}
+
+/* 增高工具栏 */
+.markdown-editor.full-toolbar .rc-md-navigation {
+  min-height: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.markdown-editor.full-toolbar .rc-md-navigation .button-wrap {
+  margin-bottom: 4px;
+}

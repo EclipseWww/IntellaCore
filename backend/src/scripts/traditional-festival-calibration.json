@@ -1,0 +1,385 @@
+{
+  "assumption": "五个操作各2分，整步要求全部通过",
+  "rules": [
+    {
+      "id": "festival-step-1",
+      "type": "criteriaGroup",
+      "title": "第1张图片背景与隐藏主题背景",
+      "summary": "本次核对按五个步骤各2分，要求全部通过；此分配根据样例推断，非已确认的教师细则",
+      "enabled": true,
+      "score": 2,
+      "scoringMode": "all",
+      "children": [
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "backgroundProperty",
+          "slideNumber": 1,
+          "title": "第1张隐藏主题背景图形",
+          "summary": "隐藏主题背景图形",
+          "expected": {
+            "property": "hideMasterShapes",
+            "value": true
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "backgroundProperty",
+          "slideNumber": 1,
+          "title": "第1张背景填充方式",
+          "summary": "要求：\"image\"",
+          "expected": {
+            "property": "fillType",
+            "value": "image"
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "backgroundProperty",
+          "slideNumber": 1,
+          "title": "第1张背景图片",
+          "summary": "要求：\"3a32ec9c3246198029c06a050362468c05226fc375c5e04fe72e1ca8b5d450fb\"",
+          "expected": {
+            "property": "imageHash",
+            "value": "3a32ec9c3246198029c06a050362468c05226fc375c5e04fe72e1ca8b5d450fb"
+          }
+        }
+      ]
+    },
+    {
+      "id": "festival-step-2",
+      "type": "criteriaGroup",
+      "title": "第3张陀螺旋、逆时针、单击声音",
+      "summary": "本次核对按五个步骤各2分，要求全部通过；此分配根据样例推断，非已确认的教师细则",
+      "enabled": true,
+      "score": 2,
+      "scoringMode": "all",
+      "children": [
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "animationObject",
+          "slideNumber": 3,
+          "title": "第3张“Picture 6”动画效果",
+          "summary": "[{\"presetClass\":\"emph\",\"presetId\":\"8\",\"transition\":null}]",
+          "expected": {
+            "object": {
+              "kind": "pic",
+              "text": "",
+              "mediaHash": "9a2b2babd85dd50633433cea4e2a7b28b9fb33704271c3877c9e4dc9a75b6607",
+              "name": "Picture 6"
+            },
+            "property": "effect",
+            "animations": [
+              {
+                "presetClass": "emph",
+                "presetId": "8",
+                "subtype": "0",
+                "filter": null,
+                "transition": null,
+                "start": "onClick",
+                "duration": "2000",
+                "rotation": "-21600000",
+                "sound": true,
+                "soundName": "click.wav",
+                "soundHash": "a797a293428afe1e9999a5ffccd1ad7b9b581d427189de02caf66f389a70a31b"
+              }
+            ]
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "animationObject",
+          "slideNumber": 3,
+          "title": "第3张“Picture 6”动画方向",
+          "summary": "[{\"subtype\":\"0\",\"filter\":null,\"rotation\":\"-21600000\"}]",
+          "expected": {
+            "object": {
+              "kind": "pic",
+              "text": "",
+              "mediaHash": "9a2b2babd85dd50633433cea4e2a7b28b9fb33704271c3877c9e4dc9a75b6607",
+              "name": "Picture 6"
+            },
+            "property": "direction",
+            "animations": [
+              {
+                "presetClass": "emph",
+                "presetId": "8",
+                "subtype": "0",
+                "filter": null,
+                "transition": null,
+                "start": "onClick",
+                "duration": "2000",
+                "rotation": "-21600000",
+                "sound": true,
+                "soundName": "click.wav",
+                "soundHash": "a797a293428afe1e9999a5ffccd1ad7b9b581d427189de02caf66f389a70a31b"
+              }
+            ]
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "animationObject",
+          "slideNumber": 3,
+          "title": "第3张“Picture 6”动画声音",
+          "summary": "[{\"hasSound\":true,\"identity\":\"a797a293428afe1e9999a5ffccd1ad7b9b581d427189de02caf66f389a70a31b\"}]",
+          "expected": {
+            "object": {
+              "kind": "pic",
+              "text": "",
+              "mediaHash": "9a2b2babd85dd50633433cea4e2a7b28b9fb33704271c3877c9e4dc9a75b6607",
+              "name": "Picture 6"
+            },
+            "property": "sound",
+            "animations": [
+              {
+                "presetClass": "emph",
+                "presetId": "8",
+                "subtype": "0",
+                "filter": null,
+                "transition": null,
+                "start": "onClick",
+                "duration": "2000",
+                "rotation": "-21600000",
+                "sound": true,
+                "soundName": "click.wav",
+                "soundHash": "a797a293428afe1e9999a5ffccd1ad7b9b581d427189de02caf66f389a70a31b"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "festival-step-3",
+      "type": "criteriaGroup",
+      "title": "第3张擦除、向右、推动声音",
+      "summary": "本次核对按五个步骤各2分，要求全部通过；此分配根据样例推断，非已确认的教师细则",
+      "enabled": true,
+      "score": 2,
+      "scoringMode": "all",
+      "children": [
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "transitionEffect",
+          "slideNumber": 3,
+          "title": "第3张切换：效果",
+          "summary": "切换效果：擦除",
+          "expected": {
+            "type": "wipe",
+            "direction": "r",
+            "thruBlk": null,
+            "speed": null,
+            "duration": "0",
+            "sound": true,
+            "soundName": "push.wav",
+            "soundHash": "c611caa62a911bb2387af89d80059c67c527a7968919242dc7913094b64a8673"
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "transitionDirection",
+          "slideNumber": 3,
+          "title": "第3张切换：方向/选项",
+          "summary": "方向：自右侧",
+          "expected": {
+            "type": "wipe",
+            "direction": "r",
+            "thruBlk": null,
+            "speed": null,
+            "duration": "0",
+            "sound": true,
+            "soundName": "push.wav",
+            "soundHash": "c611caa62a911bb2387af89d80059c67c527a7968919242dc7913094b64a8673"
+          }
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "transitionSound",
+          "slideNumber": 3,
+          "title": "第3张切换：声音",
+          "summary": "声音：push.wav",
+          "expected": {
+            "type": "wipe",
+            "direction": "r",
+            "thruBlk": null,
+            "speed": null,
+            "duration": "0",
+            "sound": true,
+            "soundName": "push.wav",
+            "soundHash": "c611caa62a911bb2387af89d80059c67c527a7968919242dc7913094b64a8673"
+          }
+        }
+      ]
+    },
+    {
+      "id": "festival-step-4",
+      "type": "criteriaGroup",
+      "title": "母版图片应用到所有幻灯片",
+      "summary": "本次核对按五个步骤各2分，要求全部通过；此分配根据样例推断，非已确认的教师细则",
+      "enabled": true,
+      "score": 2,
+      "scoringMode": "all",
+      "children": [
+        {
+          "type": "masterPicture",
+          "title": "母版图片“image1.GIF”",
+          "summary": "文件：image1.GIF；位置：x=328295, y=462280；大小：1152525×1104900",
+          "expected": {
+            "index": 0,
+            "id": "2",
+            "name": "图片 1",
+            "descr": "中国节日",
+            "relationshipId": "rId12",
+            "target": "../media/image1.GIF",
+            "mediaName": "image1.GIF",
+            "position": {
+              "x": 328295,
+              "y": 462280,
+              "cx": 1152525,
+              "cy": 1104900
+            },
+            "hasHyperlink": false,
+            "rawSignature": "image1.gif|图片 1|中国节日",
+            "mediaHash": "960888dc3c351f86f8ff0800f0031b0ec0c09c1777f8fabc771f2918f6646a54",
+            "slideNumbers": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ]
+          },
+          "score": 10,
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "festival-step-5",
+      "type": "criteriaGroup",
+      "title": "第6张后新增标题版式和指定文字",
+      "summary": "本次核对按五个步骤各2分，要求全部通过；此分配根据样例推断，非已确认的教师细则",
+      "enabled": true,
+      "score": 2,
+      "scoringMode": "all",
+      "children": [
+        {
+          "type": "slideCount",
+          "title": "幻灯片数量",
+          "summary": "参考答案共 8 张幻灯片",
+          "expected": 8,
+          "score": 10,
+          "enabled": true
+        },
+        {
+          "enabled": true,
+          "score": 10,
+          "type": "slideLayout",
+          "slideNumber": 7,
+          "title": "第7张版式",
+          "summary": "版式：标题幻灯片",
+          "expected": {
+            "type": "title",
+            "name": "标题幻灯片"
+          }
+        },
+        {
+          "type": "textContent",
+          "slideNumber": 7,
+          "title": "第7张文字“感谢关注中国传统文化”",
+          "summary": "内容：感谢关注中国传统文化",
+          "expected": {
+            "index": 0,
+            "id": "2",
+            "text": "感谢关注中国传统文化",
+            "normalizedText": "感谢关注中国传统文化",
+            "position": {
+              "x": null,
+              "y": null,
+              "cx": null,
+              "cy": null
+            },
+            "fontSize": null,
+            "fontFamily": null,
+            "color": null,
+            "bold": false,
+            "italic": false,
+            "runs": [
+              {
+                "text": "感谢关注中国传统文化",
+                "fontSize": 0,
+                "fontFamily": null,
+                "color": null,
+                "bold": false,
+                "italic": false
+              }
+            ],
+            "paragraphAlignments": [],
+            "lineSpacings": [],
+            "hasShadow": false,
+            "hasInnerShadow": false,
+            "hasWordArtEffect": false,
+            "presetShape": null,
+            "rawSignature": "感谢关注中国传统文化|0|||false|false"
+          },
+          "score": 10,
+          "enabled": true
+        },
+        {
+          "type": "textContent",
+          "slideNumber": 7,
+          "title": "第7张文字“小明制作”",
+          "summary": "内容：小明制作",
+          "expected": {
+            "index": 1,
+            "id": "3",
+            "text": "小明制作",
+            "normalizedText": "小明制作",
+            "position": {
+              "x": null,
+              "y": null,
+              "cx": null,
+              "cy": null
+            },
+            "fontSize": null,
+            "fontFamily": null,
+            "color": null,
+            "bold": false,
+            "italic": false,
+            "runs": [
+              {
+                "text": "小明制作",
+                "fontSize": 0,
+                "fontFamily": null,
+                "color": null,
+                "bold": false,
+                "italic": false
+              }
+            ],
+            "paragraphAlignments": [],
+            "lineSpacings": [],
+            "hasShadow": false,
+            "hasInnerShadow": false,
+            "hasWordArtEffect": false,
+            "presetShape": null,
+            "rawSignature": "小明制作|0|||false|false"
+          },
+          "score": 10,
+          "enabled": true
+        }
+      ]
+    }
+  ]
+}

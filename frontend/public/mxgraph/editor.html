@@ -1,0 +1,446 @@
+<!--[if IE]><meta http-equiv="X-UA-Compatible" content="IE=5,IE=9" ><![endif]-->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>流程图编辑器</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" type="text/css" href="styles/grapheditor.css">
+    <script type="text/javascript">
+        // 解析 URL 参数
+        var urlParams = (function (url) {
+            var result = new Object();
+            var idx = url.lastIndexOf('?');
+
+            if (idx > 0) {
+                var params = url.substring(idx + 1).split('&');
+
+                for (var i = 0; i < params.length; i++) {
+                    idx = params[i].indexOf('=');
+
+                    if (idx > 0) {
+                        result[params[i].substring(0, idx)] = decodeURIComponent(params[i].substring(idx + 1));
+                    }
+                }
+            }
+
+            return result;
+        })(window.location.href);
+
+        // 默认资源包含在 grapheditor 资源中
+        mxLoadResources = false;
+        mxBasePath = 'src/';
+
+        // 从 URL 参数获取配置
+        var isReadOnly = urlParams['readonly'] === '1';
+        var lessonId = urlParams['lessonId'] || '';
+        var activityId = urlParams['activityId'] || '';
+        var authToken = urlParams['token'] || '';
+        var initialData = urlParams['data'] || '';
+        var hasData = urlParams['hasData'] === '1'; // 标记是否有数据通过 postMessage 传递
+        var dataReceived = !!initialData; // 是否已收到数据
+
+        // API 基础路径（与主应用相同的域名）
+        var API_BASE_URL = window.location.origin;
+    </script>
+    <script type="text/javascript" src="js/Init.js"></script>
+    <script type="text/javascript" src="deflate/pako.min.js"></script>
+    <script type="text/javascript" src="deflate/base64.js"></script>
+    <script type="text/javascript" src="jscolor/jscolor.js"></script>
+    <script type="text/javascript" src="sanitizer/sanitizer.min.js"></script>
+    <script type="text/javascript" src="mxClient.js"></script>
+    <script type="text/javascript" src="js/EditorUi.js"></script>
+    <script type="text/javascript" src="js/Editor.js"></script>
+    <script type="text/javascript" src="js/Sidebar.js"></script>
+    <script type="text/javascript" src="js/Graph.js"></script>
+    <script type="text/javascript" src="js/Format.js"></script>
+    <script type="text/javascript" src="js/Shapes.js"></script>
+    <script type="text/javascript" src="js/Actions.js"></script>
+    <script type="text/javascript" src="js/Menus.js"></script>
+    <script type="text/javascript" src="js/Toolbar.js"></script>
+    <script type="text/javascript" src="js/Dialogs.js"></script>
+    <style>
+        /* 使用 mxGraph 原生风格的按钮 */
+        .edu-toolbar {
+            position: fixed;
+            top: 36px;
+            right: 200px;
+            z-index: 999;
+            display: flex;
+            gap: 4px;
+        }
+
+        .edu-btn {
+            background-image: none;
+            background-color: #f5f5f5;
+            border-radius: 2px;
+            border: 1px solid #d8d8d8;
+            color: #333;
+            cursor: pointer;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            height: 29px;
+            line-height: 27px;
+            margin: 0;
+            min-width: 72px;
+            outline: 0;
+            padding: 0 8px;
+        }
+
+        .edu-btn:hover {
+            -webkit-box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.1);
+            -moz-box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #c6c6c6;
+            background-color: #f8f8f8;
+            background-image: linear-gradient(#f8f8f8 0px, #f1f1f1 100%);
+            color: #111;
+        }
+
+        .edu-btn:active {
+            opacity: .7;
+        }
+
+        .edu-btn-primary {
+            background-color: #4d90fe;
+            background-image: linear-gradient(#4d90fe 0px, #4787ed 100%);
+            border: 1px solid #3079ed;
+            color: #fff;
+        }
+
+        .edu-btn-primary:hover {
+            background-color: #357ae8;
+            background-image: linear-gradient(#4d90fe 0px, #357ae8 100%);
+            border: 1px solid #2f5bb7;
+            color: #fff;
+        }
+
+        .edu-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .edu-status {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #f1f3f4;
+            color: #666;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-family: Helvetica, Arial, sans-serif;
+            z-index: 999;
+            border-top: 1px solid #dadce0;
+        }
+
+        .edu-status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .edu-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body class="geEditor">
+
+    <div class="edu-toolbar" id="eduToolbar">
+        <button class="edu-btn edu-btn-primary" onclick="saveFlowchart()" id="saveBtn">保存</button>
+    </div>
+
+    <div class="edu-status" id="statusBar">就绪</div>
+
+    <script type="text/javascript">
+        var editor;
+        var startTime = Date.now();
+
+        mxResources.loadDefaultBundle = false;
+        var bundle = mxResources.getDefaultBundle(RESOURCE_BASE, mxLanguage) ||
+            mxResources.getSpecialBundle(RESOURCE_BASE, mxLanguage);
+
+        // 加载资源
+        mxUtils.getAll([bundle, STYLE_PATH + '/default.xml'], function (xhr) {
+            // 添加资源
+            mxResources.parse(xhr[0].getText());
+
+            // 配置默认主题
+            var themes = new Object();
+            themes[Graph.prototype.defaultThemeName] = xhr[1].getDocumentElement();
+
+            // 创建编辑器
+            editor = new Editor(urlParams['chrome'] == '0', themes);
+            new EditorUi(editor);
+
+            // 如果有初始数据，加载它
+            if (initialData) {
+                try {
+                    var decodedData = initialData;
+                    // 尝试再次解码（如果是双重编码的情况）
+                    try {
+                        decodedData = decodeURIComponent(initialData);
+                    } catch (e) {
+                        // 已经是解码后的数据
+                    }
+
+                    if (decodedData.trim().startsWith('<')) {
+                        var doc = mxUtils.parseXml(decodedData);
+                        var codec = new mxCodec(doc);
+                        codec.decode(doc.documentElement, editor.graph.getModel());
+                        showStatus('已加载流程图数据', 'success');
+                        dataReceived = true;
+                    }
+                } catch (e) {
+                    console.error('加载初始数据失败:', e);
+                    showStatus('加载数据失败: ' + e.message, 'error');
+                }
+            } else if (hasData && !dataReceived) {
+                // 标记有数据但还没收到，显示等待状态
+                showStatus('等待加载数据...');
+            }
+
+            // 只读模式配置
+            if (isReadOnly) {
+                editor.graph.setEnabled(false);
+                document.getElementById('eduToolbar').style.display = 'none';
+                if (dataReceived) {
+                    showStatus('只读模式');
+                } else if (hasData) {
+                    showStatus('只读模式 - 等待数据...');
+                } else {
+                    showStatus('只读模式');
+                }
+                // 禁用修改状态检查
+                editor.setModified(false);
+                editor.undoManager.clear();
+                window.onbeforeunload = null;
+            }
+
+            // 通知父窗口已准备就绪
+            notifyParent({ type: 'ready' });
+
+        }, function () {
+            document.body.innerHTML = '<center style="margin-top:10%;">加载资源文件失败，请检查控制台。</center>';
+        });
+
+        // 覆盖 mxGraph 默认的关闭提示
+        if (isReadOnly) {
+            window.onbeforeunload = null;
+        }
+
+        // 获取流程图 XML 数据
+        function getGraphXml() {
+            if (!editor || !editor.graph) return null;
+            var xml = mxUtils.getXml(new mxCodec().encode(editor.graph.getModel()));
+            return xml;
+        }
+
+        // 显示状态信息
+        function showStatus(msg, type) {
+            var statusBar = document.getElementById('statusBar');
+            statusBar.textContent = msg;
+            statusBar.className = 'edu-status' + (type ? ' ' + type : '');
+
+            // 3秒后恢复默认状态
+            if (type) {
+                setTimeout(function () {
+                    statusBar.className = 'edu-status';
+                }, 3000);
+            }
+        }
+
+        // 通知父窗口
+        function notifyParent(data) {
+            try {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(data, '*');
+                }
+            } catch (e) {
+                console.log('无法通知 opener:', e);
+            }
+
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage(data, '*');
+                }
+            } catch (e) {
+                console.log('无法通知 parent:', e);
+            }
+        }
+
+        // 独立保存流程图到后端 API
+        async function saveToAPI(xml, duration) {
+            if (!lessonId || !activityId) {
+                throw new Error('缺少 lessonId 或 activityId，无法保存');
+            }
+
+            if (!authToken) {
+                throw new Error('缺少认证信息，请重新从课程页面打开编辑器');
+            }
+
+            var response = await fetch(API_BASE_URL + '/api/flowchart/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + authToken
+                },
+                body: JSON.stringify({
+                    lessonId: lessonId,
+                    activityId: activityId,
+                    flowchartData: xml,
+                    duration: duration
+                })
+            });
+
+            if (!response.ok) {
+                var errorData = await response.json().catch(function () { return {}; });
+                throw new Error(errorData.message || '保存失败，请稍后重试');
+            }
+
+            return await response.json();
+        }
+
+        // 保存流程图
+        async function saveFlowchart() {
+            var xml = getGraphXml();
+            if (!xml) {
+                showStatus('无法获取流程图数据', 'error');
+                return;
+            }
+
+            // 检查是否有内容
+            var graph = editor.graph;
+            var cells = graph.getModel().getChildCells(graph.getDefaultParent());
+            if (cells.length === 0) {
+                showStatus('请先绘制流程图再保存', 'error');
+                return;
+            }
+
+            var duration = Math.round((Date.now() - startTime) / 1000);
+
+            // 禁用保存按钮
+            var saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            showStatus('保存中...');
+
+            try {
+                // 尝试独立调用 API 保存
+                if (lessonId && activityId && authToken) {
+                    await saveToAPI(xml, duration);
+                    showStatus('保存成功！', 'success');
+
+                    // 通知父窗口保存成功（如果父窗口还存在）
+                    notifyParent({
+                        type: 'saveSuccess',
+                        data: xml,
+                        duration: duration,
+                        lessonId: lessonId,
+                        activityId: activityId
+                    });
+
+                    // 标记为未修改，防止关闭时弹出提示
+                    if (editor) {
+                        editor.setModified(false);
+                        editor.undoManager.clear();
+                    }
+                    window.onbeforeunload = null;
+
+                    // 1.5秒后关闭窗口
+                    setTimeout(function () {
+                        window.close();
+                    }, 1500);
+                } else {
+                    // 回退到通知父窗口的方式（兼容旧的调用方式）
+                    notifyParent({
+                        type: 'submit',
+                        data: xml,
+                        duration: duration,
+                        lessonId: lessonId,
+                        activityId: activityId
+                    });
+                    // 等待父窗口响应
+                    showStatus('等待保存响应...');
+                }
+            } catch (error) {
+                console.error('保存失败:', error);
+                showStatus('保存失败: ' + error.message, 'error');
+
+                // 通知父窗口保存失败
+                notifyParent({
+                    type: 'saveError',
+                    error: error.message
+                });
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+
+        // 监听来自父窗口的消息
+        window.addEventListener('message', function (event) {
+            var msg = event.data;
+            if (msg && msg.type) {
+                switch (msg.type) {
+                    case 'load':
+                        // 加载数据
+                        if (msg.data && msg.data.trim().startsWith('<')) {
+                            try {
+                                var doc = mxUtils.parseXml(msg.data);
+                                var codec = new mxCodec(doc);
+                                codec.decode(doc.documentElement, editor.graph.getModel());
+                                // 加载数据后重置修改状态，防止弹出未保存提示
+                                editor.setModified(false);
+                                editor.undoManager.clear();
+                                dataReceived = true; // 标记已收到数据
+                                if (isReadOnly) {
+                                    window.onbeforeunload = null;
+                                    showStatus('只读模式', 'success');
+                                } else {
+                                    showStatus('数据已加载', 'success');
+                                }
+                            } catch (e) {
+                                console.error('加载数据失败:', e);
+                                showStatus('加载失败', 'error');
+                            }
+                        }
+                        break;
+                    case 'saveSuccess':
+                    case 'submitSuccess':
+                        showStatus('保存成功！', 'success');
+                        // 标记为未修改，防止关闭时弹出提示
+                        if (editor) {
+                            editor.setModified(false);
+                            editor.undoManager.clear();
+                        }
+                        window.onbeforeunload = null;
+
+                        setTimeout(function () {
+                            window.close();
+                        }, 1500);
+                        break;
+                    case 'error':
+                        showStatus('操作失败: ' + (msg.message || '未知错误'), 'error');
+                        break;
+                }
+            }
+        });
+
+        // 页面关闭前自动保存到 localStorage（作为备份）
+        window.addEventListener('beforeunload', function (e) {
+            var xml = getGraphXml();
+            if (xml) {
+                var storageKey = 'flowchart_draft';
+                if (lessonId && activityId) {
+                    storageKey = 'flowchart_draft_' + lessonId + '_' + activityId;
+                }
+                localStorage.setItem(storageKey, xml);
+            }
+        });
+    </script>
+</body>
+
+</html>
