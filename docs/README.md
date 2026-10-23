@@ -7,6 +7,6 @@
 | 部署者、教师和运维人员 | [部署与运维](DEPLOYMENT.md) | 安装、配置、镜像发布、更新回退、课时媒体迁移、Windows 代理 |
 | 开发者 | [开发手册](DEVELOPMENT.md) | 架构、初始化、构建、数据一致性、API、PPT 与 Excel 评分 |
 
-其他入口：[项目首页](../README.md) · [参与贡献](../CONTRIBUTING.md) · [安全与公开发布](../SECURITY.md)。
+其他入口：[项目首页](../README.md) · [参与贡献](../CONTRIBUTING.md) · [安全说明](../SECURITY.md)。
 
 旧版重复说明和仅含跳转的文档已合并移除。第三方资源内的 README 与授权文件保持原样。

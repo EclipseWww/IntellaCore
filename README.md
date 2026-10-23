@@ -15,7 +15,7 @@
 
 ## 文档
 
-[文档导航](docs/README.md) · [部署与运维](docs/DEPLOYMENT.md) · [开发手册](docs/DEVELOPMENT.md) · [安全与公开发布](SECURITY.md)
+[文档导航](docs/README.md) · [部署与运维](docs/DEPLOYMENT.md) · [开发手册](docs/DEVELOPMENT.md) · [安全说明](SECURITY.md)
 
 ## 公开发布与授权
 
