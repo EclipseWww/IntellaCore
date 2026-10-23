@@ -59,3 +59,15 @@ Thumbs.db
 
 # Public frontend build configuration (no credentials)
 !/frontend/.env.production
+
+# Local operator deployment configuration (keep public examples)
+/deploy/compose/docker-compose.build.yml
+/deploy/compose/docker-compose.deploy.yml
+/deploy/compose/docker-compose.toolbox.yml
+/deploy/scripts/build-and-push-windows.ps1
+/deploy/scripts/build-and-push.sh
+/deploy/scripts/deploy.sh
+/deploy/scripts/deploy-windows.ps1
+/deploy/scripts/deploy-windows-legacy.ps1
+/deploy/scripts/docker-compose.deploy.legacy.yml
+/deploy/scripts/setup-port-forward.ps1

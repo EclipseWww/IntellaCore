@@ -17,7 +17,7 @@ services:
       - app-network
 
   backend:
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-backend:latest
     container_name: backend
     restart: always
     environment:
@@ -28,7 +28,7 @@ services:
     - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
     - MASTER_PASSWORD=${MASTER_PASSWORD:?Set MASTER_PASSWORD}
     - MODEL=${MODEL:-qwen-turbo}
-    - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:3000,http://frontend:80,http://0.0.0.0,http://0.0.0.0:3000,http://*:80,http://192.168.1.4}
+    - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:3000,http://frontend:80,http://0.0.0.0,http://0.0.0.0:3000,http://*:80,http://192.0.2.10}
     - MAX_ASSIGNMENT_FILE_SIZE=20
     - MAX_RESOURCE_FILE_SIZE=50
     ports:
@@ -45,7 +45,7 @@ services:
       - ./data/backend/logs:/app/logs
 
   frontend:
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-frontend:latest
     container_name: frontend
     restart: always
     ports:

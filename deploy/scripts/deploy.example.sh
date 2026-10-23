@@ -3,13 +3,13 @@
 # 检查参数
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <aliyun-username> [server-ip]"
-    echo "Example: $0 eclipsew 192.168.1.100"
+    echo "Example: $0 your-namespace 192.0.2.10"
     exit 1
 fi
 
 ALIYUN_USERNAME=$1
 SERVER_IP=${2:-$(hostname -I | awk '{print $1}')}
-REGISTRY="crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com"
+REGISTRY="registry.example.com"
 
 # 更新服务器IP (修复MacOS上的sed命令)
 sed -i '' "s|\${SERVER_IP}|${SERVER_IP}|g" docker-compose.deploy.yml

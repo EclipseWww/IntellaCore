@@ -4,7 +4,7 @@ param (
     [Parameter(Mandatory=$false)][string]$ServerIP = "192.168.99.100"
 )
 
-$Registry = "crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com"
+$Registry = "registry.example.com"
 
 # 更新服务器IP
 (Get-Content docker-compose.deploy.legacy.yml) -replace '192.168.99.100', $ServerIP | Set-Content docker-compose.deploy.legacy.yml

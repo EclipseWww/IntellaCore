@@ -5,7 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-backend:latest
 
   frontend:
     build:
@@ -13,4 +13,4 @@ services:
       dockerfile: Dockerfile
       args:
         - NODE_ENV=production
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-frontend:latest

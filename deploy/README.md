@@ -22,3 +22,9 @@ docker compose --project-directory . -f deploy/compose/docker-compose.build.yml 
 ```
 
 机房现有 E 盘项目根目录的 docker-compose.yml 不移动。机房继续按原命令更新，不需跟随源码中的归档布局调整。旧机房如果只部署 Compose 文件，DOCKER_UPGRADE 文档中的 -f 路径应替换为该机房实际文件路径。
+
+## 个人配置与公开示例
+
+不带 `.example` 的个人镜像配置与脚本仅保留在本机，已加入 Git 忽略规则。现有维护者继续使用原命令，不必更换路径。其他使用者可直接在根目录运行 `docker compose up -d --build`，无需了解维护者镜像仓库。
+
+需要自行发布镜像时，复制 `deploy/compose/docker-compose.build.example.yml` 为同目录的 `docker-compose.build.yml`，将示例镜像地址换成自己的地址，再执行上文命令。镜像部署和脚本同理：复制对应 `.example` 文件，删除文件名中的 `.example` 后按自己的环境填写。历史脚本只供参考，需先核对路径。

@@ -4,7 +4,7 @@ param (
     [Parameter(Mandatory=$false)][string]$ServerIP = $(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias Ethernet | Select-Object -ExpandProperty IPAddress)
 )
 
-$Registry = "crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com"
+$Registry = "registry.example.com"
 
 # 更新镜像名称和服务器IP
 (Get-Content docker-compose.deploy.yml) -replace 'registry.cn-hangzhou.aliyuncs.com/your-namespace/', "$Registry/" | Set-Content docker-compose.deploy.yml

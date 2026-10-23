@@ -2,7 +2,7 @@ version: '2'
 
 services:
   mongodb:
-    image: mongo:latest
+    image: docker.1ms.run/mongo:5.0
     container_name: mongodb
     restart: always
     environment:
@@ -17,7 +17,7 @@ services:
       - app-network
 
   backend:
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-backend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-backend:latest
     container_name: backend
     restart: always
     environment:
@@ -28,11 +28,13 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
       MASTER_PASSWORD: ${MASTER_PASSWORD:?Set MASTER_PASSWORD}
       MODEL: ${MODEL:-qwen-turbo}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:4000,http://frontend:80,http://0.0.0.0:4000,http://*:4000,http://192.168.99.100:4000}
+      # 添加 Docker Toolbox 虚拟机 IP 192.168.99.100
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://192.168.99.100,http://192.168.99.100:80,http://frontend:80,http://0.0.0.0,http://*:80}
       MAX_ASSIGNMENT_FILE_SIZE: 20
       MAX_RESOURCE_FILE_SIZE: 50
     ports:
-      - "4001:5003"
+      # Toolbox 不支持 127.0.0.1 绑定，直接暴露端口
+      - "8080:5003"
     expose:
       - "5003"
     depends_on:
@@ -44,11 +46,12 @@ services:
       - backend_logs:/app/logs
 
   frontend:
-    image: crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com/eclipsew/ai-chat-edu-frontend:latest
+    image: registry.example.com/your-namespace/ai-chat-edu-frontend:latest
     container_name: frontend
     restart: always
     ports:
-      - "4000:80"
+      # 前端映射到 3001，80 端口留给宿主机 Nginx
+      - "3001:80"
     environment:
       REACT_APP_API_URL: ""
     depends_on:

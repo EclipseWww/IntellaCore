@@ -2,7 +2,7 @@ param (
     [Parameter(Mandatory=$true)][string]$AliyunUsername
 )
 $ErrorActionPreference = 'Stop'
-$Registry = "crpi-d969wfixtu4c1nwy.cn-qingdao.personal.cr.aliyuncs.com"
+$Registry = "registry.example.com"
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $ComposeFile = Join-Path $ProjectRoot 'deploy/compose/docker-compose.build.yml'
 docker login --username=$AliyunUsername $Registry
