@@ -56,10 +56,11 @@ test('initialized installations retain the normal login page', async () => {
   expect(container.textContent).toContain('正常登录表单');
 });
 
-test('cached initialization skips the request and loading screen on login', async () => {
+test('cached initialization cannot skip server verification on login', async () => {
   localStorage.setItem('system.initialized.v1', 'true');
+  api.get.mockResolvedValue({ data: { initialized: true } });
   await render(<InitializationGate><div>正常登录表单</div></InitializationGate>);
-  expect(api.get).not.toHaveBeenCalled();
+  expect(api.get).toHaveBeenCalledWith('/auth/initialization');
   expect(container.textContent).toContain('正常登录表单');
   expect(container.textContent).not.toContain('正在连接系统');
 });
@@ -74,7 +75,8 @@ test('login stays visible while initialization is pending and when the check fai
   expect(container.textContent).not.toContain('连接失败');
 });
 
-test('login redirects to setup only after an explicit uninitialized response', async () => {
+test('login redirects to setup despite stale localStorage when the server is uninitialized', async () => {
+  localStorage.setItem('system.initialized.v1', 'true');
   api.get.mockResolvedValue({ data: { initialized: false, requiresTeacherVerification: false } });
   await act(async () => { root.render(<MemoryRouter initialEntries={['/login']}><Routes>
     <Route path="/login" element={<InitializationGate>正常登录表单</InitializationGate>} />
@@ -90,7 +92,7 @@ test('opening setup rechecks the server even when initialization was cached', as
   await render(<Setup />);
   expect(api.get).toHaveBeenCalledTimes(1);
   expect(container.querySelector('#teacherUsername')).not.toBeNull();
-  expect(localStorage.getItem('system.initialized.v1')).toBeNull();
+  expect(localStorage.getItem('system.initialized.v1')).toBe('true');
 });
 
 test('simultaneous initialization gates share a single status request', async () => {

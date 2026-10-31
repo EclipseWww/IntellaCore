@@ -67,7 +67,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "set DANGEROUSLY_DISABLE_HOST_CHECK=true&&set HOST=0.0.0.0&&set FAST_REFRESH=false&&set WDS_SOCKET_HOST=localhost&&set WDS_SOCKET_PORT=0&&react-scripts start",
+    "start": "node scripts/start.cjs",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

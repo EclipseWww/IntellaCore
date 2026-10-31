@@ -3,13 +3,13 @@ import { Alert, Button, Card, Divider, Form, Input, Result, Spin, Typography } f
 import { Navigate, useNavigate } from 'react-router-dom';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
 import api from '../../services/api';
-import useInitializationStatus, { rememberInitialized } from '../../hooks/useInitializationStatus';
+import useInitializationStatus from '../../hooks/useInitializationStatus';
 
 const { Title, Paragraph, Text } = Typography;
 const frame = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', background: '#f0f4fa' };
 
 export default function Setup() {
-  const { loading, status, error: connectionError, retry } = useInitializationStatus({ force: true });
+  const { loading, status, error: connectionError, retry } = useInitializationStatus();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [createdUsername, setCreatedUsername] = useState('');
@@ -26,7 +26,6 @@ export default function Setup() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       form.resetFields();
-      rememberInitialized();
       setCreatedUsername(data.username);
     } catch (failure) {
       setError(failure.response?.data?.message || '暂时无法完成设置，请检查网络后重试。');

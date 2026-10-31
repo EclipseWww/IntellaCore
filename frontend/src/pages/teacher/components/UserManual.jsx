@@ -718,11 +718,20 @@ const UserManual = () => {
                     >
                         <Title level={3}>更新日志 (Changelog)</Title>
                         <Paragraph>
-                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.6.0</Tag>
+                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.6.1</Tag>
                         </Paragraph>
 
                         <div style={{ marginTop: 24 }}>
                             <Timeline>
+                                <Timeline.Item color="green">
+                                    <strong>v1.6.1 (2026-10-31)</strong>
+                                    <ul>
+                                        <li>修复前端开发启动脚本的平台兼容问题，macOS、Windows 和 Linux 均可使用 npm start 启动，无需新增依赖。</li>
+                                        <li>修复从 iPad 等其他设备访问时，开发热更新连接地址固定为 localhost 的问题，改为自动使用浏览器当前访问的地址。</li>
+                                        <li>补充 Tailscale 私网开发访问说明，支持通过本机环境配置限定监听地址，个人配置不影响其他开发者；Docker 生产构建与部署流程保持不变。</li>
+                                    </ul>
+                                </Timeline.Item>
+
                                 <Timeline.Item color="green">
                                     <strong>v1.6.0 (2026-10-23)</strong>
                                     <ul>
