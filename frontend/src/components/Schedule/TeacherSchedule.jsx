@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Tabs, Card, Table, Button, Select, Space, Tag, Modal, Radio, Input, Switch, message,
-  Empty, Tooltip, Popconfirm, Typography, Alert, DatePicker, Progress, Spin
+  Empty, Tooltip, Popconfirm, Typography, Alert, DatePicker, Progress, Spin, Popover
 } from 'antd';
 import {
-  LeftOutlined, RightOutlined, DownloadOutlined, PlayCircleOutlined, CheckSquareOutlined, DeleteOutlined, PushpinOutlined
+  LeftOutlined, RightOutlined, DownloadOutlined, PlayCircleOutlined, CheckSquareOutlined, DeleteOutlined, PushpinOutlined, QuestionCircleOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { nowTz, atTz, setScheduleTz } from '../../utils/scheduleTime';
@@ -135,13 +135,14 @@ const SessionModal = ({ sessionId, onClose }) => {
 
 // ───────────── 课节操作弹窗（本周视图） ─────────────
 const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSession }) => {
-  const [mode, setMode] = useState('add');
+  const [mode, setMode] = useState('slot');
   const [classId, setClassId] = useState(null);
   const [courseId, setCourseId] = useState(AUTO_COURSE);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setMode('add'); setReason(''); setClassId(null); setCourseId(AUTO_COURSE); }, [cell]);
+  // 空格子默认排每周固定课；这节原本有固定课只是本次取消了，才默认临时加课
+  useEffect(() => { setMode(cell?.cancelAdjustment ? 'add' : 'slot'); setReason(''); setClassId(null); setCourseId(AUTO_COURSE); }, [cell]);
   if (!cell) return null;
   const { occ, date, weekday, period } = cell;
   const periodInfo = periods.find(p => p.index === period);
@@ -167,8 +168,8 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
               action={<Button size="small" onClick={() => run(() => scheduleAPI.deleteAdjustment(cancelled._id), '已恢复')}>恢复</Button>} />
           )}
           <Radio.Group value={mode} onChange={e => setMode(e.target.value)}>
-            <Radio.Button value="add">仅{date.slice(5)}临时上课</Radio.Button>
-            <Radio.Button value="slot">每周固定上课</Radio.Button>
+            <Radio.Button value="slot">每周{DAY_NAMES[weekday].slice(1)}固定上课</Radio.Button>
+            <Radio.Button value="add">仅 {date.slice(5)} 临时上一次</Radio.Button>
           </Radio.Group>
           <Select style={{ width: '100%' }} placeholder="选择班级" value={classId} onChange={setClassId}
             options={classes.map(c => ({ value: c._id, label: classLabel(c) }))} />
@@ -179,7 +180,9 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
               : scheduleAPI.createAdjustment({ type: 'add', date, period, classId, courseId: toCourseId(courseId) }), '已保存')}>
             保存
           </Button>
-          <Text type="secondary" style={{ fontSize: 12 }}>也可以直接把上方的班级拖到格子里。</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {mode === 'slot' ? '以后每周这个时间都会自动上课。' : '只加这一次，每周课表不变。'}
+          </Text>
         </Space>
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
@@ -236,7 +239,7 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
 
           {(!s || s.status === 'in_progress') && occ.source !== 'extra' && (
             <Space.Compact style={{ width: '100%' }}>
-              <Input placeholder="已知会被占用？填写原因（可选）" value={reason} maxLength={100} onChange={e => setReason(e.target.value)} />
+              <Input placeholder="备注未上原因（可选）" value={reason} maxLength={100} onChange={e => setReason(e.target.value)} />
               <Button danger loading={busy} onClick={() => run(() => scheduleAPI.skipOccurrence({ ...ref, reason }), '已标记为未上，进度不会前进')}>标记未上</Button>
             </Space.Compact>
           )}
@@ -320,6 +323,7 @@ const ScheduleGrid = ({ config, classes, courses }) => {
   const [slotTarget, setSlotTarget] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [over, setOver] = useState(null);
+  const firstLoad = React.useRef(true);
 
   const dates = config.days.map(d => ({ weekday: d, date: weekStart.add(d - 1, 'day').format(DATE_FMT) }));
   const today = nowTz().format(DATE_FMT);
@@ -332,6 +336,8 @@ const ScheduleGrid = ({ config, classes, courses }) => {
         scheduleAPI.listSlots()
       ]);
       setOccs(o.data); setCancelled(o.adjustments || []); setSlots(sl.data);
+      if (firstLoad.current && sl.data.length === 0) setView('template');
+      firstLoad.current = false;
     } catch (e) { message.error(errMsg(e, '加载课表失败')); } finally { setLoading(false); }
   }, [weekStart]);
   useEffect(() => { load(); }, [load]);
@@ -447,6 +453,15 @@ const ScheduleGrid = ({ config, classes, courses }) => {
               <Button onClick={() => setWeekStart(mondayOf(nowTz()))}>本周</Button>
             </>
           )}
+          <Popover placement="bottomLeft" overlayStyle={{ maxWidth: 420 }} title="课表怎么自动运行" content={
+            <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+              <div>· 上课前 {config.leadMinutes} 分钟自动上课，课程跟随该班最近上的课程，并切到下一课时；下一课时没备好就先不指定，建好后自动切过去。</div>
+              <div>· 下课 10 分钟后自动判定：≥{config.threshold}% 学生完成本课活动算「上了本课」；否则 ≥{config.presenceThreshold}% 学生登录算「到课·没上新课」；都不满足算「没上」。</div>
+              <div>· 临时去别的班上课，直接在「上课」页选班级上课即可，这里会自动显示。</div>
+            </div>
+          }>
+            <Button type="text" icon={<QuestionCircleOutlined />} style={{ color: '#738078' }}>规则</Button>
+          </Popover>
         </Space>
         {view === 'template' && (
           <div {...dropProps('trash', null)} onDrop={(e) => {
@@ -629,18 +644,7 @@ const TeacherSchedule = () => {
     <Tabs items={[
       {
         key: 'week', label: '课表',
-        children: (
-          <>
-            <Alert style={{ marginBottom: 12 }} type="info" showIcon closable
-              message="排好每周固定课表后，平时不需要再操作"
-              description={<>
-                上课前 {config.leadMinutes} 分钟自动上课，课程自动跟随该班最近上的课程，并切到下一课时；下一课时还没备好时照常上课、不指定课时，建好后自动切过去。
-                下课 10 分钟后自动判定：至少 {config.threshold}% 的学生完成本课时活动 → 上了本课；否则至少 {config.presenceThreshold}% 的学生登录 → 到课没上新课；都不满足 → 没上。
-                临时去别的班上课，直接在「上课」页选班级点上课，这里会自动显示实际上的班级。
-              </>} />
-            <ScheduleGrid config={config} classes={classes} courses={courses} />
-          </>
-        )
+        children: <ScheduleGrid config={config} classes={classes} courses={courses} />
       },
       { key: 'progress', label: '进度 · 考勤 · 导出', children: <ProgressPanel classes={classes} /> }
     ]} />

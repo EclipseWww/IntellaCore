@@ -1920,14 +1920,6 @@ const ClassroomManagement = () => {
           >
             {settings.isInClass ? '下课' : '上课'}
           </Button>
-          <Tooltip title={gameOpen
-            ? `已提前开放，${inTz(settings.gameOpenUntil).format('HH:mm')} 自动关闭。点击立即关闭`
-            : (settings.isInClass ? '不必等学生登录满 35 分钟，现在就让本班可以进入游戏中心（到下课自动关闭）' : '上课后才能提前开放')}>
-            <Button icon={<RocketOutlined />} type={gameOpen ? 'primary' : 'default'} ghost={gameOpen}
-              disabled={!settings.isInClass && !gameOpen} onClick={toggleGameOpen}>
-              {gameOpen ? '游戏已开放' : '提前开放游戏'}
-            </Button>
-          </Tooltip>
           <Button
             type="primary"
             onClick={handleToggleAssignmentWindow}
@@ -2159,6 +2151,16 @@ const ClassroomManagement = () => {
           withoutSeat: students.filter(s => !s.hasSeat).length
         } : null}
         classId={selectedClass}
+        extraActions={(
+          <Tooltip title={gameOpen
+            ? `已提前开放，${inTz(settings.gameOpenUntil).format('HH:mm')} 自动关闭。点击立即关闭`
+            : (settings.isInClass ? '不必等学生登录满 35 分钟，现在就让本班可以进入游戏中心（到下课自动关闭）' : '上课后才能提前开放')}>
+            <Button size="small" block icon={<RocketOutlined />} type={gameOpen ? 'primary' : 'default'} ghost={gameOpen}
+              disabled={!settings.isInClass && !gameOpen} onClick={toggleGameOpen}>
+              {gameOpen ? '游戏已开放（点击关闭）' : '提前开放游戏'}
+            </Button>
+          </Tooltip>
+        )}
       />
 
       {/* 作业提交情况Drawer */}

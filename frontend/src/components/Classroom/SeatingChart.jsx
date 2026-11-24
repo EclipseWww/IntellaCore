@@ -144,7 +144,7 @@ const getStatusColor = (status) => {
   }
 };
 
-const SeatingChart = ({ students = [], onUpdateSeat, stats, classId }) => {
+const SeatingChart = ({ students = [], onUpdateSeat, stats, classId, extraActions }) => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [seatInput, setSeatInput] = useState('');
@@ -634,6 +634,7 @@ const SeatingChart = ({ students = [], onUpdateSeat, stats, classId }) => {
                   清空班级座位
                 </Button>
               </div>
+              {extraActions && <div style={{ marginTop: '8px' }}>{extraActions}</div>}
               <div style={{ marginTop: '8px' }}>
                 <Button
                   danger
