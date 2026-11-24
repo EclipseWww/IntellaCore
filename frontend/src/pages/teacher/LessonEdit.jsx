@@ -1332,7 +1332,7 @@ const LessonEdit = () => {
             <Space>
               <Button
                 icon={<ArrowLeftOutlined />}
-                onClick={() => navigate('/teacher?tab=1')}
+                onClick={() => navigate(`/teacher?tab=course&course=${courseId}`)}
               >
                 返回课程列表
               </Button>

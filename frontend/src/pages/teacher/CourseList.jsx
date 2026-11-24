@@ -39,7 +39,7 @@ const { TextArea } = Input;
 const CourseList = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [expandedCourseId, setExpandedCourseId] = useState(null);
+  const [expandedCourseId, setExpandedCourseId] = useState(new URLSearchParams(window.location.search).get('course') || null);
   const [courseModalVisible, setCourseModalVisible] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [unitModalVisible, setUnitModalVisible] = useState(false);
