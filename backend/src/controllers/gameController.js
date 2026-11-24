@@ -282,7 +282,7 @@ exports.serveGameFile = async (req, res) => {
     res.set('X-Robots-Tag', 'noindex');
     if (ext === '.html') {
       res.set('Cache-Control', 'no-store');
-      res.type('html').send(access.injectGuard(fs.readFileSync(abs, 'utf8')));
+      res.type('html').send(access.injectGuard(fs.readFileSync(abs, 'utf8'), gameId));
       return;
     }
     res.set('Cache-Control', 'private, max-age=600');
@@ -331,6 +331,23 @@ exports.writeSave = async (req, res) => {
   } catch (error) {
     logger.error('保存游戏存档失败', { error: error.message });
     res.status(500).json({ success: false });
+  }
+};
+
+/** 当前用户在各游戏里的进度摘要，显示在个人游戏中心 */
+exports.getProgress = async (req, res) => {
+  try {
+    const docs = await GameSave.find({ user: req.user._id || req.user.id }).select('gameId data updatedAt').lean();
+    const progress = {};
+    for (const d of docs) {
+      if (!access.isGameId(d.gameId)) continue;
+      const sum = require('../services/gameProgress').summarize(d.gameId, d.data);
+      if (sum) progress[d.gameId] = { ...sum, updatedAt: d.updatedAt };
+    }
+    res.json({ success: true, data: progress });
+  } catch (error) {
+    logger.error('获取游戏进度失败', { error: error.message });
+    res.status(500).json({ success: false, message: '获取游戏进度失败' });
   }
 };
 

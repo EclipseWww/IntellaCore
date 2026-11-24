@@ -99,7 +99,24 @@ async function verifyRequest(req, gameId) {
  * - 不是嵌在本系统的游戏中心里（直接打开、被学生网页嵌入）-> 跳回首页
  * - 每 20 秒确认票据仍有效；关闭游戏或时间用完后页面立即停止
  */
-const GUARD_SCRIPT = `<script>(function(){
+/**
+ * 需要按用户同步到服务器的 localStorage 键（前缀匹配）。
+ * 页面脚本运行前，守卫脚本先用服务器上本账号的存档替换这些键，之后每次改动自动上传，
+ * 所以游戏本身不用改，也不会和同一台电脑上别的账号串进度。
+ * 没列出的游戏（贪吃蛇之外的纯内存游戏等）没有可保存的内容。
+ */
+const GAME_STORAGE = {
+  '2048': ['bestScore2048', 'gameState2048'],
+  snake: ['snakeHighScore'],
+  memory: ['Tank Wars'],
+  ztype: ['highscore', 'soundVolume', 'musicVolume'],
+  binary: ['binary_best'],
+  linkup: ['linkup_best'],
+  klotski: ['klotski_best_'],
+  robot: ['robot_']
+};
+
+const guardScript = (gameId) => `<script>(function(){
   var ok = false;
   try { ok = window.top !== window.self && window.parent.location.origin === location.origin && /^\\/(student|teacher)(\\/|$)/.test(window.parent.location.pathname); } catch (e) { ok = false; }
   function block(msg){ try { window.stop(); } catch (e) {} document.documentElement.innerHTML = '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font:18px sans-serif;color:#555;background:#f5f5f5">' + msg + '</body>'; }
@@ -109,15 +126,37 @@ const GUARD_SCRIPT = `<script>(function(){
     load: function(){ return fetch('${COOKIE_PATH}/_save', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : { data: null }; }).then(function(j){ return j.data === undefined ? null : j.data; }).catch(function(){ return null; }); },
     save: function(data){ return fetch('${COOKIE_PATH}/_save', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: data }), keepalive: true }).then(function(r){ return r.ok; }).catch(function(){ return false; }); }
   };
+  var PREFIXES = ${JSON.stringify(GAME_STORAGE[gameId] || [])};
+  if (PREFIXES.length) (function(){
+    var ls = window.localStorage, timer = null;
+    function mine(k){ if (typeof k !== 'string') return false; for (var i = 0; i < PREFIXES.length; i++) if (k.indexOf(PREFIXES[i]) === 0) return true; return false; }
+    function snapshot(){ var o = {}; for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (mine(k)) o[k] = ls.getItem(k); } return o; }
+    function flush(){ timer = null; window.GameSave.save({ ls: snapshot() }); }
+    function later(){ if (timer) clearTimeout(timer); timer = setTimeout(flush, 1500); }
+    var rawSet = Storage.prototype.setItem, rawRemove = Storage.prototype.removeItem, rawClear = Storage.prototype.clear;
+    // 页面脚本运行前同步读取服务器存档，替换本地的同名键（同一台电脑上别人的进度不会串过来）
+    try {
+      var x = new XMLHttpRequest(); x.open('GET', '${COOKIE_PATH}/_save', false); x.send();
+      var d = x.status === 200 ? JSON.parse(x.responseText).data : null;
+      var old = []; for (var i = 0; i < ls.length; i++) if (mine(ls.key(i))) old.push(ls.key(i));
+      old.forEach(function(k){ rawRemove.call(ls, k); });
+      if (d && d.ls) Object.keys(d.ls).forEach(function(k){ if (mine(k)) rawSet.call(ls, k, String(d.ls[k])); });
+    } catch (e) {}
+    Storage.prototype.setItem = function(k, v){ rawSet.call(this, k, v); if (this === ls && mine(k)) later(); };
+    Storage.prototype.removeItem = function(k){ rawRemove.call(this, k); if (this === ls && mine(k)) later(); };
+    Storage.prototype.clear = function(){ rawClear.call(this); if (this === ls) later(); };
+    window.addEventListener('pagehide', function(){ if (timer) { clearTimeout(timer); flush(); } });
+  })();
   setInterval(function(){
     fetch('${COOKIE_PATH}/_alive', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ if (r.status === 401) block('游戏已结束，请回到游戏中心'); }).catch(function(){});
   }, 20000);
 })();</script>`;
 
-function injectGuard(html) {
+function injectGuard(html, gameId) {
+  const guard = guardScript(gameId);
   const m = /<head[^>]*>/i.exec(html);
-  if (m) return html.slice(0, m.index + m[0].length) + GUARD_SCRIPT + html.slice(m.index + m[0].length);
-  return GUARD_SCRIPT + html;
+  if (m) return html.slice(0, m.index + m[0].length) + guard + html.slice(m.index + m[0].length);
+  return guard + html;
 }
 
 module.exports = {

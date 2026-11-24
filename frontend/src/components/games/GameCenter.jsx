@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Card, Typography, Button, Empty, List, Tag, Modal, message, Alert, Badge, Segmented, Tooltip } from 'antd';
+import { Card, Typography, Button, Empty, List, Tag, Modal, message, Alert, Badge, Segmented, Tooltip, Progress } from 'antd';
 import { ClockCircleOutlined, TrophyOutlined, InfoCircleOutlined, LockOutlined, FireOutlined } from '@ant-design/icons';
 import GameContainer from './GameContainer';
 import gameService from '../../services/gameService';
@@ -24,6 +24,7 @@ const GameCenter = () => {
   const [disabled, setDisabled] = useState([]);
   const [totalSeconds, setTotalSeconds] = useState(0);
   const [sortMode, setSortMode] = useState('hot');
+  const [activeGame, setActiveGame] = useState(null);
 
   // 热度：每个游戏累计被玩的时长
   useEffect(() => {
@@ -36,6 +37,13 @@ const GameCenter = () => {
       .catch(() => {});
   }, []);
 
+  // 我的游戏进度：每次回到游戏列表（刚关闭游戏）时刷新
+  const [myProgress, setMyProgress] = useState({});
+  useEffect(() => {
+    if (activeGame) return;
+    gameService.getProgress().then(res => setMyProgress(res.data || {})).catch(() => {});
+  }, [activeGame]);
+
   const rankedGames = useMemo(() => {
     const withHeat = LOCAL_GAMES.filter(g => !disabled.includes(g._id)).map((g, i) => ({ ...g, order: i, heat: stats[g._id]?.totalSeconds || 0, players: stats[g._id]?.playerCount || 0 }));
     const byHeat = [...withHeat].sort((a, b) => b.heat - a.heat || a.order - b.order);
@@ -43,7 +51,6 @@ const GameCenter = () => {
     return (sortMode === 'hot' ? byHeat : withHeat).map(g => ({ ...g, rank: rank.get(g._id) }));
   }, [stats, sortMode, disabled]);
   const [error, setError] = useState(null);
-  const [activeGame, setActiveGame] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedGame, setSelectedGame] = useState(null);
   const [remainingTime, setRemainingTime] = useState(0);
@@ -444,11 +451,19 @@ const GameCenter = () => {
                       </Tooltip>
                     </div>
                   }
-                  description={
+                  description={<>
                     <div style={{ height: 72, overflow: 'hidden' }}>
                       <div style={{ marginBottom: 8, color: 'rgba(0, 0, 0, 0.65)' }}>{game.description}</div>
                     </div>
-                  }
+                    {myProgress[game._id] && (
+                      <Tooltip title={`上次保存：${new Date(myProgress[game._id].updatedAt).toLocaleString()}`}>
+                        <div style={{ marginTop: 8 }}>
+                          <Text style={{ fontSize: 12, color: '#52c41a' }}>我的进度：{myProgress[game._id].text}</Text>
+                          {myProgress[game._id].percent != null && <Progress percent={myProgress[game._id].percent} size="small" showInfo={false} strokeColor="#52c41a" />}
+                        </div>
+                      </Tooltip>
+                    )}
+                  </>}
                 />
               </Card>
               </Badge.Ribbon>

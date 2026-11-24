@@ -14,6 +14,7 @@ router.delete('/session', auth, c.closeSession);
 
 // 热度榜
 router.get('/stats', auth, c.getStats);
+router.get('/progress', auth, c.getProgress);
 router.put('/disabled', auth, c.setDisabledGames);
 
 // 封面（公开）

@@ -47,6 +47,12 @@ const gameService = {
     return data; // { success, data: [{ gameId, totalSeconds, sessions, playerCount }] }
   },
 
+  // 当前用户在各游戏里的进度摘要
+  async getProgress() {
+    const { data } = await api.get('/games/progress');
+    return data; // { success, data: { [gameId]: { text, percent, updatedAt } } }
+  },
+
   // 教师：设置对自己班级关闭的游戏
   async setDisabled(disabled) {
     const { data } = await api.put('/games/disabled', { disabled });
