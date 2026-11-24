@@ -9,6 +9,9 @@ export const scheduleAPI = {
   listSlots: () => unwrap(api.get('/schedule/slots')),
   saveSlot: (data) => unwrap(api.put('/schedule/slots', data)),
   deleteSlot: (id) => unwrap(api.delete(`/schedule/slots/${id}`)),
+  moveSlot: (from, to) => unwrap(api.post('/schedule/slots/move', { from, to })),
+  listMyCourses: () => unwrap(api.get('/schedule/my-courses')),
+  now: () => unwrap(api.get('/schedule/now')),
 
   createAdjustment: (data) => unwrap(api.post('/schedule/adjustments', data)),
   deleteAdjustment: (id) => unwrap(api.delete(`/schedule/adjustments/${id}`)),

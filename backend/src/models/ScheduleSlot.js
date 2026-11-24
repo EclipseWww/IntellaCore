@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const scheduleSlotSchema = new mongoose.Schema({
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
-  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null }, // 为空=自动（跟随该班最近上的课程）
   weekday: { type: Number, min: 1, max: 7, required: true }, // 1=周一
   period: { type: Number, min: 1, required: true },          // 节次序号
   autoStart: { type: Boolean, default: true },               // 到点自动上课

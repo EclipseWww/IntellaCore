@@ -5,13 +5,33 @@ const logger = require('../utils/logger');
 // 同时检查学生是否登录满35分钟
 const LOGIN_MINUTES_REQUIRED = 35;
 
+/** 班级是否被教师提前开放了游戏中心 */
+async function classOpenedEarly(classId) {
+  if (!classId) return false;
+  const cls = await require('../models/Class').findById(classId).select('gameOpenUntil').lean();
+  return !!(cls && cls.gameOpenUntil && new Date(cls.gameOpenUntil) > new Date());
+}
+
+/** 教师关闭的游戏（对其班级的学生不显示、不能打开） */
+const disabledKey = (teacherId) => `games.disabled.${teacherId}`;
+async function disabledGamesFor(teacherId) {
+  if (!teacherId) return [];
+  const doc = await require('../models/Setting').findOne({ key: disabledKey(teacherId) }).lean();
+  return Array.isArray(doc && doc.value) ? doc.value : [];
+}
+async function disabledGamesForStudent(classId) {
+  if (!classId) return [];
+  const cls = await require('../models/Class').findById(classId).select('teacher').lean();
+  return disabledGamesFor(cls && cls.teacher);
+}
+
 exports.getRemainingTime = async (req, res) => {
   try {
     const userId = req.user?._id || req.user?.id;
     const userRole = req.user?.role;
     logger.info('获取游戏剩余时长', { userId, role: userRole });
 
-    const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin role');
+    const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin role classId');
     if (!user) {
       logger.warn('未找到用户', { userId });
       return res.status(404).json({ success: false, message: '用户不存在' });
@@ -48,6 +68,9 @@ exports.getRemainingTime = async (req, res) => {
       lockMessage = '无法获取登录时间，请重新登录';
       logger.warn('未找到用户登录时间', { userId });
     }
+
+    // 教师已为本班提前开放游戏中心
+    if (isLocked && await classOpenedEarly(user.classId)) { isLocked = false; lockMessage = null; unlockTime = null; }
 
     return res.status(200).json({
       success: true,
@@ -114,11 +137,13 @@ const access = require('../services/gameAccess');
 const MAX_BEAT_GAP_SECONDS = 45; // 心跳间隔 30 秒；断线、挂起期间不计时
 
 /** 学生能否开始/继续游戏：剩余时长、登录满 35 分钟、班级允许 */
-async function studentGate(userId) {
+async function studentGate(userId, gameId) {
   const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin classId gameSession role');
   if (!user) return { error: '用户不存在', code: 404 };
   if (user.role !== 'student') return { user };
-  if (!user.lastLogin || Date.now() - new Date(user.lastLogin) < LOGIN_MINUTES_REQUIRED * 60000) {
+  if (gameId && (await disabledGamesForStudent(user.classId)).includes(gameId)) return { error: '老师暂未开放这个游戏', code: 403 };
+  const tooEarly = !user.lastLogin || Date.now() - new Date(user.lastLogin) < LOGIN_MINUTES_REQUIRED * 60000;
+  if (tooEarly && !await classOpenedEarly(user.classId)) {
     return { error: `游戏将在登录后${LOGIN_MINUTES_REQUIRED}分钟解锁`, code: 403 };
   }
   if (user.classId) {
@@ -157,7 +182,7 @@ exports.openSession = async (req, res) => {
   try {
     const { gameId } = req.body || {};
     if (!access.isGameId(gameId)) return res.status(404).json({ success: false, message: '游戏不存在' });
-    const gate = await studentGate(req.user._id || req.user.id);
+    const gate = await studentGate(req.user._id || req.user.id, gameId);
     if (gate.error) return res.status(gate.code).json({ success: false, message: gate.error });
     const user = gate.user;
 
@@ -196,7 +221,7 @@ exports.heartbeat = async (req, res) => {
     const s = user && user.gameSession;
     if (!s || !s.ticket) { access.clearTicketCookie(res); return res.status(409).json({ success: false, message: '游戏已在其他地方结束' }); }
     await accountPlay(user);
-    const gate = await studentGate(userId);
+    const gate = await studentGate(userId, s.gameId);
     if (gate.error) {
       await User.updateOne({ _id: userId }, { $set: { gameSession: {} } });
       access.forgetTicket(userId); access.clearTicketCookie(res);
@@ -275,6 +300,40 @@ exports.alive = async (req, res) => {
   res.status((await access.verifyRequest(req)) ? 204 : 401).end();
 };
 
+const GameSave = require('../models/GameSave');
+const MAX_SAVE_BYTES = 64 * 1024;
+
+/** 游戏存档：用游戏票识别用户和游戏，游戏页面里的脚本可直接读写自己的存档 */
+exports.loadSave = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const t = await access.verifyRequest(req);
+    if (!t) return res.status(401).json({ success: false });
+    const doc = await GameSave.findOne({ user: t.userId, gameId: t.gameId }).select('data').lean();
+    res.json({ success: true, data: doc ? doc.data : null });
+  } catch (error) {
+    logger.error('读取游戏存档失败', { error: error.message });
+    res.status(500).json({ success: false });
+  }
+};
+
+exports.writeSave = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const t = await access.verifyRequest(req);
+    if (!t) return res.status(401).json({ success: false });
+    const data = req.body && req.body.data;
+    if (data === undefined || Buffer.byteLength(JSON.stringify(data)) > MAX_SAVE_BYTES) {
+      return res.status(400).json({ success: false, message: '存档无效或过大' });
+    }
+    await GameSave.updateOne({ user: t.userId, gameId: t.gameId }, { $set: { data } }, { upsert: true });
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('保存游戏存档失败', { error: error.message });
+    res.status(500).json({ success: false });
+  }
+};
+
 /** 封面图（公开，供游戏中心列表显示） */
 exports.cover = (req, res) => {
   const abs = access.resolveGameFile(req.params.gameId, 'cover.png');
@@ -289,9 +348,36 @@ exports.getStats = async (req, res) => {
     const stats = await GameStat.aggregate([
       { $project: { _id: 0, gameId: 1, totalSeconds: 1, sessions: 1, lastPlayedAt: 1, playerCount: { $size: { $ifNull: ['$players', []] } } } }
     ]);
-    res.json({ success: true, data: stats.filter(x => access.isGameId(x.gameId)) });
+    const data = stats.filter(x => access.isGameId(x.gameId));
+    const totalSeconds = data.reduce((a, x) => a + (x.totalSeconds || 0), 0);
+    // 学生：返回其任课教师关闭的游戏；教师：返回自己关闭的游戏
+    const disabled = req.user.role === 'student'
+      ? await disabledGamesForStudent((await User.findById(req.user._id || req.user.id).select('classId').lean() || {}).classId)
+      : await disabledGamesFor(req.user._id || req.user.id);
+    res.json({ success: true, data, totalSeconds, disabled });
   } catch (error) {
     logger.error('获取游戏热度失败', { error: error.message });
     res.status(500).json({ success: false, message: '获取游戏热度失败' });
+  }
+};
+
+
+/** 教师：设置对自己班级开放哪些游戏 */
+exports.setDisabledGames = async (req, res) => {
+  try {
+    if (req.user.role !== 'teacher') return res.status(403).json({ success: false, message: '只有教师可以管理游戏' });
+    const { disabled } = req.body || {};
+    if (!Array.isArray(disabled)) return res.status(400).json({ success: false, message: '参数错误' });
+    const value = [...new Set(disabled.filter(access.isGameId))];
+    const teacherId = req.user._id || req.user.id;
+    await require('../models/Setting').findOneAndUpdate(
+      { key: disabledKey(teacherId) },
+      { key: disabledKey(teacherId), value, description: '教师关闭的游戏（对其班级不开放）' },
+      { upsert: true }
+    );
+    res.json({ success: true, disabled: value });
+  } catch (error) {
+    logger.error('设置游戏开放失败', { error: error.message });
+    res.status(500).json({ success: false, message: '保存失败' });
   }
 };

@@ -2,8 +2,9 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, Row, Col, Upload, message, Select, Space, Typography, Switch, Button, Cascader, Table, Tag, Tooltip, Drawer, Modal, Badge, List, Empty } from 'antd';
 import { classAPI, courseUnitAPI, courseManagementAPI, lessonAPI, loginRequestAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { inTz } from '../../utils/scheduleTime';
 import SeatingChart, { CLASSROOM_CONFIG } from './SeatingChart';
-import { UploadOutlined, DesktopOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, EyeInvisibleOutlined, UserSwitchOutlined, SwapOutlined, LaptopOutlined } from '@ant-design/icons';
+import { RocketOutlined, UploadOutlined, DesktopOutlined, CheckCircleOutlined, CloseCircleOutlined, QuestionCircleOutlined, EyeOutlined, EyeInvisibleOutlined, UserSwitchOutlined, SwapOutlined, LaptopOutlined } from '@ant-design/icons';
 import { typingAPI, quizAPI, spreadsheetActivityAPI, fillBlankAPI, pythonAPI, flowchartAPI } from '../../services/api';
 
 const { Option } = Select;
@@ -83,6 +84,32 @@ const ClassroomManagement = () => {
   const [loadingLoginRequests, setLoadingLoginRequests] = useState(false);
   const [loginRequestDrawerVisible, setLoginRequestDrawerVisible] = useState(false);
   const loginRequestPollingRef = useRef(null);
+
+  // ───── 与课表联动：上课前/开课时自动切到这节课的班级，并刷新课时 ─────
+  const selectedClassRef = useRef(selectedClass);
+  useEffect(() => { selectedClassRef.current = selectedClass; }, [selectedClass]);
+  const handleClassChangeRef = useRef(null);
+  const fetchClassSettingsRef = useRef(null);
+  useEffect(() => {
+    const seenKey = 'classroom-auto-session';
+    const onNow = (e) => {
+      const cur = e.detail && e.detail.current;
+      if (!cur || !cur.classId) return;
+      // 同一节课只自动切换一次；之后教师手动换班级不会被拉回来
+      const key = `${cur.sessionId}:${cur.lesson ? cur.lesson._id : ''}`;
+      if (sessionStorage.getItem(seenKey) === key) return;
+      const firstTime = !(sessionStorage.getItem(seenKey) || '').startsWith(`${cur.sessionId}:`);
+      sessionStorage.setItem(seenKey, key);
+      if (firstTime && String(selectedClassRef.current) !== String(cur.classId)) {
+        handleClassChangeRef.current && handleClassChangeRef.current(String(cur.classId));
+        message.info(`已切换到正在上课的班级：${cur.class.grade}级${cur.class.name}班（${cur.periodName}）`);
+      } else if (String(selectedClassRef.current) === String(cur.classId)) {
+        fetchClassSettingsRef.current && fetchClassSettingsRef.current();
+      }
+    };
+    window.addEventListener('schedule-now', onNow);
+    return () => window.removeEventListener('schedule-now', onNow);
+  }, []);
 
   // 处理Python测试用例显示/隐藏
   const handlePythonTestCaseVisibility = async (activity, show) => {
@@ -1013,7 +1040,9 @@ const ClassroomManagement = () => {
         isInClass: data.isInClass,
         allowAiUsage: data.allowAiUsage,
         currentLesson: data.currentLesson,
-        autoRedirectToLesson: data.autoRedirectToLesson
+        autoRedirectToLesson: data.autoRedirectToLesson,
+        gameOpenUntil: data.gameOpenUntil || null,
+        scheduledEndTime: data.scheduledEndTime || null
       });
 
       let keys = [];
@@ -1193,6 +1222,21 @@ const ClassroomManagement = () => {
       }
     } catch (e) {
       console.error('Error saving selected class preference', e);
+    }
+  };
+
+  handleClassChangeRef.current = handleClassChange;
+  fetchClassSettingsRef.current = fetchClassSettings;
+
+  // 提前开放游戏中心（不必等学生登录满 35 分钟），到本节课下课自动失效
+  const gameOpen = settings.gameOpenUntil && new Date(settings.gameOpenUntil) > new Date();
+  const toggleGameOpen = async () => {
+    try {
+      const res = await classAPI.updateClassSettings(selectedClass, { openGameCenter: !gameOpen });
+      setSettings(prev => ({ ...prev, gameOpenUntil: res.data?.gameOpenUntil || null }));
+      message.success(gameOpen ? '已恢复：学生登录满 35 分钟后才能玩游戏' : '已为本班开放游戏中心，到下课时自动关闭');
+    } catch (e) {
+      message.error('操作失败');
     }
   };
 
@@ -1876,6 +1920,14 @@ const ClassroomManagement = () => {
           >
             {settings.isInClass ? '下课' : '上课'}
           </Button>
+          <Tooltip title={gameOpen
+            ? `已提前开放，${inTz(settings.gameOpenUntil).format('HH:mm')} 自动关闭。点击立即关闭`
+            : (settings.isInClass ? '不必等学生登录满 35 分钟，现在就让本班可以进入游戏中心（到下课自动关闭）' : '上课后才能提前开放')}>
+            <Button icon={<RocketOutlined />} type={gameOpen ? 'primary' : 'default'} ghost={gameOpen}
+              disabled={!settings.isInClass && !gameOpen} onClick={toggleGameOpen}>
+              {gameOpen ? '游戏已开放' : '提前开放游戏'}
+            </Button>
+          </Tooltip>
           <Button
             type="primary"
             onClick={handleToggleAssignmentWindow}

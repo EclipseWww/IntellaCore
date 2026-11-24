@@ -12,7 +12,7 @@ const attendanceSchema = new mongoose.Schema({
 const lessonSessionSchema = new mongoose.Schema({
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
-  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
+  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
   date: { type: String, required: true },     // YYYY-MM-DD
   period: { type: Number, required: true },
   periodName: { type: String, default: '' },

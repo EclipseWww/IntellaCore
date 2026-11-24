@@ -13,6 +13,7 @@ import DashboardWelcome from './components/DashboardWelcome';
 import UserManual from './components/UserManual';
 import ClassManagement from '../../components/Class/ClassManagement';
 import TeacherSchedule from '../../components/Schedule/TeacherSchedule';
+import GameManagement from '../../components/games/GameManagement';
 import ClassroomManagement from '../../components/Classroom/ClassroomManagement';
 import ClassroomLayoutManagement from '../../components/Classroom/ClassroomLayoutManagement';
 import TypingTextManagement from '../../components/Typing/TypingTextManagement';
@@ -32,15 +33,10 @@ import {
   EditOutlined,
   BookOutlined,
   TeamOutlined,
-  FileTextOutlined,
-  MessageOutlined,
   FormOutlined,
   SettingOutlined,
-  LayoutOutlined,
   RobotOutlined,
   ShoppingOutlined,
-  BarChartOutlined,
-  MailOutlined,
   GlobalOutlined,
   QuestionCircleOutlined
 } from '@ant-design/icons';
@@ -94,142 +90,68 @@ const TeacherDashboard = () => {
     return () => window.removeEventListener('popstate', handleUrlChange);
   }, [selectedKey]);
 
+  // 菜单按使用频率分组：上课相关在最上面，设置类在下面
   const menuItems = [
+    { key: 'classroom', icon: <DesktopOutlined />, label: '上课' },
+    { key: 'schedule', icon: <CalendarOutlined />, label: '课表' },
     {
-      key: 'classroom',
-      icon: <DesktopOutlined />,
-      label: '上课',
-    },
-    {
-      key: 'schedule',
-      icon: <CalendarOutlined />,
-      label: '课表',
-    },
-    {
-      key: 'course',
-      icon: <BookOutlined />,
-      label: '课程管理',
-    },
-    {
-      key: 'quiz',
-      icon: <FormOutlined />,
-      label: '测验模块',
+      key: 'teaching', icon: <BookOutlined />, label: '教学',
       children: [
-        {
-          key: 'question-bank',
-          label: '题库管理',
-        },
-        {
-          key: 'question-analysis',
-          label: '题目分析',
-        },
-        {
-          key: 'quiz-management',
-          label: '试卷管理',
-        },
-        {
-          key: 'quiz-analysis',
-          label: '试卷分析',
-        },
-        {
-          key: 'free-practice',
-          label: '自由练习设置',
-        },
-        {
-          key: 'free-practice-records',
-          label: '练习记录',
-        },
+        { key: 'course', label: '课程管理' },
+        { key: 'assignment', label: '作业批阅' },
+        { key: 'stats', label: '学习统计' },
       ],
     },
     {
-      key: 'typing',
-      icon: <EditOutlined />,
-      label: '打字模块',
+      key: 'quiz', icon: <FormOutlined />, label: '测验',
       children: [
-        {
-          key: 'typing-text',
-          label: '文本管理',
-        },
-        {
-          key: 'typing-score',
-          label: '打字记录',
-        },
+        { key: 'question-bank', label: '题库管理' },
+        { key: 'question-analysis', label: '题目分析' },
+        { key: 'quiz-management', label: '试卷管理' },
+        { key: 'quiz-analysis', label: '试卷分析' },
+        { key: 'free-practice', label: '自由练习设置' },
+        { key: 'free-practice-records', label: '练习记录' },
       ],
     },
     {
-      key: 'assignment',
-      icon: <FileTextOutlined />,
-      label: '作业批阅',
-    },
-    {
-      key: 'stats',
-      icon: <BarChartOutlined />,
-      label: '学习统计',
-    },
-    {
-      key: 'html-gallery',
-      icon: <GlobalOutlined />,
-      label: '网页作品',
-    },
-    {
-      key: 'email',
-      icon: <MailOutlined />,
-      label: '邮件系统',
-    },
-    {
-      key: 'ai-assistant',
-      icon: <MessageOutlined />,
-      label: 'AI助手',
+      key: 'typing', icon: <EditOutlined />, label: '打字',
       children: [
-        {
-          key: 'pending-reviews',
-          label: '待审核消息',
-        },
-        {
-          key: 'review-history',
-          label: '审核历史',
-        },
+        { key: 'typing-text', label: '文本管理' },
+        { key: 'typing-score', label: '打字记录' },
       ],
     },
     {
-      key: 'ai-teaching',
-      icon: <RobotOutlined />,
-      label: '知识库智能助教',
+      key: 'works', icon: <GlobalOutlined />, label: '作品与交流',
       children: [
-        {
-          key: 'ai-lesson',
-          label: 'AI备课',
-        },
-        {
-          key: 'ai-quiz',
-          label: 'AI出题',
-        },
-        {
-          key: 'ai-chat',
-          label: 'AI聊天',
-        },
+        { key: 'html-gallery', label: '网页作品' },
+        { key: 'pending-reviews', label: 'AI 对话待审核' },
+        { key: 'review-history', label: 'AI 对话审核历史' },
+        { key: 'email', label: '邮件系统' },
       ],
     },
     {
-      key: 'point-shop',
-      icon: <ShoppingOutlined />,
-      label: '积分商店管理',
+      key: 'ai-teaching', icon: <RobotOutlined />, label: '知识库智能助教',
+      children: [
+        { key: 'ai-lesson', label: 'AI备课' },
+        { key: 'ai-quiz', label: 'AI出题' },
+        { key: 'ai-chat', label: 'AI聊天' },
+      ],
     },
     {
-      key: 'class',
-      icon: <TeamOutlined />,
-      label: '班级管理',
+      key: 'rewards', icon: <ShoppingOutlined />, label: '积分与游戏',
+      children: [
+        { key: 'point-shop', label: '积分商店' },
+        { key: 'games', label: '游戏管理' },
+      ],
     },
     {
-      key: 'classroom-layout',
-      icon: <LayoutOutlined />,
-      label: '机房管理',
+      key: 'class-room', icon: <TeamOutlined />, label: '班级与机房',
+      children: [
+        { key: 'class', label: '班级管理' },
+        { key: 'classroom-layout', label: '机房管理' },
+      ],
     },
-    {
-      key: 'manual',
-      icon: <QuestionCircleOutlined />,
-      label: '平台手册',
-    }
+    { key: 'manual', icon: <QuestionCircleOutlined />, label: '平台手册' },
   ];
 
   const handleMenuClick = (key) => {
@@ -256,6 +178,8 @@ const TeacherDashboard = () => {
         return <ClassroomManagement />;
       case 'schedule':
         return <TeacherSchedule />;
+      case 'games':
+        return <GameManagement />;
       case 'classroom-layout':
         return <ClassroomLayoutManagement />;
       case 'course':

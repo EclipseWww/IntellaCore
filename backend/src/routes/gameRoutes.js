@@ -14,12 +14,15 @@ router.delete('/session', auth, c.closeSession);
 
 // 热度榜
 router.get('/stats', auth, c.getStats);
+router.put('/disabled', auth, c.setDisabledGames);
 
 // 封面（公开）
 router.get('/cover/:gameId', c.cover);
 
 // 游戏文件：以游戏票（Cookie）鉴权，不使用登录令牌
 router.get('/play/_alive', c.alive);
+router.get('/play/_save', c.loadSave);
+router.put('/play/_save', c.writeSave);
 router.get('/play/:gameId/*', c.serveGameFile);
 router.get('/play/:gameId', (req, res) => res.redirect(`/api/games/play/${encodeURIComponent(req.params.gameId)}/index.html`));
 

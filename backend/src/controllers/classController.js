@@ -85,7 +85,8 @@ exports.getTeacherClasses = async (req, res) => {
     if (req.query.includeArchived !== 'true') {
       query.status = { $ne: 'archived' }; // 排除已归档班级
     }
-    const classes = await Class.find(query);
+    // 按年级（新到旧）、班号（小到大）排序
+    const classes = (await Class.find(query)).sort((a, b) => (b.grade - a.grade) || (Number(a.name) - Number(b.name)));
 
     // 获取每个班级的学生
     const classesWithStudents = await Promise.all(classes.map(async (classObj) => {
@@ -1019,7 +1020,8 @@ exports.updateClassSettings = async (req, res) => {
       currentLesson,
       autoRedirectToLesson,
       selectedClassroomLayout,
-      allowGameCenter
+      allowGameCenter,
+      openGameCenter
     } = req.body;
 
     // 检查是否为教师
@@ -1066,6 +1068,9 @@ exports.updateClassSettings = async (req, res) => {
           ...(autoRedirectToLesson !== undefined && { autoRedirectToLesson }),
           ...(selectedClassroomLayout !== undefined && { selectedClassroomLayout }),
           ...(allowGameCenter !== undefined && { allowGameCenter }),
+          // 提前开放游戏中心：持续到本节课下课（没有下课时间则 45 分钟）；关闭则立即恢复 35 分钟规则
+          ...(openGameCenter === true && { gameOpenUntil: (scheduledEndTime && scheduledEndTime > new Date()) ? scheduledEndTime : new Date(Date.now() + 45 * 60 * 1000) }),
+          ...(openGameCenter === false && { gameOpenUntil: null }),
           scheduledEndTime, // 更新预期下课时间
         }
       },

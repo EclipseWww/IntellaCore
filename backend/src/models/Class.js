@@ -166,7 +166,9 @@ const classSchema = new mongoose.Schema({
   allowGameCenter: {
     type: Boolean,
     default: true
-  }
+  },
+  // 教师提前开放游戏中心（不必等登录满 35 分钟），到这个时间自动失效
+  gameOpenUntil: { type: Date, default: null }
 }, {
   timestamps: true
 });

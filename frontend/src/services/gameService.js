@@ -47,6 +47,12 @@ const gameService = {
     return data; // { success, data: [{ gameId, totalSeconds, sessions, playerCount }] }
   },
 
+  // 教师：设置对自己班级关闭的游戏
+  async setDisabled(disabled) {
+    const { data } = await api.put('/games/disabled', { disabled });
+    return data;
+  },
+
   coverUrl: (gameId) => `/api/games/cover/${gameId}`
 };
 

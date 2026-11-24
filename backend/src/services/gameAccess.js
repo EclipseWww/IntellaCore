@@ -104,6 +104,11 @@ const GUARD_SCRIPT = `<script>(function(){
   try { ok = window.top !== window.self && window.parent.location.origin === location.origin && /^\\/(student|teacher)(\\/|$)/.test(window.parent.location.pathname); } catch (e) { ok = false; }
   function block(msg){ try { window.stop(); } catch (e) {} document.documentElement.innerHTML = '<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font:18px sans-serif;color:#555;background:#f5f5f5">' + msg + '</body>'; }
   if (!ok) { block('请从游戏中心进入游戏'); return; }
+  /* 每个用户自己的游戏存档（保存在服务器，换电脑、换浏览器也在） */
+  window.GameSave = {
+    load: function(){ return fetch('${COOKIE_PATH}/_save', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : { data: null }; }).then(function(j){ return j.data === undefined ? null : j.data; }).catch(function(){ return null; }); },
+    save: function(data){ return fetch('${COOKIE_PATH}/_save', { method: 'PUT', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: data }), keepalive: true }).then(function(r){ return r.ok; }).catch(function(){ return false; }); }
+  };
   setInterval(function(){
     fetch('${COOKIE_PATH}/_alive', { credentials: 'same-origin', cache: 'no-store' }).then(function(r){ if (r.status === 401) block('游戏已结束，请回到游戏中心'); }).catch(function(){});
   }, 20000);

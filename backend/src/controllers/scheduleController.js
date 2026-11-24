@@ -23,8 +23,13 @@ const guard = (fn) => async (req, res) => {
 
 const ownClass = (classId, teacherId) => Class.findOne({ _id: classId, teacher: teacherId, status: { $ne: 'archived' } });
 
-/** 课程选项：与教师端课程列表一致，授课教师可选任意课程 */
-const courseExists = (id) => Course.exists({ _id: id });
+/** 课程必须是本人的课程；不填课程表示「自动」 */
+const ownCourse = (id, teacherId) => Course.exists({ _id: id, instructor: teacherId });
+const optionalCourse = async (courseId, teacherId) => {
+  if (courseId === undefined || courseId === null || courseId === '') return { courseId: null };
+  if (!isId(courseId) || !await ownCourse(courseId, teacherId)) return { error: '只能选择自己的课程' };
+  return { courseId };
+};
 
 // ───────────── 节次配置（管理员维护，所有人可读）─────────────
 
@@ -52,10 +57,11 @@ exports.upsertSlot = guard(async (req, res) => {
   const cfg = await svc.getConfig();
   if (!Number.isInteger(weekday) || !cfg.days.includes(weekday)) return fail(res, 400, '该天不是上课日');
   if (!cfg.periods.some(p => p.index === period)) return fail(res, 400, '节次不存在');
-  if (!isId(classId) || !isId(courseId)) return fail(res, 400, '请选择班级和课程');
+  if (!isId(classId)) return fail(res, 400, '请选择班级');
   for (const d of [startDate, endDate]) if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) return fail(res, 400, '日期格式错误');
   if (!await ownClass(classId, req.user._id)) return fail(res, 404, '未找到该班级或无权操作');
-  if (!await courseExists(courseId)) return fail(res, 404, '课程不存在');
+  const oc = await optionalCourse(courseId, req.user._id);
+  if (oc.error) return fail(res, 400, oc.error);
 
   const clash = await ScheduleSlot.findOne({
     class: classId, weekday, period, teacher: { $ne: req.user._id }
@@ -66,10 +72,33 @@ exports.upsertSlot = guard(async (req, res) => {
   await ScheduleSlot.deleteMany({ class: classId, weekday, period, teacher: req.user._id });
   const slot = await ScheduleSlot.findOneAndUpdate(
     { teacher: req.user._id, weekday, period },
-    { teacher: req.user._id, weekday, period, class: classId, course: courseId, autoStart: !!autoStart, startDate, endDate },
+    { teacher: req.user._id, weekday, period, class: classId, course: oc.courseId, autoStart: !!autoStart, startDate, endDate },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).populate('class', 'grade name').populate('course', 'title');
   res.json({ success: true, data: slot });
+});
+
+/** 拖动固定课：移到空格子；目标格子已有课则两者互换 */
+exports.moveSlot = guard(async (req, res) => {
+  const { from, to } = req.body || {};
+  const cfg = await svc.getConfig();
+  const valid = (c) => c && cfg.days.includes(c.weekday) && cfg.periods.some(p => p.index === c.period);
+  if (!valid(from) || !valid(to)) return fail(res, 400, '参数错误');
+  if (from.weekday === to.weekday && from.period === to.period) return res.json({ success: true });
+  const me = req.user._id;
+  const a = await ScheduleSlot.findOne({ teacher: me, weekday: from.weekday, period: from.period });
+  if (!a) return fail(res, 404, '课表项不存在');
+  const b = await ScheduleSlot.findOne({ teacher: me, weekday: to.weekday, period: to.period });
+  for (const [slot, target] of [[a, to], [b, from]]) {
+    if (!slot) continue;
+    const clash = await ScheduleSlot.exists({ class: slot.class, weekday: target.weekday, period: target.period, teacher: { $ne: me } });
+    if (clash) return fail(res, 409, '目标时间该班级已被其他教师排课');
+  }
+  // 先移到临时位置避开唯一索引，再落位
+  await ScheduleSlot.updateOne({ _id: a._id }, { $set: { weekday: 0 } }, { runValidators: false });
+  if (b) await ScheduleSlot.updateOne({ _id: b._id }, { $set: { weekday: from.weekday, period: from.period } });
+  await ScheduleSlot.updateOne({ _id: a._id }, { $set: { weekday: to.weekday, period: to.period } });
+  res.json({ success: true, swapped: !!b });
 });
 
 exports.deleteSlot = guard(async (req, res) => {
@@ -89,12 +118,13 @@ exports.createAdjustment = guard(async (req, res) => {
   const data = { teacher: req.user._id, type, date, period, reason: String(reason).slice(0, 200), class: null, course: null };
 
   if (type === 'add') {
-    if (!isId(classId) || !isId(courseId)) return fail(res, 400, '请选择班级和课程');
+    if (!isId(classId)) return fail(res, 400, '请选择班级');
     if (!await ownClass(classId, req.user._id)) return fail(res, 404, '未找到该班级或无权操作');
-    if (!await courseExists(courseId)) return fail(res, 404, '课程不存在');
+    const oc = await optionalCourse(courseId, req.user._id);
+    if (oc.error) return fail(res, 400, oc.error);
     const busy = await LessonSession.exists({ class: classId, date, period });
     if (busy) return fail(res, 409, '该班级这一节已有上课记录');
-    data.class = classId; data.course = courseId;
+    data.class = classId; data.course = oc.courseId;
   }
   const existingSession = await LessonSession.findOne({ teacher: req.user._id, date, period, status: { $ne: 'skipped' } });
   if (existingSession) return fail(res, 409, '这一节已经上课或有记录，无法再调整');
@@ -117,6 +147,15 @@ exports.listOccurrences = guard(async (req, res) => {
   const { from, to } = req.query;
   if (!L.dateRange(from, to).length) return fail(res, 400, '日期范围无效');
   const occ = await svc.listOccurrences({ teacherId: req.user._id, from, to });
+  // 课表未固定课程、也还没上的课：显示将自动采用的课程
+  const autoCourse = new Map();
+  for (const o of occ) {
+    if (o.course || o.session) continue;
+    if (!autoCourse.has(o.class)) autoCourse.set(o.class, await svc.resolveCourse({ classId: o.class, teacherId: req.user._id }));
+    const c = autoCourse.get(o.class);
+    if (c) { o.course = String(c); o.courseAuto = true; }
+  }
+  for (const o of occ) if (o.session && o.session.course) o.course = String(o.session.course);
   const classes = await Class.find({ _id: { $in: [...new Set(occ.map(o => o.class))] } }).select('grade name').lean();
   const courses = await Course.find({ _id: { $in: [...new Set(occ.map(o => o.course))] } }).select('title').lean();
   const cMap = new Map(classes.map(c => [String(c._id), c]));
@@ -303,6 +342,17 @@ exports.saveAttendance = guard(async (req, res) => {
   session.attendanceSource = 'teacher';
   await session.save();
   res.json({ success: true, data: { saved: session.attendance.length } });
+});
+
+/** 本人的课程（课表里只能选自己的课程） */
+exports.listMyCourses = guard(async (req, res) => {
+  const courses = await Course.find({ instructor: req.user._id }).select('title createdAt').sort({ createdAt: 1 }).lean();
+  res.json({ success: true, data: courses });
+});
+
+/** 顶部状态：当前时间、正在上的课、下一节将自动上课的班级 */
+exports.nowStatus = guard(async (req, res) => {
+  res.json({ success: true, data: await svc.nowStatus(req.user._id) });
 });
 
 exports.listCourseLessons = guard(async (req, res) => {

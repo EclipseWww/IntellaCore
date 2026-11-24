@@ -4,10 +4,11 @@ import {
   Empty, Tooltip, Popconfirm, Typography, Alert, DatePicker, Progress, Spin
 } from 'antd';
 import {
-  LeftOutlined, RightOutlined, DownloadOutlined, PlayCircleOutlined, CheckSquareOutlined
+  LeftOutlined, RightOutlined, DownloadOutlined, PlayCircleOutlined, CheckSquareOutlined, DeleteOutlined, PushpinOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import api, { classAPI } from '../../services/api';
+import { nowTz, atTz, setScheduleTz } from '../../utils/scheduleTime';
+import { classAPI } from '../../services/api';
 import { scheduleAPI } from '../../services/scheduleAPI';
 
 const { Text } = Typography;
@@ -19,7 +20,17 @@ const ATT_OPTIONS = [
 ];
 const errMsg = (e, fallback) => e?.response?.data?.message || fallback;
 const classLabel = (c) => (c ? `${c.grade}级${c.name}班` : '未知班级');
-const mondayOf = (d) => dayjs(d).startOf('day').subtract((dayjs(d).day() + 6) % 7, 'day');
+/** 班级排序：年级新到旧，同年级按班号 */
+const sortClasses = (list) => [...list].sort((a, b) => (b.grade - a.grade) || (Number(a.name) - Number(b.name)));
+const AUTO_COURSE = '__auto__';
+const courseOptions = (courses) => [
+  { value: AUTO_COURSE, label: '自动（跟随该班最近上的课程）' },
+  ...courses.map(c => ({ value: c._id, label: c.title }))
+];
+const toCourseId = (v) => (v && v !== AUTO_COURSE ? v : null);
+const DRAG_MIME = 'application/x-schedule';
+// 周起始日：取「日期」本身（与时区无关），只用于排列日期
+const mondayOf = (d) => { const x = dayjs(dayjs.isDayjs(d) ? d.format('YYYY-MM-DD') : d); return x.subtract((x.day() + 6) % 7, 'day'); };
 
 /** 课节记录的状态展示（含自动判定结果） */
 function sessionStatus(s) {
@@ -37,7 +48,7 @@ function sessionStatus(s) {
 /** 一节课的状态展示 */
 function statusOf(occ, now) {
   if (occ.session) return sessionStatus(occ.session);
-  const end = dayjs(`${occ.date} ${occ.end}`);
+  const end = atTz(occ.date, occ.end);
   return end.isBefore(now) ? { color: 'default', text: '无记录' } : { color: 'blue', text: '待上' };
 }
 
@@ -59,8 +70,10 @@ const SessionModal = ({ sessionId, onClose }) => {
         setRoster(res.data.roster);
         setLessonId(res.data.lesson || null);
         setNote(res.data.note || '');
-        const ls = await scheduleAPI.listCourseLessons(res.data.course);
-        setLessons(ls.data);
+        if (res.data.course) {
+          const ls = await scheduleAPI.listCourseLessons(res.data.course);
+          setLessons(ls.data);
+        }
       } catch (e) { message.error(errMsg(e, '加载失败')); onClose(); }
     })();
     // onClose 每次渲染都是新函数，不能作为依赖，否则会反复重新加载并覆盖正在编辑的考勤
@@ -120,16 +133,15 @@ const SessionModal = ({ sessionId, onClose }) => {
   );
 };
 
-// ───────────── 课节操作弹窗 ─────────────
+// ───────────── 课节操作弹窗（本周视图） ─────────────
 const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSession }) => {
-  const [mode, setMode] = useState('slot');
+  const [mode, setMode] = useState('add');
   const [classId, setClassId] = useState(null);
-  const [courseId, setCourseId] = useState(null);
-  const [autoStart, setAutoStart] = useState(true);
+  const [courseId, setCourseId] = useState(AUTO_COURSE);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setMode('slot'); setReason(''); setAutoStart(true); setClassId(null); setCourseId(null); }, [cell]);
+  useEffect(() => { setMode('add'); setReason(''); setClassId(null); setCourseId(AUTO_COURSE); }, [cell]);
   if (!cell) return null;
   const { occ, date, weekday, period } = cell;
   const periodInfo = periods.find(p => p.index === period);
@@ -141,18 +153,10 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
     catch (e) { message.error(errMsg(e, '操作失败')); } finally { setBusy(false); }
   };
 
-  const classCourseSelect = (
-    <Space direction="vertical" style={{ width: '100%' }}>
-      <Select style={{ width: '100%' }} placeholder="选择班级" value={classId} onChange={setClassId}
-        options={classes.map(c => ({ value: c._id, label: classLabel(c) }))} />
-      <Select style={{ width: '100%' }} showSearch optionFilterProp="label" placeholder="选择课程" value={courseId} onChange={setCourseId}
-        options={courses.map(c => ({ value: c._id, label: c.title }))} />
-    </Space>
-  );
-
   const title = `${date}（${DAY_NAMES[weekday]}）${periodInfo?.name || ''} ${periodInfo ? `${periodInfo.start}-${periodInfo.end}` : ''}`;
   const ref = occ && { classId: occ.class, date: occ.date, period: occ.period };
   const s = occ?.session;
+  const future = occ && atTz(occ.date, occ.start).isAfter(nowTz());
 
   return (
     <Modal open title={title} onCancel={onClose} footer={null} destroyOnClose>
@@ -163,49 +167,60 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
               action={<Button size="small" onClick={() => run(() => scheduleAPI.deleteAdjustment(cancelled._id), '已恢复')}>恢复</Button>} />
           )}
           <Radio.Group value={mode} onChange={e => setMode(e.target.value)}>
-            <Radio.Button value="slot">每周固定上课</Radio.Button>
             <Radio.Button value="add">仅{date.slice(5)}临时上课</Radio.Button>
+            <Radio.Button value="slot">每周固定上课</Radio.Button>
           </Radio.Group>
-          {classCourseSelect}
-          {mode === 'slot' && <Space><Switch checked={autoStart} onChange={setAutoStart} /> 到点自动上课</Space>}
-          <Button type="primary" block loading={busy} disabled={!classId || !courseId}
+          <Select style={{ width: '100%' }} placeholder="选择班级" value={classId} onChange={setClassId}
+            options={classes.map(c => ({ value: c._id, label: classLabel(c) }))} />
+          <Select style={{ width: '100%' }} value={courseId} onChange={setCourseId} options={courseOptions(courses)} />
+          <Button type="primary" block loading={busy} disabled={!classId}
             onClick={() => run(() => mode === 'slot'
-              ? scheduleAPI.saveSlot({ weekday, period, classId, courseId, autoStart })
-              : scheduleAPI.createAdjustment({ type: 'add', date, period, classId, courseId }), '已保存')}>
+              ? scheduleAPI.saveSlot({ weekday, period, classId, courseId: toCourseId(courseId) })
+              : scheduleAPI.createAdjustment({ type: 'add', date, period, classId, courseId: toCourseId(courseId) }), '已保存')}>
             保存
           </Button>
+          <Text type="secondary" style={{ fontSize: 12 }}>也可以直接把上方的班级拖到格子里。</Text>
         </Space>
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Space wrap>
             <Tag color="geekblue">{classLabel(occ.classInfo)}</Tag>
-            <Text strong>{occ.courseInfo?.title}</Text>
-            <Tag color={statusOf(occ, dayjs()).color}>{statusOf(occ, dayjs()).text}</Tag>
+            <Text strong>{occ.courseInfo?.title || '（未指定课程）'}</Text>
+            {occ.courseAuto && <Tag>自动</Tag>}
+            <Tag color={statusOf(occ, nowTz()).color}>{statusOf(occ, nowTz()).text}</Tag>
             {occ.source === 'adjust' && <Tag color="purple">临时调课</Tag>}
+            {occ.source === 'extra' && <Tag color="magenta">课表外</Tag>}
           </Space>
-          {statusOf(occ, dayjs()).tip && s?.status !== 'skipped' && <Text type="secondary">{statusOf(occ, dayjs()).tip}</Text>}
-          {s?.lesson && <Text type="secondary">本节课时：{s.lesson.title}</Text>}
+          {statusOf(occ, nowTz()).tip && s?.status !== 'skipped' && <Text type="secondary">{statusOf(occ, nowTz()).tip}</Text>}
+          {s && (s.lesson ? <Text type="secondary">本节课时：{s.lesson.title}</Text>
+            : s.status !== 'skipped' && <Alert type="warning" showIcon message="这节课没有指定课时：下一课时尚未准备。建好新课时后会自动切换，也可在「上课」页手动选择。" />)}
           {s?.status === 'skipped' && <Text type="secondary">未上原因：{s.skipReason || '（未填写）'}</Text>}
 
           <Space wrap>
             {!s && (
               <Button icon={<PlayCircleOutlined />} loading={busy}
-                onClick={() => run(() => scheduleAPI.startOccurrence(ref), '已开始上课，课时已切换')}>立即上课</Button>
+                onClick={() => run(() => scheduleAPI.startOccurrence(ref), '已开始上课')}>立即上课</Button>
             )}
-            {!s && dayjs(`${occ.date} ${occ.start}`).isBefore(dayjs()) && (
+            {!s && !future && (
               <Button loading={busy} onClick={() => run(() => scheduleAPI.recordOccurrence(ref), '已补记')}>补记为已上</Button>
             )}
             {s && s.status !== 'skipped' && (
               <Button type="primary" icon={<CheckSquareOutlined />} onClick={() => { openSession(s._id); onClose(); }}>
-                点名 / 调整课时
+                考勤 / 调整课时
               </Button>
             )}
-            {s?.status === 'skipped' && !s.startedAt && dayjs(s.startAt).isAfter(dayjs()) && (
+            {s?.status === 'skipped' && !s.startedAt && dayjs(s.startAt).isAfter(nowTz()) && (
               <Button loading={busy} onClick={() => run(() => scheduleAPI.unskip(s._id), '已撤销')}>撤销「未上」</Button>
+            )}
+            {occ.source === 'extra' && (
+              <Button icon={<PushpinOutlined />} loading={busy}
+                onClick={() => run(() => scheduleAPI.saveSlot({ weekday, period, classId: occ.class, courseId: null }), '已设为每周固定课')}>
+                以后每周都上这个班
+              </Button>
             )}
           </Space>
 
-          {s && s.status !== 'in_progress' && !(s.status === 'skipped' && !s.startedAt && dayjs(s.startAt).isAfter(dayjs())) && (
+          {s && s.status !== 'in_progress' && !(s.status === 'skipped' && !s.startedAt && dayjs(s.startAt).isAfter(nowTz())) && (
             <div>
               <Text type="secondary">这节课实际情况{s.judgement?.by === 'teacher' ? '（已由你确认）' : s.judgement?.state === 'pending' ? '（待自动判定）' : '（自动判定，有误可改）'}：</Text>
               <Radio.Group size="small" optionType="button" disabled={busy}
@@ -219,7 +234,7 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
             </div>
           )}
 
-          {(!s || s.status === 'in_progress') && (
+          {(!s || s.status === 'in_progress') && occ.source !== 'extra' && (
             <Space.Compact style={{ width: '100%' }}>
               <Input placeholder="已知会被占用？填写原因（可选）" value={reason} maxLength={100} onChange={e => setReason(e.target.value)} />
               <Button danger loading={busy} onClick={() => run(() => scheduleAPI.skipOccurrence({ ...ref, reason }), '已标记为未上，进度不会前进')}>标记未上</Button>
@@ -230,94 +245,272 @@ const CellModal = ({ cell, classes, courses, periods, onClose, onChanged, openSe
             <Space wrap>
               <Popconfirm title="取消本次课？（仅这一天，不影响每周课表）" onConfirm={() =>
                 run(() => scheduleAPI.createAdjustment({ type: 'cancel', date, period, reason }), '本次已取消')}>
-                <Button>取消本次（调课调出）</Button>
+                <Button>取消本次</Button>
               </Popconfirm>
               {occ.source === 'adjust' && (
                 <Button onClick={() => run(() => scheduleAPI.deleteAdjustment(occ.adjustmentId), '已移除')}>移除这次临时课</Button>
               )}
-              {occ.source === 'slot' && (
-                <Popconfirm title="删除这条每周固定课？" onConfirm={() => run(() => scheduleAPI.deleteSlot(occ.slotId), '已删除')}>
-                  <Button danger>删除每周固定课</Button>
-                </Popconfirm>
-              )}
             </Space>
           )}
+          {future && !s && <Text type="secondary" style={{ fontSize: 12 }}>要临时调到别的时间，直接把它拖到目标格子。</Text>}
         </Space>
       )}
     </Modal>
   );
 };
 
-// ───────────── 周课表 ─────────────
-const WeekGrid = ({ config, classes, courses }) => {
-  const [weekStart, setWeekStart] = useState(mondayOf(dayjs()));
+// ───────────── 每周固定课：编辑弹窗 ─────────────
+const SlotModal = ({ target, classes, courses, onClose, onChanged }) => {
+  const [classId, setClassId] = useState(null);
+  const [courseId, setCourseId] = useState(AUTO_COURSE);
+  const [autoStart, setAutoStart] = useState(true);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const sl = target && target.slot;
+    setClassId(sl ? sl.class?._id : null);
+    setCourseId(sl && sl.course ? sl.course._id : AUTO_COURSE);
+    setAutoStart(sl ? sl.autoStart !== false : true);
+  }, [target]);
+  if (!target) return null;
+  const run = async (fn, ok) => {
+    setBusy(true);
+    try { await fn(); message.success(ok); onChanged(); onClose(); }
+    catch (e) { message.error(errMsg(e, '操作失败')); } finally { setBusy(false); }
+  };
+  return (
+    <Modal open title={`每周 ${DAY_NAMES[target.weekday]} ${target.periodName}`} onCancel={onClose} footer={null} destroyOnClose>
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <Select style={{ width: '100%' }} placeholder="选择班级" value={classId} onChange={setClassId}
+          options={classes.map(c => ({ value: c._id, label: classLabel(c) }))} />
+        <Select style={{ width: '100%' }} value={courseId} onChange={setCourseId} options={courseOptions(courses)} />
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          课程选「自动」时，跟随这个班最近一次实际上的课程。一个模块讲完后，在「上课」页选一次新模块的课时，之后就自动跟随。
+        </Text>
+        <Space><Switch checked={autoStart} onChange={setAutoStart} /> 到点自动上课</Space>
+        <Space>
+          <Button type="primary" loading={busy} disabled={!classId}
+            onClick={() => run(() => scheduleAPI.saveSlot({ weekday: target.weekday, period: target.period, classId, courseId: toCourseId(courseId), autoStart }), '已保存')}>保存</Button>
+          {target.slot && (
+            <Popconfirm title="删除这节每周固定课？" onConfirm={() => run(() => scheduleAPI.deleteSlot(target.slot._id), '已删除')}>
+              <Button danger icon={<DeleteOutlined />}>删除</Button>
+            </Popconfirm>
+          )}
+        </Space>
+      </Space>
+    </Modal>
+  );
+};
+
+// ───────────── 课表网格（拖拽） ─────────────
+const chipStyle = (color) => ({
+  padding: '4px 8px', borderRadius: 6, background: color, color: '#fff', fontSize: 13, fontWeight: 600,
+  cursor: 'grab', userSelect: 'none', display: 'inline-block'
+});
+const CLASS_COLORS = ['#326b59', '#2f6fb0', '#8a5cd6', '#c2410c', '#0e7490', '#a21caf', '#4d7c0f', '#b45309', '#be123c', '#475569'];
+const colorOf = (classes, id) => CLASS_COLORS[Math.max(0, classes.findIndex(c => c._id === String(id))) % CLASS_COLORS.length];
+
+const ScheduleGrid = ({ config, classes, courses }) => {
+  const [view, setView] = useState('week');
+  const [weekStart, setWeekStart] = useState(mondayOf(nowTz()));
   const [occs, setOccs] = useState([]);
   const [cancelled, setCancelled] = useState([]);
+  const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cell, setCell] = useState(null);
+  const [slotTarget, setSlotTarget] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+  const [over, setOver] = useState(null);
 
-  const days = config.days;
-  const dates = days.map(d => ({ weekday: d, date: weekStart.add(d - 1, 'day').format(DATE_FMT) }));
+  const dates = config.days.map(d => ({ weekday: d, date: weekStart.add(d - 1, 'day').format(DATE_FMT) }));
+  const today = nowTz().format(DATE_FMT);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await scheduleAPI.listOccurrences(weekStart.format(DATE_FMT), weekStart.add(6, 'day').format(DATE_FMT));
-      setOccs(res.data);
-      setCancelled(res.adjustments || []);
+      const [o, sl] = await Promise.all([
+        scheduleAPI.listOccurrences(weekStart.format(DATE_FMT), weekStart.add(6, 'day').format(DATE_FMT)),
+        scheduleAPI.listSlots()
+      ]);
+      setOccs(o.data); setCancelled(o.adjustments || []); setSlots(sl.data);
     } catch (e) { message.error(errMsg(e, '加载课表失败')); } finally { setLoading(false); }
   }, [weekStart]);
   useEffect(() => { load(); }, [load]);
 
-  const find = (date, period) => occs.find(o => o.date === date && o.period === period);
-  const now = dayjs();
+  const act = async (fn, ok) => {
+    try { await fn(); if (ok) message.success(ok); } catch (e) { message.error(errMsg(e, '操作失败')); }
+    load();
+  };
 
+  // 拖放：班级卡片 / 固定课 / 本周的一节课
+  const onDrop = (e, target) => {
+    e.preventDefault(); setOver(null);
+    let src; try { src = JSON.parse(e.dataTransfer.getData(DRAG_MIME)); } catch { return; }
+    if (!src) return;
+    if (view === 'template') {
+      if (src.kind === 'class') return act(() => scheduleAPI.saveSlot({ weekday: target.weekday, period: target.period, classId: src.classId, courseId: null }), '已排入每周课表');
+      if (src.kind === 'slot') return act(() => scheduleAPI.moveSlot({ weekday: src.weekday, period: src.period }, { weekday: target.weekday, period: target.period }), '已调整每周课表');
+      return;
+    }
+    if (atTz(target.date, config.periods.find(p => p.index === target.period).end).isBefore(nowTz())) {
+      return message.warning('这节课已经过去了');
+    }
+    if (src.kind === 'class') {
+      return act(() => scheduleAPI.createAdjustment({ type: 'add', date: target.date, period: target.period, classId: src.classId }), `已安排 ${target.date.slice(5)} 临时上课`);
+    }
+    if (src.kind === 'occ') {
+      if (src.date === target.date && src.period === target.period) return;
+      Modal.confirm({
+        title: '临时调课',
+        content: `把 ${src.label} 从 ${src.date.slice(5)} 第${src.period}节 调到 ${target.date.slice(5)} 第${target.period}节？只影响这一次，每周课表不变。`,
+        onOk: () => act(async () => {
+          if (src.source === 'adjust') await scheduleAPI.deleteAdjustment(src.adjustmentId);
+          else await scheduleAPI.createAdjustment({ type: 'cancel', date: src.date, period: src.period, reason: '调课' });
+          await scheduleAPI.createAdjustment({ type: 'add', date: target.date, period: target.period, classId: src.classId, courseId: src.pinnedCourse || null });
+        }, '已调课')
+      });
+    }
+  };
+  const dropProps = (key, target) => ({
+    onDragOver: (e) => { e.preventDefault(); if (over !== key) setOver(key); },
+    onDragLeave: () => setOver(o => (o === key ? null : o)),
+    onDrop: (e) => onDrop(e, target)
+  });
+  const drag = (payload) => ({
+    draggable: true,
+    onDragStart: (e) => { e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload)); e.dataTransfer.effectAllowed = 'move'; }
+  });
+
+  const renderWeekCell = (date, weekday, p) => {
+    const items = occs.filter(o => o.date === date && o.period === p.index);
+    // 实际上了的课排前面；原定却没上、被别的班顶替的显示为「原定」
+    // 同一节里教师实际去了课表外的班级（source=extra）：原定的班级即使还没判定，也显示为「原定」
+    const tookOver = items.some(o => o.source === 'extra' && o.session && o.session.status !== 'skipped');
+    const actual = items.filter(o => o.session && o.session.status !== 'skipped' && (!tookOver || o.source === 'extra'));
+    const ordered = [...actual, ...items.filter(o => !actual.includes(o))];
+    const isCancelled = cancelled.some(a => a.date === date && a.period === p.index);
+    if (!ordered.length) {
+      return <Text type="secondary" style={{ fontSize: 12 }}>{isCancelled ? '已取消（点击恢复）' : '＋'}</Text>;
+    }
+    return ordered.map((o, i) => {
+      const st = statusOf(o, nowTz());
+      const replaced = actual.length > 0 && !actual.includes(o);
+      const future = !o.session && atTz(o.date, o.start).isAfter(nowTz());
+      return (
+        <div key={i} onClick={(e) => { e.stopPropagation(); setCell({ occ: o, date, weekday, period: p.index }); }}
+          {...(future ? drag({ kind: 'occ', date, period: p.index, classId: o.class, label: classLabel(o.classInfo), source: o.source, adjustmentId: o.adjustmentId, pinnedCourse: o.courseAuto ? null : o.course }) : {})}
+          style={{ marginBottom: 4, opacity: replaced ? 0.55 : 1, cursor: future ? 'grab' : 'pointer' }}>
+          <div style={{ borderLeft: `4px solid ${colorOf(classes, o.class)}`, paddingLeft: 6 }}>
+            <b style={{ textDecoration: replaced ? 'line-through' : 'none' }}>{classLabel(o.classInfo)}</b>
+            {replaced && <Text type="secondary" style={{ fontSize: 12 }}> 原定</Text>}
+            {!replaced && <div style={{ fontSize: 12, color: '#55625b' }}>{o.courseInfo?.title || '未指定课程'}{o.courseAuto ? '（自动）' : ''}</div>}
+            {!replaced && (
+              <Space size={4} wrap>
+                <Tag color={st.color} style={{ marginRight: 0 }}>{st.text}</Tag>
+                {o.source === 'adjust' && <Tag color="purple" style={{ marginRight: 0 }}>调</Tag>}
+                {o.source === 'extra' && <Tag color="magenta" style={{ marginRight: 0 }}>课表外</Tag>}
+              </Space>
+            )}
+            {!replaced && o.session && (o.session.lesson
+              ? <div style={{ fontSize: 12, color: '#738078' }}>{o.session.lesson.title}</div>
+              : o.session.status !== 'skipped' && <div style={{ fontSize: 12, color: '#d46b08' }}>未指定课时</div>)}
+          </div>
+        </div>
+      );
+    });
+  };
+
+  const renderTemplateCell = (weekday, p) => {
+    const sl = slots.find(x => x.weekday === weekday && x.period === p.index);
+    if (!sl) return <Text type="secondary" style={{ fontSize: 12 }}>＋</Text>;
+    return (
+      <div {...drag({ kind: 'slot', weekday, period: p.index })} style={{ cursor: 'grab' }}>
+        <div style={chipStyle(colorOf(classes, sl.class?._id))}>{classLabel(sl.class)}</div>
+        <div style={{ fontSize: 12, color: '#55625b', marginTop: 4 }}>{sl.course ? sl.course.title : '课程：自动'}</div>
+        {sl.autoStart === false && <Tag style={{ marginTop: 4 }}>不自动上课</Tag>}
+      </div>
+    );
+  };
+
+  const cols = `110px repeat(${dates.length}, minmax(130px, 1fr))`;
   return (
     <>
-      <Space style={{ marginBottom: 12 }}>
-        <Button icon={<LeftOutlined />} onClick={() => setWeekStart(w => w.subtract(7, 'day'))} />
-        <DatePicker picker="week" allowClear={false} value={weekStart} format={() => `${weekStart.format('MM-DD')} ~ ${weekStart.add(6, 'day').format('MM-DD')}`}
-          onChange={v => v && setWeekStart(mondayOf(v))} />
-        <Button icon={<RightOutlined />} onClick={() => setWeekStart(w => w.add(7, 'day'))} />
-        <Button onClick={() => setWeekStart(mondayOf(dayjs()))}>本周</Button>
+      <Space wrap style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
+        <Space wrap>
+          <Radio.Group optionType="button" buttonStyle="solid" value={view} onChange={e => setView(e.target.value)}
+            options={[{ label: '本周', value: 'week' }, { label: '每周固定课表', value: 'template' }]} />
+          {view === 'week' && (
+            <>
+              <Button icon={<LeftOutlined />} onClick={() => setWeekStart(w => w.subtract(7, 'day'))} />
+              <DatePicker picker="week" allowClear={false} value={weekStart} format={() => `${weekStart.format('MM-DD')} ~ ${weekStart.add(6, 'day').format('MM-DD')}`}
+                onChange={v => v && setWeekStart(mondayOf(v))} />
+              <Button icon={<RightOutlined />} onClick={() => setWeekStart(w => w.add(7, 'day'))} />
+              <Button onClick={() => setWeekStart(mondayOf(nowTz()))}>本周</Button>
+            </>
+          )}
+        </Space>
+        {view === 'template' && (
+          <div {...dropProps('trash', null)} onDrop={(e) => {
+            e.preventDefault(); setOver(null);
+            let src; try { src = JSON.parse(e.dataTransfer.getData(DRAG_MIME)); } catch { return; }
+            const sl = src && src.kind === 'slot' && slots.find(x => x.weekday === src.weekday && x.period === src.period);
+            if (sl) act(() => scheduleAPI.deleteSlot(sl._id), '已删除');
+          }} style={{ padding: '6px 14px', border: `2px dashed ${over === 'trash' ? '#ff4d4f' : '#d9d9d9'}`, borderRadius: 8, color: over === 'trash' ? '#ff4d4f' : '#999' }}>
+            <DeleteOutlined /> 拖到这里删除
+          </div>
+        )}
       </Space>
-      <Table size="small" bordered pagination={false} loading={loading} rowKey="index" dataSource={config.periods}
-        columns={[
-          { title: '节次', width: 110, fixed: 'left', render: (_, p) => <div><b>{p.name}</b><br /><Text type="secondary" style={{ fontSize: 12 }}>{p.start}-{p.end}</Text></div> },
-          ...dates.map(({ weekday, date }) => ({
-            title: <div>{DAY_NAMES[weekday]}<br /><Text type={date === now.format(DATE_FMT) ? undefined : 'secondary'} strong={date === now.format(DATE_FMT)} style={{ fontSize: 12 }}>{date.slice(5)}</Text></div>,
-            width: 150,
-            onCell: (p) => ({ style: { cursor: 'pointer', padding: 6, verticalAlign: 'top', minWidth: 130 }, onClick: () => {
-              const occ = find(date, p.index) || null;
-              setCell({ occ, date, weekday, period: p.index, cancelAdjustment: cancelled.find(a => a.date === date && a.period === p.index) });
-            } }),
-            render: (_, p) => {
-              const occ = find(date, p.index);
-              if (!occ) {
-                return cancelled.some(a => a.date === date && a.period === p.index)
-                  ? <Tag>已取消</Tag>
-                  : <Text type="secondary" style={{ fontSize: 12 }}>＋</Text>;
-              }
-              const st = statusOf(occ, now);
-              return (
-                <div>
-                  <b>{classLabel(occ.classInfo)}</b>
-                  <div style={{ fontSize: 12 }}>{occ.courseInfo?.title}</div>
-                  <Space size={4} wrap>
-                    <Tag color={st.color} style={{ marginRight: 0 }}>{st.text}</Tag>
-                    {occ.source === 'adjust' && <Tag color="purple" style={{ marginRight: 0 }}>调</Tag>}
-                    {occ.session?.attendanceTaken && <Tag color="green" style={{ marginRight: 0 }}>已点名</Tag>}
-                  </Space>
-                  {occ.session?.lesson && <div style={{ fontSize: 12, color: '#738078' }}>{occ.session.lesson.title}</div>}
+
+      <div style={{ marginBottom: 12, padding: 10, background: '#f6f8f7', borderRadius: 8 }}>
+        <Text type="secondary" style={{ marginRight: 8 }}>
+          {view === 'template' ? '把班级拖进格子排每周课表，拖动格子里的课可调整或互换：' : '拖班级到格子 = 临时加一节课；拖动还没上的课 = 只调这一次：'}
+        </Text>
+        <Space size={[6, 6]} wrap>
+          {classes.map(c => (
+            <span key={c._id} {...drag({ kind: 'class', classId: c._id })} style={chipStyle(colorOf(classes, c._id))}>{classLabel(c)}</span>
+          ))}
+        </Space>
+      </div>
+
+      <Spin spinning={loading}>
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, border: '1px solid #e5e9e7', borderRadius: 8, minWidth: 110 + dates.length * 130 }}>
+            <div style={{ padding: 8, background: '#fafbfa', borderBottom: '1px solid #e5e9e7' }} />
+            {dates.map(({ weekday, date }) => (
+              <div key={weekday} style={{ padding: 8, background: date === today && view === 'week' ? '#e8f0eb' : '#fafbfa', borderBottom: '1px solid #e5e9e7', borderLeft: '1px solid #eef1ef', textAlign: 'center' }}>
+                <b>{DAY_NAMES[weekday]}</b>{view === 'week' && <div style={{ fontSize: 12, color: '#738078' }}>{date.slice(5)}</div>}
+              </div>
+            ))}
+            {config.periods.map(p => (
+              <React.Fragment key={p.index}>
+                <div style={{ padding: 8, borderBottom: '1px solid #eef1ef', background: '#fafbfa' }}>
+                  <b>{p.name}</b><div style={{ fontSize: 12, color: '#738078' }}>{p.start}-{p.end}</div>
                 </div>
-              );
-            }
-          }))
-        ]}
-        scroll={{ x: 'max-content' }} />
+                {dates.map(({ weekday, date }) => {
+                  const key = `${weekday}-${p.index}`;
+                  const target = { weekday, date, period: p.index };
+                  return (
+                    <div key={key} {...dropProps(key, target)}
+                      onClick={() => view === 'template'
+                        ? setSlotTarget({ weekday, period: p.index, periodName: p.name, slot: slots.find(x => x.weekday === weekday && x.period === p.index) })
+                        : setCell({ occ: null, date, weekday, period: p.index, cancelAdjustment: cancelled.find(a => a.date === date && a.period === p.index) })}
+                      style={{
+                        minHeight: 78, padding: 6, cursor: 'pointer', borderBottom: '1px solid #eef1ef', borderLeft: '1px solid #eef1ef',
+                        background: over === key ? '#e6f4ff' : (date === today && view === 'week' ? '#fbfdfb' : '#fff'),
+                        outline: over === key ? '2px dashed #1677ff' : 'none', outlineOffset: -3
+                      }}>
+                      {view === 'template' ? renderTemplateCell(weekday, p) : renderWeekCell(date, weekday, p)}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </Spin>
+
       <CellModal cell={cell} classes={classes} courses={courses} periods={config.periods}
         onClose={() => setCell(null)} onChanged={load} openSession={setSessionId} />
+      <SlotModal target={slotTarget} classes={classes} courses={courses} onClose={() => setSlotTarget(null)} onChanged={load} />
       <SessionModal sessionId={sessionId} onClose={(saved) => { setSessionId(null); if (saved) load(); }} />
     </>
   );
@@ -419,16 +612,17 @@ const TeacherSchedule = () => {
     (async () => {
       try {
         const [cfg, cls, crs] = await Promise.all([
-          scheduleAPI.getConfig(), classAPI.getTeacherClasses(), api.get('/courses')
+          scheduleAPI.getConfig(), classAPI.getTeacherClasses(), scheduleAPI.listMyCourses()
         ]);
         setConfig(cfg.data);
-        setClasses(cls.data || []);
-        setCourses(crs.data.courses || []);
+        setClasses(sortClasses(cls.data || []));
+        setCourses(crs.data || []);
       } catch (e) { message.error('加载课表失败'); }
     })();
   }, []);
 
   if (!config) return <Spin />;
+  setScheduleTz(config.timezone);
   if (classes.length === 0) return <Empty description="请先在「班级管理」中创建班级" />;
 
   return (
@@ -437,16 +631,14 @@ const TeacherSchedule = () => {
         key: 'week', label: '课表',
         children: (
           <>
-            <Alert style={{ marginBottom: 12 }} type="info" showIcon
+            <Alert style={{ marginBottom: 12 }} type="info" showIcon closable
               message="排好每周固定课表后，平时不需要再操作"
               description={<>
-                上课前 {config.leadMinutes} 分钟自动上课，并切到该班该课程的下一节课时。下课 10 分钟后自动判定：
-                至少 {config.threshold}% 的学生完成了本节课时的活动 → 上了本课；
-                否则至少 {config.presenceThreshold}% 的学生登录 → 到课但没上新课（自由活动、复习等）；都不满足 → 没上（被占课等）。
-                只有「上了本课」进度才前进；到课的课都按登录自动生成考勤。上课中切换课时，系统记录停留最久的那一节。
-                临时去别的班上课，直接在「上课」页面选班级、点上课即可。判定有误时点格子更正。
+                上课前 {config.leadMinutes} 分钟自动上课，课程自动跟随该班最近上的课程，并切到下一课时；下一课时还没备好时照常上课、不指定课时，建好后自动切过去。
+                下课 10 分钟后自动判定：至少 {config.threshold}% 的学生完成本课时活动 → 上了本课；否则至少 {config.presenceThreshold}% 的学生登录 → 到课没上新课；都不满足 → 没上。
+                临时去别的班上课，直接在「上课」页选班级点上课，这里会自动显示实际上的班级。
               </>} />
-            <WeekGrid config={config} classes={classes} courses={courses} />
+            <ScheduleGrid config={config} classes={classes} courses={courses} />
           </>
         )
       },

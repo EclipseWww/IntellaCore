@@ -1,6 +1,7 @@
 import React from 'react';
 import { Layout, Button, Space } from 'antd';
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons';
+import ScheduleStatus from '../components/Schedule/ScheduleStatus';
 
 
 const { Header } = Layout;
@@ -22,6 +23,9 @@ const TeacherHeader = ({ title = '教师工作台', collapsed = false }) => {
           <span className="teacher-brand-name">信息科技</span>
         </div>
         <span className="teacher-module-title" aria-live="polite">{title}</span>
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', padding: '0 16px' }}>
+        <ScheduleStatus />
       </div>
       <Space>
         <span className="teacher-account"><span className="teacher-avatar"><UserOutlined /></span> {user?.username || '教师'}</span>

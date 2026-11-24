@@ -117,7 +117,7 @@ function effectiveOccurrences({ slots, adjustments, dateKey, days }) {
       if (s.startDate && dateKey < s.startDate) continue;
       if (s.endDate && dateKey > s.endDate) continue;
       map.set(key(String(s.teacher), s.period), {
-        teacher: String(s.teacher), class: String(s.class), course: String(s.course),
+        teacher: String(s.teacher), class: String(s.class), course: s.course ? String(s.course) : null,
         period: s.period, source: 'slot', slotId: String(s._id), autoStart: s.autoStart !== false
       });
     }
@@ -128,7 +128,7 @@ function effectiveOccurrences({ slots, adjustments, dateKey, days }) {
     if (a.type === 'cancel') map.delete(k);
     else if (a.type === 'add') {
       map.set(k, {
-        teacher: String(a.teacher), class: String(a.class), course: String(a.course),
+        teacher: String(a.teacher), class: String(a.class), course: a.course ? String(a.course) : null,
         period: a.period, source: 'adjust', adjustmentId: String(a._id), autoStart: true
       });
     }

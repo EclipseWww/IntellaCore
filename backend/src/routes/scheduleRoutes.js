@@ -15,6 +15,7 @@ router.use(roleCheck(['teacher']));
 
 router.get('/slots', c.listSlots);
 router.put('/slots', c.upsertSlot);
+router.post('/slots/move', c.moveSlot);
 router.delete('/slots/:id', c.deleteSlot);
 
 router.post('/adjustments', c.createAdjustment);
@@ -32,6 +33,8 @@ router.delete('/sessions/:id/skip', c.unskipOccurrence);
 router.put('/sessions/:id/judgement', c.setJudgement);
 router.put('/sessions/:id/attendance', c.saveAttendance);
 
+router.get('/now', c.nowStatus);
+router.get('/my-courses', c.listMyCourses);
 router.get('/courses/:courseId/lessons', c.listCourseLessons);
 router.get('/progress', c.getProgress);
 router.get('/export/roster', c.exportRoster);

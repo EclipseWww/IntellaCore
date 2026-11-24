@@ -78,6 +78,7 @@ async function saveConfig({ periods, days, leadMinutes, threshold, presenceThres
 
 /** 课程下全部课时，按 单元顺序 -> 课时顺序 排列 */
 async function orderedLessons(courseId) {
+  if (!courseId) return [];
   const units = await CourseUnit.find({ course: courseId }).select('_id order').sort({ order: 1 }).lean();
   const unitRank = new Map(units.map((u, i) => [String(u._id), i]));
   const lessons = await Lesson.find({ course: courseId })
@@ -116,7 +117,11 @@ async function lastTaughtLesson(classId, courseId, lessons, taughtSet, excludeSe
   return null;
 }
 
-/** 本节课默认应上的课时 */
+/**
+ * 本节课默认应上的课时。
+ * 没有下一课时（教师一节一节备课、下一节还没建；或本课程已上完）时返回 null：
+ * 照常上课但不指定课时，等教师建好 / 选择后再切换，避免把已上过的课时又记一遍。
+ */
 async function resolveNextLesson(classId, courseId, excludeSessionId) {
   const cfg = await getConfig();
   const lessons = await orderedLessons(courseId);
@@ -124,8 +129,26 @@ async function resolveNextLesson(classId, courseId, excludeSessionId) {
   const taught = await taughtSetFor(classId, lessons, cfg);
   const last = await lastTaughtLesson(classId, courseId, lessons, taught, excludeSessionId);
   const nextId = L.pickNextLesson(lessons.map(l => String(l._id)), last, taught);
-  // 课程已上完：停在最后一节，教师可自行切换
-  return lessons.find(l => String(l._id) === nextId) || lessons[lessons.length - 1];
+  return lessons.find(l => String(l._id) === nextId) || null;
+}
+
+/**
+ * 这节课上哪门课程（课表里可以不填课程）：
+ * 1. 课表里为这节课固定了课程 -> 用它
+ * 2. 该班最近一次实际上的课程（教师在上课页切到新模块后，之后自动跟随）
+ * 3. 班级当前选择的课程
+ * 4. 该教师最早创建的课程
+ */
+async function resolveCourse({ classId, teacherId, pinned }) {
+  if (pinned) return pinned;
+  const last = await LessonSession.findOne({ class: classId, course: { $ne: null }, status: { $ne: 'skipped' } })
+    .sort({ startAt: -1 }).select('course').lean();
+  if (last) return last.course;
+  const cls = await Class.findById(classId).select('currentCourse').lean();
+  if (cls && cls.currentCourse) return cls.currentCourse;
+  const Course = require('../models/Course');
+  const first = teacherId && await Course.findOne({ instructor: teacherId }).sort({ createdAt: 1 }).select('_id').lean();
+  return first ? first._id : null;
 }
 
 // ───────────── 课节 ─────────────
@@ -160,7 +183,7 @@ async function listOccurrences({ teacherId, from, to }) {
       if (!occ.some(o => String(o.class) === String(s.class) && o.period === s.period)) {
         const p = periodMap.get(s.period);
         out.push({
-          teacher: String(s.teacher), class: String(s.class), course: String(s.course), period: s.period,
+          teacher: String(s.teacher), class: String(s.class), course: s.course ? String(s.course) : null, period: s.period,
           source: 'extra', date, periodName: s.periodName, start: p && p.start, end: p && p.end, session: s
         });
       }
@@ -219,12 +242,13 @@ async function startSession(occ, { lessonId: pickedLesson, now = new Date(), for
       lessonId = cls.currentLesson; lessonBy = 'teacher';
     }
   }
+  const plannedCourse = (session && session.course) || await resolveCourse({ classId: occ.class, teacherId: occ.teacher, pinned: occ.course });
   const lesson = lessonId
     ? await Lesson.findById(lessonId).select('_id unit course title').lean()
     : (session && session.lesson
       ? await Lesson.findById(session.lesson).select('_id unit course title').lean()
-      : await resolveNextLesson(occ.class, occ.course, session && session._id));
-  const course = lesson ? lesson.course : occ.course;
+      : await resolveNextLesson(occ.class, plannedCourse, session && session._id));
+  const course = lesson ? lesson.course : plannedCourse;
 
   if (!session) {
     try {
@@ -251,8 +275,10 @@ async function startSession(occ, { lessonId: pickedLesson, now = new Date(), for
     await session.save();
   }
 
-  const set = { isInClass: true, scheduledEndTime: endAt > now ? endAt : new Date(now.getTime() + 60 * 1000), currentCourse: course };
-  if (lesson) { set.currentLesson = lesson._id; set.currentUnit = lesson.unit; }
+  const set = { isInClass: true, scheduledEndTime: endAt > now ? endAt : new Date(now.getTime() + 60 * 1000) };
+  if (course) set.currentCourse = course;
+  // 下一课时还没准备好：不让学生停在已上过的课时上
+  if (lesson) { set.currentLesson = lesson._id; set.currentUnit = lesson.unit; } else if (lessonBy === 'auto') { set.currentLesson = null; set.currentUnit = null; }
   await Class.updateOne({ _id: occ.class }, { $set: set });
 
   logger.info('课表上课', { classId: String(occ.class), date: occ.date, period: occ.period, lesson: lesson && lesson.title, force });
@@ -411,6 +437,20 @@ async function tick(now = new Date()) {
     try { await judge(s, cfg); } catch (e) { logger.error('课表判定失败', { error: e.message }); }
   }
 
+  // 上课时下一课时还没准备好的课：教师在课上建好新课时后，自动切过去（教师手动选过课时的不动）
+  for (const s of await LessonSession.find({ status: 'in_progress', lesson: null, course: { $ne: null } })) {
+    try {
+      if ((s.lessonLog || []).some(x => x.by === 'teacher')) continue;
+      const lesson = await resolveNextLesson(s.class, s.course, s._id);
+      if (!lesson) continue;
+      s.lesson = lesson._id; s.unit = lesson.unit;
+      s.lessonLog.push({ lesson: lesson._id, unit: lesson.unit, at: now, by: 'auto' });
+      await s.save();
+      await Class.updateOne({ _id: s.class, isInClass: true }, { $set: { currentLesson: lesson._id, currentUnit: lesson.unit, currentCourse: lesson.course } });
+      logger.info('课表：新课时已准备好，自动切换', { classId: String(s.class), lesson: lesson.title });
+    } catch (e) { logger.error('课表自动切换新课时失败', { error: e.message }); }
+  }
+
   const { dateKey, weekday, minutes } = L.zonedParts(now);
   if (!cfg.days.includes(weekday)) return;
 
@@ -424,9 +464,10 @@ async function tick(now = new Date()) {
       if (has.has(`${o.class}:${o.period}`)) continue;
       try {
         const p = cfg.periods.find(x => x.index === o.period);
-        const lesson = await resolveNextLesson(o.class, o.course);
+        const course = await resolveCourse({ classId: o.class, teacherId: o.teacher, pinned: o.course });
+        const lesson = await resolveNextLesson(o.class, course);
         const s = await LessonSession.create({
-          teacher: o.teacher, class: o.class, course: o.course, date: dateKey, period: o.period, periodName: p.name,
+          teacher: o.teacher, class: o.class, course: lesson ? lesson.course : course, date: dateKey, period: o.period, periodName: p.name,
           startAt: L.zonedToDate(dateKey, p.start), endAt: L.zonedToDate(dateKey, p.end),
           status: 'completed', source: o.source === 'adjust' ? 'adjust' : 'slot',
           lesson: lesson ? lesson._id : null, unit: lesson ? lesson.unit : null
@@ -485,12 +526,7 @@ async function onManualStart({ classId, teacherId, now = new Date() }) {
   if (!p) return { started: false, reason: 'no_period' };
   let course = null;
   if (recentPick) course = (await Lesson.findById(classObj.currentLesson).select('course').lean() || {}).course;
-  if (!course) course = classObj.currentCourse;
-  if (!course) {
-    const last = await LessonSession.findOne({ class: classId }).sort({ startAt: -1 }).select('course').lean();
-    course = last && last.course;
-  }
-  if (!course) return { started: false, reason: 'no_course' };
+  if (!course) course = classObj.currentCourse || await resolveCourse({ classId, teacherId });
   return startSession(
     { teacher: teacherId, class: classId, course, period: p.index, date: dateKey, source: 'manual' },
     { now, force: true }
@@ -512,6 +548,45 @@ async function onManualLessonChange({ classId, lessonId, now = new Date() }) {
       $push: { lessonLog: { lesson: lesson._id, unit: lesson.unit, at: now, by: 'teacher' } }
     }
   );
+}
+
+/** 教师端顶部状态：服务器时间、正在上的课、下一节将自动上课的班级 */
+async function nowStatus(teacherId, now = new Date()) {
+  const cfg = await getConfig();
+  const { dateKey, minutes } = L.zonedParts(now);
+  const occs = await listOccurrences({ teacherId, from: dateKey, to: L.addDays(dateKey, 6) });
+  const inProgress = await LessonSession.findOne({ teacher: teacherId, status: 'in_progress' })
+    .populate('class', 'grade name').populate('course', 'title').populate('lesson', 'title').lean();
+  const startOf = (o) => L.zonedToDate(o.date, o.start);
+  const upcoming = occs
+    .filter(o => o.start && !o.session && (o.date > dateKey || L.toMinutes(o.start) > minutes))
+    .sort((a, b) => startOf(a) - startOf(b))[0] || null;
+  let next = null;
+  if (upcoming) {
+    const Course = require('../models/Course');
+    const course = await resolveCourse({ classId: upcoming.class, teacherId, pinned: upcoming.course });
+    const lesson = course ? await resolveNextLesson(upcoming.class, course) : null;
+    const [cls, c] = await Promise.all([
+      Class.findById(upcoming.class).select('grade name').lean(),
+      course ? Course.findById(course).select('title').lean() : null
+    ]);
+    next = {
+      date: upcoming.date, period: upcoming.period, periodName: upcoming.periodName, start: upcoming.start, end: upcoming.end,
+      class: cls, course: c, lesson: lesson ? { _id: lesson._id, title: lesson.title } : null,
+      lessonMissing: !!course && !lesson,
+      autoStart: upcoming.autoStart !== false,
+      autoStartAt: upcoming.autoStart !== false ? new Date(startOf(upcoming).getTime() - cfg.leadMinutes * 60000) : null
+    };
+  }
+  return {
+    serverTime: now, timezone: cfg.timezone,
+    current: inProgress ? {
+      sessionId: inProgress._id, classId: inProgress.class && inProgress.class._id, class: inProgress.class,
+      course: inProgress.course, lesson: inProgress.lesson, period: inProgress.period, periodName: inProgress.periodName,
+      endAt: inProgress.endAt, lessonMissing: !inProgress.lesson
+    } : null,
+    next
+  };
 }
 
 let started = false;
@@ -563,6 +638,6 @@ module.exports = {
   CONFIG_KEY, DEFAULT_CONFIG, JUDGE_GRACE_MIN, EARLY_BIND_MIN,
   getConfig, saveConfig, orderedLessons, resolveNextLesson,
   listOccurrences, findOccurrence, startSession, completeSession, judge, confirmTaught, teacherJudge, tick,
-  onManualStart, onManualStop, onManualLessonChange, endTeacherElsewhere,
+  onManualStart, onManualStop, onManualLessonChange, endTeacherElsewhere, resolveCourse, nowStatus,
   startScheduleTicker, classProgress
 };
