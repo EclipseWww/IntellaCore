@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Typography, Button, Empty, List, Tag, Modal, message, Alert } from 'antd';
-import { ClockCircleOutlined, TrophyOutlined, InfoCircleOutlined, LockOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Card, Typography, Button, Empty, List, Tag, Modal, message, Alert, Badge, Segmented, Tooltip } from 'antd';
+import { ClockCircleOutlined, TrophyOutlined, InfoCircleOutlined, LockOutlined, FireOutlined } from '@ant-design/icons';
 import GameContainer from './GameContainer';
 import gameService from '../../services/gameService';
 
@@ -22,78 +22,125 @@ const LOCAL_GAMES = [
     _id: 'snake',
     itemName: '贪吃蛇',
     description: '经典的贪吃蛇游戏，通过方向键控制蛇的移动，吃到食物后会变长',
-    image: '/games/snake/cover.png'
+    image: gameService.coverUrl('snake')
   },
   {
     _id: 'memory',
     itemName: '坦克大战',
     description: '经典的坦克大战游戏，驾驶坦克保卫基地，消灭所有敌方坦克',
-    image: '/games/memory/cover.png'
+    image: gameService.coverUrl('memory')
   },
   {
     _id: 'dino',
     itemName: 'Chrome小恐龙',
     description: '模拟Chrome浏览器离线时的跳跃游戏，按空格键或上箭头跳跃躲避障碍物',
-    image: '/games/dino/cover.png'
+    image: gameService.coverUrl('dino')
   },
   {
     _id: '2048',
     itemName: '2048',
     description: '经典的2048数字合成游戏，使用方向键或WASD移动数字方块，相同数字合并为它们的和',
-    image: '/games/2048/cover.png'
+    image: gameService.coverUrl('2048')
   },
   {
     _id: 'sudoku',
     itemName: '数独',
     description: '经典的逻辑益智游戏，在9x9的网格中填入数字1-9，使每行、每列和每个3x3宫格内的数字都不重复',
-    image: '/games/sudoku/cover.png'
+    image: gameService.coverUrl('sudoku')
   },
   {
     _id: 'tetris',
     itemName: '俄罗斯方块',
     description: '经典的方块消除游戏，移动和旋转下落的方块，填满一行即可消除得分',
-    image: '/games/tetris/cover.png'
+    image: gameService.coverUrl('tetris')
   },
   {
     _id: 'sokoban',
     itemName: '推箱子',
     description: '经典的解谜游戏，玩家需要将所有箱子推到指定位置，考验空间思维能力',
-    image: '/games/sokoban/cover.png'
+    image: gameService.coverUrl('sokoban')
   },
   {
     _id: 'ztype',
     itemName: '太空打字',
     description: '通过键盘打字消灭来袭的单词，提高打字速度和准确性的射击类游戏',
-    image: '/games/ztype/cover.png'
+    image: gameService.coverUrl('ztype')
   },
   {
     _id: 'pixelartmaker',
     itemName: '像素画',
     description: '一个简单的像素画制作工具，可以创建和编辑像素艺术作品',
-    image: '/games/pixelartmaker/cover.png'
+    image: gameService.coverUrl('pixelartmaker')
   },
   {
     _id: 'breakout',
     itemName: '打砖块',
     description: '经典街机游戏，使用挡板反弹小球消除所有砖块，共5个关卡，关卡越高难度越大',
-    image: '/games/breakout/cover.png'
+    image: gameService.coverUrl('breakout')
   },
   {
     _id: 'minesweeper',
     itemName: '扫雷',
     description: '经典逻辑游戏，根据数字推断雷的位置并标记，避开所有地雷',
-    image: '/games/minesweeper/cover.png'
+    image: gameService.coverUrl('minesweeper')
   },
   {
     _id: 'gomoku',
     itemName: '五子棋',
     description: '经典的两人对弈棋类游戏，黑白双方轮流落子，先连成五子者获胜。支持人机和双人对战',
-    image: '/games/gomoku/cover.png'
+    image: gameService.coverUrl('gomoku')
+  },
+  {
+    _id: 'klotski',
+    itemName: '华容道',
+    description: '中国传统益智游戏，移动方块让曹操从出口逃出。含横刀立马等5个经典布局，卡住时可以看提示',
+    image: gameService.coverUrl('klotski')
+  },
+  {
+    _id: 'binary',
+    itemName: '二进制挑战',
+    description: '翻动二进制位卡片凑出目标数，或把二进制读成十进制。级别越高位数越多、时间越短',
+    image: gameService.coverUrl('binary')
+  },
+  {
+    _id: 'linkup',
+    itemName: '连连看',
+    description: '找出相同的图案，用不超过两次拐弯的线连起来消除。共3关，有提示和重排',
+    image: gameService.coverUrl('linkup')
+  },
+  {
+    _id: 'robot',
+    itemName: '机器人编程',
+    description: '用前进、转向、点灯等指令给机器人编程，点亮所有的灯。8个关卡，学习用「过程」简化程序',
+    image: gameService.coverUrl('robot')
   }
 ];
 
+/** 累计时长显示：不足 1 小时按分钟 */
+const formatPlayTime = (seconds) => {
+  if (!seconds) return '还没人玩过';
+  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} 分钟`;
+  return `${(seconds / 3600).toFixed(seconds < 36000 ? 1 : 0)} 小时`;
+};
+
 const GameCenter = () => {
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({});
+  const [sortMode, setSortMode] = useState('hot');
+
+  // 热度：每个游戏累计被玩的时长
+  useEffect(() => {
+    gameService.getStats()
+      .then(res => setStats(Object.fromEntries((res.data || []).map(x => [x.gameId, x]))))
+      .catch(() => {});
+  }, []);
+
+  const rankedGames = useMemo(() => {
+    const withHeat = LOCAL_GAMES.map((g, i) => ({ ...g, order: i, heat: stats[g._id]?.totalSeconds || 0, players: stats[g._id]?.playerCount || 0 }));
+    const byHeat = [...withHeat].sort((a, b) => b.heat - a.heat || a.order - b.order);
+    const rank = new Map(byHeat.filter(g => g.heat > 0).map((g, i) => [g._id, i + 1]));
+    return (sortMode === 'hot' ? byHeat : withHeat).map(g => ({ ...g, rank: rank.get(g._id) }));
+  }, [stats, sortMode]);
   const [error, setError] = useState(null);
   const [activeGame, setActiveGame] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -354,7 +401,7 @@ const GameCenter = () => {
       <GameContainer
         gameId={activeGame._id}
         gameName={activeGame.itemName}
-        gameUrl={`/games/${getGamePathFromName(activeGame.itemName)}/index.html`}
+        gameUrl={`/games/${LOCAL_GAMES.some(g => g._id === activeGame._id) ? activeGame._id : getGamePathFromName(activeGame.itemName)}/index.html`}
         initialTimeRemaining={remainingTime}
         onTimeUpdate={handleUpdateGameTime}
         onClose={handleCloseGame}
@@ -417,6 +464,16 @@ const GameCenter = () => {
         </Card>
       )}
 
+      {!isLocked && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Segmented
+            value={sortMode}
+            onChange={setSortMode}
+            options={[{ label: <span><FireOutlined /> 按热度</span>, value: 'hot' }, { label: '默认顺序', value: 'default' }]}
+          />
+        </div>
+      )}
+
       {/* 显示本地游戏列表 - 锁定时隐藏 */}
       {!isLocked && (
         <List
@@ -429,9 +486,14 @@ const GameCenter = () => {
             xl: 4,
             xxl: 6
           }}
-          dataSource={LOCAL_GAMES}
+          dataSource={rankedGames}
           renderItem={game => (
             <List.Item>
+              <Badge.Ribbon
+                text={<span><TrophyOutlined /> 热度第 {game.rank}</span>}
+                color={['#f5222d', '#fa8c16', '#faad14'][game.rank - 1]}
+                style={{ display: game.rank && game.rank <= 3 ? undefined : 'none' }}
+              >
               <Card
                 hoverable
                 style={{ width: '100%' }}
@@ -470,7 +532,16 @@ const GameCenter = () => {
                 ]}
               >
                 <Card.Meta
-                  title={<div style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>{game.itemName}</div>}
+                  title={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 16, fontWeight: 'bold' }}>{game.itemName}</span>
+                      <Tooltip title={game.heat ? `全校同学累计玩了 ${formatPlayTime(game.heat)}，${game.players} 人玩过` : '还没人玩过'}>
+                        <Tag color={game.heat ? 'volcano' : 'default'} icon={<FireOutlined />} style={{ marginRight: 0, fontWeight: 'normal' }}>
+                          {game.heat ? formatPlayTime(game.heat) : '新'}
+                        </Tag>
+                      </Tooltip>
+                    </div>
+                  }
                   description={
                     <div style={{ height: 72, overflow: 'hidden' }}>
                       <div style={{ marginBottom: 8, color: 'rgba(0, 0, 0, 0.65)' }}>{game.description}</div>
@@ -478,6 +549,7 @@ const GameCenter = () => {
                   }
                 />
               </Card>
+              </Badge.Ribbon>
             </List.Item>
           )}
         />
@@ -540,6 +612,14 @@ function getGamePathFromName(name) {
       return 'minesweeper';
     } else if (simpleName.includes('五子棋') || simpleName.includes('gomoku')) {
       return 'gomoku';
+    } else if (simpleName.includes('华容道') || simpleName.includes('klotski')) {
+      return 'klotski';
+    } else if (simpleName.includes('二进制') || simpleName.includes('binary')) {
+      return 'binary';
+    } else if (simpleName.includes('连连看') || simpleName.includes('linkup')) {
+      return 'linkup';
+    } else if (simpleName.includes('机器人') || simpleName.includes('robot')) {
+      return 'robot';
     }
   }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Typography, Progress, Button, Space, Modal, message, Tooltip } from 'antd';
+import { Typography, Progress, Button, Space, Modal, message, Tooltip, Spin } from 'antd';
+import gameService, { gameIdFromUrl } from '../../services/gameService';
 import { 
   CloseOutlined, 
   ClockCircleOutlined, 
@@ -41,6 +42,40 @@ const GameContainer = ({
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const timerRef = useRef(null);
   const containerRef = useRef(null);
+  const [playUrl, setPlayUrl] = useState(null);
+
+  // 向服务器申请游戏票后再加载游戏；每 30 秒心跳续期；关闭时收回游戏票
+  useEffect(() => {
+    const folder = gameIdFromUrl(gameUrl);
+    let cancelled = false;
+    let beat = null;
+    const stopWith = (msg) => {
+      if (cancelled) return;
+      message.warning(msg);
+      if (onTimeUp) onTimeUp(); else if (onClose) onClose();
+    };
+    gameService.openSession(folder)
+      .then((res) => {
+        if (cancelled) return;
+        setPlayUrl(res.url);
+        beat = setInterval(() => {
+          gameService.heartbeat().catch((err) => {
+            const status = err.response && err.response.status;
+            if (status === 403 || status === 409) stopWith(err.response.data?.message || '游戏已结束');
+          });
+        }, 30000);
+      })
+      .catch((err) => stopWith(err.response?.data?.message || '无法开始游戏'));
+    const onUnload = () => gameService.closeSessionOnUnload();
+    window.addEventListener('pagehide', onUnload);
+    return () => {
+      cancelled = true;
+      clearInterval(beat);
+      window.removeEventListener('pagehide', onUnload);
+      gameService.closeSession().catch(() => {});
+    };
+    // 只在打开游戏时执行一次
+  }, [gameUrl]);
   
   // 获取总时间（用于计算进度）
   const totalTime = 15 * 60; // 假设总时间为15分钟
@@ -267,8 +302,8 @@ const GameContainer = ({
         background: '#f0f2f5', // 背景色
         transition: 'all 0.3s ease'
       }}>
-        <iframe 
-          src={gameUrl} 
+        {!playUrl ? <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spin tip="正在进入游戏…" /></div> : <iframe 
+          src={playUrl} 
           title={gameName}
           style={{ 
             width: '100%', 
@@ -280,7 +315,7 @@ const GameContainer = ({
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
-        />
+        />}
       </div>
       
       {/* 时间警告模态框 */}

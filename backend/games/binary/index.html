@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二进制挑战</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 30% 20%, #13305a 0%, #070d1c 70%);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; color: #dce8ff;
+  }
+  .game { width: min(920px, 96vw); text-align: center; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .title { font-size: 28px; font-weight: bold; letter-spacing: 3px; color: #7ff3ff; text-shadow: 0 0 12px rgba(127, 243, 255, 0.5); }
+  .hud { display: flex; gap: 22px; font-size: 16px; }
+  .hud b { color: #ffe27a; font-size: 20px; margin-left: 4px; }
+  .lives { color: #ff6b81; letter-spacing: 2px; font-size: 20px; }
+  .timer { height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; margin-bottom: 22px; }
+  .timer div { height: 100%; background: linear-gradient(90deg, #36e3a0, #7ff3ff); transition: width 0.1s linear; }
+  .timer div.low { background: linear-gradient(90deg, #ff6b81, #ffb36b); }
+  .question { font-size: 22px; margin-bottom: 8px; min-height: 34px; }
+  .question .num { font-size: 46px; font-weight: bold; color: #ffe27a; margin: 0 8px; vertical-align: middle; font-family: Consolas, "Courier New", monospace; }
+  .helper { font-size: 14px; color: #8fa6cc; min-height: 22px; margin-bottom: 18px; }
+  .cards { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+  .card {
+    width: 96px; height: 136px; border-radius: 10px; cursor: pointer; position: relative;
+    background: #13203a; border: 2px solid #2b4470; display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between; padding: 10px 0; transition: transform 0.12s, background 0.15s, box-shadow 0.15s;
+  }
+  .card:hover { transform: translateY(-3px); }
+  .card.on { background: linear-gradient(160deg, #1fc8a0, #0f8f8a); border-color: #7ff3ff; box-shadow: 0 0 18px rgba(127, 243, 255, 0.45); }
+  .card.locked { cursor: default; }
+  .card.locked:hover { transform: none; }
+  .card .bit { font-size: 46px; font-weight: bold; font-family: Consolas, "Courier New", monospace; color: #4f6996; }
+  .card.on .bit { color: #fff; }
+  .card .weight { font-size: 15px; color: #8fa6cc; }
+  .card.on .weight { color: #e6fffb; }
+  .card .key { position: absolute; top: 4px; right: 7px; font-size: 11px; color: #4f6996; }
+  .card.on .key { color: #c9fff6; }
+  .dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; width: 70px; min-height: 26px; align-content: center; }
+  .dots i { width: 5px; height: 5px; border-radius: 50%; background: #4f6996; }
+  .card.on .dots i { background: #fff; }
+  .answer { display: none; gap: 10px; justify-content: center; margin-bottom: 18px; }
+  .answer.show { display: flex; }
+  input {
+    font: inherit; font-size: 26px; width: 180px; text-align: center; padding: 8px; border-radius: 8px;
+    border: 2px solid #2b4470; background: #0b1428; color: #fff; outline: none; font-family: Consolas, monospace; user-select: text;
+  }
+  input:focus { border-color: #7ff3ff; }
+  button {
+    font: inherit; font-size: 17px; padding: 10px 22px; border-radius: 8px; border: none; cursor: pointer;
+    background: #1fc8a0; color: #062019; font-weight: bold;
+  }
+  button:hover { filter: brightness(1.1); }
+  button.ghost { background: transparent; border: 1px solid #2b4470; color: #8fa6cc; font-weight: normal; }
+  .feedback { font-size: 20px; min-height: 30px; font-weight: bold; }
+  .ok { color: #36e3a0; } .bad { color: #ff6b81; }
+  .screen {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(4, 8, 18, 0.9); z-index: 10;
+  }
+  .screen.show { display: flex; }
+  .box { background: #0f1b33; border: 1px solid #2b4470; border-radius: 14px; padding: 30px 40px; max-width: 560px; text-align: left; line-height: 1.8; }
+  .box h2 { color: #7ff3ff; text-align: center; margin-bottom: 12px; letter-spacing: 3px; }
+  .box p { color: #b5c6e6; font-size: 15px; }
+  .box .center { text-align: center; margin-top: 18px; }
+  .example { font-family: Consolas, monospace; background: #0b1428; border-radius: 8px; padding: 8px 12px; margin: 10px 0; color: #ffe27a; text-align: center; }
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="top">
+    <div class="title">二进制挑战</div>
+    <div class="hud">
+      <span>第<b id="level">1</b>级</span>
+      <span>得分<b id="score">0</b></span>
+      <span class="lives" id="lives">♥♥♥</span>
+    </div>
+  </div>
+  <div class="timer"><div id="bar" style="width:100%"></div></div>
+  <div class="question" id="question"></div>
+  <div class="helper" id="helper"></div>
+  <div class="cards" id="cards"></div>
+  <div class="answer" id="answerRow">
+    <input id="answer" inputmode="numeric" maxlength="3" placeholder="十进制">
+    <button id="submit">确定</button>
+  </div>
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<div class="screen show" id="intro">
+  <div class="box">
+    <h2>二进制挑战</h2>
+    <p>计算机里的数都用 <b>0</b> 和 <b>1</b> 表示。每张卡片代表一个二进制位，从右往左分别是 1、2、4、8、16……，每一位是左边那位的一半。</p>
+    <div class="example">0 1 0 1 1 = 8 + 2 + 1 = 11</div>
+    <p>两种题目：<br>
+      <b>凑数</b>：点击卡片翻成 1，让它们的和等于目标数（也可以按数字键 1–8 翻牌）。<br>
+      <b>读数</b>：看二进制，输入对应的十进制数，按回车确认。</p>
+    <p>每级 8 题，位数越来越多、时间越来越短。答错或超时扣一颗心，三颗心用完游戏结束。</p>
+    <div class="center"><button id="start">开始挑战</button></div>
+  </div>
+</div>
+
+<div class="screen" id="over">
+  <div class="box" style="text-align:center">
+    <h2>挑战结束</h2>
+    <p id="overText"></p>
+    <div class="center"><button id="again">再来一次</button></div>
+  </div>
+</div>
+
+<script>
+/* ================= 纯逻辑 ================= */
+const BinaryGame = (() => {
+  const PER_LEVEL = 8;
+  const bitsFor = (level) => Math.min(8, level + 3);              // 1级4位 … 5级起8位
+  const timeFor = (level) => Math.max(8, 22 - level * 2);         // 秒
+  const toBits = (n, bits) => Array.from({ length: bits }, (_, i) => (n >> (bits - 1 - i)) & 1);
+  const fromBits = (arr) => arr.reduce((acc, b) => acc * 2 + (b ? 1 : 0), 0);
+  /** 出题：第 index 题；前 1 级只出「凑数」，之后交替。避免 0 和与上一题相同 */
+  function makeQuestion(level, index, last, rand = Math.random) {
+    const bits = bitsFor(level);
+    const max = (1 << bits) - 1;
+    let n;
+    do { n = 1 + Math.floor(rand() * max); } while (n === last && max > 1);
+    const type = level === 1 || index % 2 === 0 ? 'build' : 'read';
+    return { type, bits, target: n, time: timeFor(level) };
+  }
+  const scoreFor = (level, secondsLeft) => 10 * level + Math.round(secondsLeft);
+  return { PER_LEVEL, bitsFor, timeFor, toBits, fromBits, makeQuestion, scoreFor };
+})();
+
+/* ================= 界面 ================= */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  let level, index, score, lives, q, bits, deadline, timer, locked, lastTarget;
+
+  function start() {
+    level = 1; index = 0; score = 0; lives = 3; lastTarget = null;
+    $('intro').classList.remove('show'); $('over').classList.remove('show');
+    next();
+  }
+
+  function hud() {
+    $('level').textContent = level; $('score').textContent = score;
+    $('lives').textContent = '♥'.repeat(lives) + '♡'.repeat(3 - lives);
+  }
+
+  function next() {
+    if (index === BinaryGame.PER_LEVEL) { level++; index = 0; }
+    q = BinaryGame.makeQuestion(level, index, lastTarget);
+    lastTarget = q.target;
+    bits = q.type === 'build' ? Array(q.bits).fill(0) : BinaryGame.toBits(q.target, q.bits);
+    locked = false;
+    $('feedback').textContent = ''; $('feedback').className = 'feedback';
+    if (q.type === 'build') {
+      $('question').innerHTML = `凑出<span class="num">${q.target}</span>`;
+      $('answerRow').classList.remove('show');
+    } else {
+      $('question').innerHTML = '这个二进制数等于十进制的多少？';
+      $('answerRow').classList.add('show');
+      $('answer').value = ''; setTimeout(() => $('answer').focus(), 0);
+    }
+    renderCards(); hud();
+    deadline = performance.now() + q.time * 1000;
+    clearInterval(timer); timer = setInterval(tick, 100);
+  }
+
+  function renderCards() {
+    const box = $('cards'); box.innerHTML = '';
+    bits.forEach((b, i) => {
+      const weight = 1 << (q.bits - 1 - i);
+      const el = document.createElement('div');
+      el.className = 'card' + (b ? ' on' : '') + (q.type === 'read' ? ' locked' : '');
+      const dots = weight <= 32 ? '<i></i>'.repeat(weight) : '';
+      el.innerHTML = `${q.type === 'build' ? `<span class="key">${i + 1}</span>` : ''}<div class="bit">${b}</div>
+        <div class="dots">${dots}</div><div class="weight">${weight}</div>`;
+      el.onclick = () => toggle(i);
+      box.appendChild(el);
+    });
+    const sum = BinaryGame.fromBits(bits);
+    // 前两级显示当前和作为学习辅助
+    $('helper').textContent = q.type === 'build' && level <= 2
+      ? `当前：${bits.map((b, i) => b ? (1 << (q.bits - 1 - i)) : null).filter(Boolean).join(' + ') || '0'} = ${sum}`
+      : q.type === 'read' ? `提示：把亮着的卡片上的数加起来` : '';
+  }
+
+  function toggle(i) {
+    if (locked || q.type !== 'build' || i >= bits.length) return;
+    bits[i] ^= 1; renderCards();
+    if (BinaryGame.fromBits(bits) === q.target) correct();
+  }
+
+  function correct() {
+    locked = true; clearInterval(timer);
+    const left = Math.max(0, (deadline - performance.now()) / 1000);
+    const gain = BinaryGame.scoreFor(level, left);
+    score += gain; index++;
+    $('feedback').textContent = `正确！+${gain}`; $('feedback').className = 'feedback ok';
+    hud(); setTimeout(next, 700);
+  }
+
+  function wrong(msg) {
+    locked = true; clearInterval(timer); lives--; index++;
+    if (q.type === 'build') { bits = BinaryGame.toBits(q.target, q.bits); renderCards(); }
+    $('feedback').innerHTML = `${msg}　正确答案：${q.target} = ${BinaryGame.toBits(q.target, q.bits).join('')}₂`;
+    $('feedback').className = 'feedback bad';
+    hud();
+    setTimeout(lives > 0 ? next : over, 1800);
+  }
+
+  function tick() {
+    const left = deadline - performance.now();
+    const pct = Math.max(0, left / (q.time * 1000) * 100);
+    $('bar').style.width = pct + '%';
+    $('bar').className = pct < 30 ? 'low' : '';
+    if (left <= 0 && !locked) wrong('时间到！');
+  }
+
+  function submit() {
+    if (locked || q.type !== 'read') return;
+    const v = $('answer').value.trim();
+    if (v === '') return;
+    if (Number(v) === q.target) correct(); else wrong('不对哦。');
+  }
+
+  function over() {
+    clearInterval(timer);
+    const best = Math.max(score, Number(localStorage.getItem('binary_best')) || 0);
+    localStorage.setItem('binary_best', best);
+    $('overText').innerHTML = `到达第 <b>${level}</b> 级，得分 <b>${score}</b><br>历史最高：${best}`;
+    $('over').classList.add('show');
+  }
+
+  $('start').onclick = start; $('again').onclick = start;
+  $('submit').onclick = submit;
+  $('answer').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if ($('intro').classList.contains('show')) return start();
+      return submit();
+    }
+    if (q && q.type === 'build' && /^[1-8]$/.test(e.key)) toggle(Number(e.key) - 1);
+    // 读数题：焦点不在输入框时，数字键直接填入
+    if (q && q.type === 'read' && /^\d$/.test(e.key) && document.activeElement !== $('answer')) {
+      e.preventDefault();
+      if ($('answer').value.length < 3) $('answer').value += e.key;
+      $('answer').focus();
+    }
+  });
+  window.addEventListener('click', (e) => { if (e.target.tagName !== 'INPUT') window.focus(); });
+  window.BinaryGame = BinaryGame;
+})();
+</script>
+</body>
+</html>

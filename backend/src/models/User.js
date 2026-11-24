@@ -146,6 +146,16 @@ const userSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  // 当前游戏会话：游戏页面只有持有与此一致的票据才能打开（同一时间只能玩一个）
+  gameSession: {
+    _id: false,
+    ticket: { type: String, default: null },
+    gameId: { type: String, default: null },
+    startedAt: { type: Date, default: null },
+    lastBeatAt: { type: Date, default: null },
+    startRemaining: { type: Number, default: 0 }, // 开始时的剩余秒数
+    playedSeconds: { type: Number, default: 0 }   // 本次已玩秒数（按心跳累计）
+  },
   loginHistory: [loginHistorySchema],
   createdAt: {
     type: Date,

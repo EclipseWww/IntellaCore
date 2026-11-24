@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>机器人编程</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #12333a 0%, #0b1d24 100%);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; color: #e2f3f1;
+  }
+  .app { display: flex; gap: 26px; padding: 14px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .left { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .title { font-size: 26px; font-weight: bold; color: #6ff0c8; letter-spacing: 3px; }
+  .levels { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 420px; }
+  .levels button { width: 38px; height: 34px; padding: 0; border-radius: 8px; background: #1d3f47; color: #9cc; border: 1px solid #2d5b63; }
+  .levels button.done { background: #1f6b57; color: #dfffee; }
+  .levels button.cur { outline: 2px solid #6ff0c8; color: #fff; }
+  .levels button:disabled { opacity: 0.35; cursor: default; }
+  .goal { font-size: 15px; color: #b6d8d3; max-width: 420px; text-align: center; line-height: 1.6; min-height: 48px; }
+  .world { position: relative; background: #0e2a30; border-radius: 12px; padding: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
+  .cell { position: absolute; border-radius: 6px; }
+  .floor { background: #1c4a52; }
+  .wall { background: #0a1c20; box-shadow: inset 0 0 0 2px #13343a; }
+  .lamp::after {
+    content: ""; position: absolute; inset: 28%; border-radius: 50%; background: #3f6a70; border: 3px solid #5e8f94;
+  }
+  .lamp.lit::after { background: #ffe066; border-color: #fff3b0; box-shadow: 0 0 18px 6px rgba(255, 224, 102, 0.7); }
+  .robot {
+    position: absolute; transition: left 0.25s ease, top 0.25s ease, transform 0.25s ease; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .robot.bump { animation: bump 0.3s; }
+  @keyframes bump { 30% { filter: brightness(2) hue-rotate(-60deg); } }
+  .right { width: 360px; display: flex; flex-direction: column; gap: 12px; }
+  .box { background: rgba(255, 255, 255, 0.05); border: 1px solid #2d5b63; border-radius: 10px; padding: 12px; }
+  .box.active { border-color: #6ff0c8; box-shadow: 0 0 0 1px #6ff0c8 inset; }
+  .box h3 { font-size: 14px; color: #9cc; margin-bottom: 8px; display: flex; justify-content: space-between; font-weight: normal; }
+  .box h3 b { color: #e2f3f1; }
+  .slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .slot { height: 44px; border-radius: 7px; border: 1px dashed #2d5b63; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .slot.filled { border-style: solid; cursor: pointer; font-weight: bold; }
+  .slot.running { outline: 3px solid #ffe066; outline-offset: 1px; }
+  .cmd-F { background: #2f80ed; border-color: #2f80ed; color: #fff; }
+  .cmd-L, .cmd-R { background: #9b51e0; border-color: #9b51e0; color: #fff; }
+  .cmd-T { background: #f2c94c; border-color: #f2c94c; color: #3b2f00; }
+  .cmd-P { background: #27ae60; border-color: #27ae60; color: #fff; }
+  .palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .palette button { height: 52px; border-radius: 8px; border: none; font-size: 13px; font-weight: bold; line-height: 1.3; }
+  .palette button:disabled { opacity: 0.3; cursor: default; }
+  button { font: inherit; cursor: pointer; }
+  .actions { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+  .actions button { height: 42px; border-radius: 8px; border: 1px solid #2d5b63; background: #1d3f47; color: #e2f3f1; font-size: 15px; }
+  .actions .run { background: #6ff0c8; border-color: #6ff0c8; color: #0b1d24; font-weight: bold; }
+  .msg { min-height: 24px; font-size: 15px; text-align: center; }
+  .msg.ok { color: #6ff0c8; } .msg.bad { color: #ff8a80; }
+  .help { font-size: 12px; color: #7aa5a2; line-height: 1.7; }
+  .overlay { position: fixed; inset: 0; background: rgba(5, 15, 18, 0.8); display: none; align-items: center; justify-content: center; z-index: 9; }
+  .overlay.show { display: flex; }
+  .overlay .card { background: #12333a; border: 1px solid #6ff0c8; border-radius: 14px; padding: 26px 36px; text-align: center; }
+  .overlay h2 { color: #6ff0c8; margin-bottom: 8px; letter-spacing: 3px; }
+  .overlay p { color: #b6d8d3; margin-bottom: 16px; line-height: 1.7; }
+  .overlay button { padding: 9px 24px; border-radius: 8px; border: none; background: #6ff0c8; color: #0b1d24; font-weight: bold; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="title">机器人编程</div>
+    <div class="levels" id="levels"></div>
+    <div class="goal" id="goal"></div>
+    <div class="world" id="world"></div>
+    <div class="msg" id="msg"></div>
+  </div>
+  <div class="right">
+    <div class="box" id="mainBox"><h3><span><b>主程序</b>　点击这里后添加指令</span><span id="mainCount"></span></h3><div class="slots" id="mainSlots"></div></div>
+    <div class="box" id="p1Box"><h3><span><b>过程 P1</b>　主程序里放「P1」就会执行这里</span><span id="p1Count"></span></h3><div class="slots" id="p1Slots"></div></div>
+    <div class="box">
+      <h3><span>指令（点击添加，点程序里的指令可删除）</span></h3>
+      <div class="palette" id="palette"></div>
+    </div>
+    <div class="actions">
+      <button class="run" id="run">▶ 运行</button>
+      <button id="reset">复位</button>
+      <button id="clear">清空</button>
+    </div>
+    <div class="help">键盘：↑ 前进　← 左转　→ 右转　空格 点灯　P 调用 P1　退格 删除最后一条　回车 运行</div>
+  </div>
+</div>
+<div class="overlay" id="win"><div class="card"><h2>全部点亮！</h2><p id="winText"></p><button id="next">下一关</button></div></div>
+
+<script>
+/* ================= 纯逻辑 ================= */
+const RobotGame = (() => {
+  // 地图：'#' 墙，'.' 地面，'L' 灯。start.d：0 上 1 右 2 下 3 左
+  const LEVELS = [
+    { name: '第一步', goal: '让机器人走到灯那里，用「点灯」把它点亮。',
+      map: ['.....', '....L', '.....'], start: { r: 1, c: 0, d: 1 }, main: 6, p1: 0 },
+    { name: '转个弯', goal: '机器人只会往面朝的方向走。先想好什么时候转身。',
+      map: ['....L', '.....', '.....'], start: { r: 2, c: 0, d: 0 }, main: 10, p1: 0 },
+    { name: '两盏灯', goal: '两盏灯都要点亮。注意墙。',
+      map: ['L...L', '.#.#.', '.....'], start: { r: 2, c: 2, d: 0 }, main: 14, p1: 0 },
+    { name: '绕过墙', goal: '墙挡住了直路，找一条绕过去的路线。',
+      map: ['..#L.', '..#..', '.....'], start: { r: 0, c: 0, d: 1 }, main: 12, p1: 0 },
+    { name: '认识过程', goal: '主程序只有 4 格放不下！把重复的步骤写进 P1，在主程序里调用它。',
+      map: ['..L.L.L.L'], start: { r: 0, c: 0, d: 1 }, main: 4, p1: 4 },
+    { name: '上楼梯', goal: '每上一级台阶的动作都一样，用 P1 描述「上一级并点灯」。',
+      map: ['.....L', '....L.', '...L..', '..L...', '......'], start: { r: 4, c: 1, d: 1 }, main: 4, p1: 5 },
+    { name: '绕一圈', goal: '沿着外圈走一圈，点亮四个角。每条边的动作是相同的。',
+      map: ['L...L', '.###.', '.###.', '.###.', 'L...L'], start: { r: 4, c: 4, d: 0 }, main: 4, p1: 6 },
+    { name: '一路点亮', goal: '主程序只有 2 格。提示：P1 里也可以调用 P1 自己（这叫「递归」）。',
+      map: ['.LLLLLLL'], start: { r: 0, c: 0, d: 1 }, main: 2, p1: 3 }
+  ];
+  const D = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+  const MAX_STEPS = 300;
+
+  function initState(level) {
+    const lamps = new Set();
+    level.map.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === 'L') lamps.add(`${r},${c}`); }));
+    return { r: level.start.r, c: level.start.c, d: level.start.d, lamps, lit: new Set() };
+  }
+
+  const isOpen = (level, r, c) => r >= 0 && c >= 0 && r < level.map.length && c < level.map[0].length && level.map[r][c] !== '#';
+
+  /** 执行一条基本指令，返回事件 */
+  function apply(level, s, cmd) {
+    if (cmd === 'F') {
+      const nr = s.r + D[s.d][0], nc = s.c + D[s.d][1];
+      if (!isOpen(level, nr, nc)) return { type: 'bump' };
+      s.r = nr; s.c = nc; return { type: 'move' };
+    }
+    if (cmd === 'L') { s.d = (s.d + 3) % 4; return { type: 'turn' }; }
+    if (cmd === 'R') { s.d = (s.d + 1) % 4; return { type: 'turn' }; }
+    if (cmd === 'T') {
+      const k = `${s.r},${s.c}`;
+      if (!s.lamps.has(k)) return { type: 'noLamp' };
+      if (s.lit.has(k)) s.lit.delete(k); else s.lit.add(k);
+      return { type: 'toggle' };
+    }
+    return { type: 'noop' };
+  }
+
+  const allLit = (s) => s.lit.size === s.lamps.size;
+
+  /**
+   * 逐条展开程序（含 P1 调用与递归）。每产生一条基本指令回调 onStep({where, index, cmd, event, state})。
+   * 结果：win（全部点亮即成功）/ bump（撞墙停止）/ end（程序结束但没点亮）/ tooLong（超过步数上限）
+   */
+  function run(level, program, onStep) {
+    const s = initState(level);
+    const stack = [{ where: 'main', i: 0 }];
+    let steps = 0;
+    while (stack.length) {
+      const top = stack[stack.length - 1];
+      const list = program[top.where] || [];
+      if (top.i >= list.length) { stack.pop(); continue; }
+      const cmd = list[top.i++];
+      if (cmd === 'P') {
+        if (stack.length > 100) return { result: 'tooLong', state: s, steps };
+        if (onStep) onStep({ where: top.where, index: top.i - 1, cmd, event: { type: 'call' }, state: s });
+        stack.push({ where: 'p1', i: 0 });
+        continue;
+      }
+      const event = apply(level, s, cmd);
+      steps++;
+      if (onStep) onStep({ where: top.where, index: top.i - 1, cmd, event, state: { ...s, lit: new Set(s.lit) } });
+      if (event.type === 'bump') return { result: 'bump', state: s, steps };
+      if (allLit(s)) return { result: 'win', state: s, steps };
+      if (steps >= MAX_STEPS) return { result: 'tooLong', state: s, steps };
+    }
+    return { result: 'end', state: s, steps };
+  }
+
+  return { LEVELS, initState, run, apply, D };
+})();
+
+/* ================= 界面 ================= */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const LABEL = { F: '↑ 前进', L: '↺ 左转', R: '↻ 右转', T: '✹ 点灯', P: 'P1' };
+  let idx = 0, program, active = 'main', running = false, CELL = 64;
+  const done = new Set(JSON.parse(localStorage.getItem('robot_done') || '[]'));
+  const unlocked = () => Math.min(RobotGame.LEVELS.length - 1, Math.max(-1, ...done) + 1);
+
+  function renderLevels() {
+    const box = $('levels'); box.innerHTML = '';
+    RobotGame.LEVELS.forEach((lv, i) => {
+      const b = document.createElement('button');
+      b.textContent = i + 1; b.title = lv.name;
+      b.className = (done.has(i) ? 'done ' : '') + (i === idx ? 'cur' : '');
+      b.disabled = i > unlocked();
+      b.onclick = () => load(i);
+      box.appendChild(b);
+    });
+  }
+
+  function load(i) {
+    idx = i; const lv = RobotGame.LEVELS[i];
+    const saved = JSON.parse(localStorage.getItem('robot_prog_' + i) || 'null');
+    program = saved || { main: [], p1: [] };
+    active = 'main'; running = false;
+    $('goal').innerHTML = `<b>第 ${i + 1} 关 · ${lv.name}</b><br>${lv.goal}`;
+    $('p1Box').style.display = lv.p1 ? '' : 'none';
+    $('win').classList.remove('show');
+    CELL = Math.floor(Math.min(72, 420 / lv.map[0].length, (window.innerHeight - 260) / lv.map.length));
+    renderLevels(); renderPalette(); drawWorld(RobotGame.initState(lv)); renderProgram(); msg('');
+  }
+
+  function drawWorld(s, bump) {
+    const lv = RobotGame.LEVELS[idx], w = $('world');
+    w.innerHTML = '';
+    w.style.width = lv.map[0].length * CELL + 16 + 'px'; w.style.height = lv.map.length * CELL + 16 + 'px';
+    lv.map.forEach((row, r) => [...row].forEach((ch, c) => {
+      const el = document.createElement('div');
+      el.className = 'cell ' + (ch === '#' ? 'wall' : 'floor') + (ch === 'L' ? ' lamp' : '') + (s.lit.has(`${r},${c}`) ? ' lit' : '');
+      Object.assign(el.style, { left: c * CELL + 10 + 'px', top: r * CELL + 10 + 'px', width: CELL - 4 + 'px', height: CELL - 4 + 'px' });
+      w.appendChild(el);
+    }));
+    const robot = document.createElement('div');
+    robot.className = 'robot' + (bump ? ' bump' : ''); robot.id = 'robot';
+    Object.assign(robot.style, { left: s.c * CELL + 8 + 'px', top: s.r * CELL + 8 + 'px', width: CELL + 'px', height: CELL + 'px', transform: `rotate(${s.d * 90}deg)` });
+    robot.innerHTML = `<svg viewBox="0 0 40 40" width="70%" height="70%">
+      <rect x="9" y="11" width="22" height="22" rx="6" fill="#6ff0c8" stroke="#0b1d24" stroke-width="2"/>
+      <path d="M20 2 L28 11 L12 11 Z" fill="#ffe066" stroke="#0b1d24" stroke-width="2"/>
+      <circle cx="15.5" cy="19" r="2.6" fill="#0b1d24"/><circle cx="24.5" cy="19" r="2.6" fill="#0b1d24"/>
+      <rect x="15" y="25" width="10" height="3" rx="1.5" fill="#0b1d24"/></svg>`;
+    w.appendChild(robot);
+  }
+
+  function renderPalette() {
+    const lv = RobotGame.LEVELS[idx], box = $('palette'); box.innerHTML = '';
+    for (const k of ['F', 'L', 'R', 'T', 'P']) {
+      const b = document.createElement('button');
+      b.className = 'cmd-' + k; b.textContent = LABEL[k];
+      b.disabled = k === 'P' && !lv.p1;
+      b.onclick = () => add(k);
+      box.appendChild(b);
+    }
+  }
+
+  function renderProgram(running = null) {
+    const lv = RobotGame.LEVELS[idx];
+    for (const where of ['main', 'p1']) {
+      const max = where === 'main' ? lv.main : lv.p1;
+      const box = $(where + 'Slots'); box.innerHTML = '';
+      for (let i = 0; i < max; i++) {
+        const cmd = program[where][i];
+        const el = document.createElement('div');
+        el.className = 'slot' + (cmd ? ` filled cmd-${cmd}` : '') + (running && running.where === where && running.index === i ? ' running' : '');
+        el.textContent = cmd ? LABEL[cmd] : '';
+        if (cmd) el.onclick = (e) => { e.stopPropagation(); if (!running) { program[where].splice(i, 1); save(); renderProgram(); } };
+        box.appendChild(el);
+      }
+      $(where + 'Count').textContent = `${program[where].length}/${max}`;
+      $(where + 'Box').classList.toggle('active', active === where && !!max);
+    }
+  }
+
+  function add(cmd) {
+    if (running) return;
+    const lv = RobotGame.LEVELS[idx];
+    const max = active === 'main' ? lv.main : lv.p1;
+    if (program[active].length >= max) { msg(`${active === 'main' ? '主程序' : 'P1'} 已经放满了`, 'bad'); return; }
+    program[active].push(cmd); save(); renderProgram(); msg('');
+  }
+
+  const save = () => localStorage.setItem('robot_prog_' + idx, JSON.stringify(program));
+  const msg = (t, cls = '') => { $('msg').textContent = t; $('msg').className = 'msg ' + cls; };
+
+  async function run() {
+    if (running) return;
+    const lv = RobotGame.LEVELS[idx];
+    if (!program.main.length) return msg('主程序还是空的', 'bad');
+    running = true; $('run').disabled = true;
+    const frames = [];
+    const r = RobotGame.run(lv, program, (f) => frames.push(f));
+    let state = RobotGame.initState(lv);
+    drawWorld(state);
+    for (const f of frames) {
+      if (!running) return; // 被复位打断
+      renderProgram({ where: f.where, index: f.index });
+      if (f.cmd !== 'P') { state = f.state; drawWorld(state, f.event.type === 'bump'); }
+      await new Promise(res => setTimeout(res, f.cmd === 'P' ? 150 : 320));
+    }
+    running = false; $('run').disabled = false; renderProgram();
+    if (r.result === 'win') return win(r.steps);
+    msg({ bump: '撞墙了！检查机器人面朝的方向。', end: '程序执行完了，但还有灯没点亮。', tooLong: '程序运行太久了，可能停不下来。' }[r.result], 'bad');
+  }
+
+  function win(steps) {
+    done.add(idx); localStorage.setItem('robot_done', JSON.stringify([...done]));
+    const lv = RobotGame.LEVELS[idx];
+    const used = program.main.length + program.p1.length;
+    $('winText').innerHTML = `用了 ${used} 条指令，机器人走了 ${steps} 步。` + (lv.p1 ? '<br>把重复的步骤放进过程，程序就能变短——这就是「抽象」。' : '');
+    $('next').textContent = idx + 1 < RobotGame.LEVELS.length ? '下一关' : '全部完成！再看看';
+    $('win').classList.add('show');
+    renderLevels();
+  }
+
+  $('mainBox').onclick = () => { active = 'main'; renderProgram(); };
+  $('p1Box').onclick = () => { active = 'p1'; renderProgram(); };
+  $('run').onclick = run;
+  $('reset').onclick = () => { running = false; $('run').disabled = false; drawWorld(RobotGame.initState(RobotGame.LEVELS[idx])); renderProgram(); msg(''); };
+  $('clear').onclick = () => { if (running) return; program = { main: [], p1: [] }; save(); renderProgram(); msg(''); };
+  $('next').onclick = () => load(Math.min(idx + 1, RobotGame.LEVELS.length - 1));
+  window.addEventListener('keydown', (e) => {
+    const map = { ArrowUp: 'F', ArrowLeft: 'L', ArrowRight: 'R', ' ': 'T', p: 'P', P: 'P' };
+    if (map[e.key]) { e.preventDefault(); if (map[e.key] !== 'P' || RobotGame.LEVELS[idx].p1) add(map[e.key]); }
+    if (e.key === 'Backspace' && !running) { e.preventDefault(); program[active].pop(); save(); renderProgram(); }
+    if (e.key === 'Enter') { e.preventDefault(); if ($('win').classList.contains('show')) $('next').click(); else run(); }
+  });
+  window.addEventListener('click', () => window.focus());
+  window.RobotGame = RobotGame;
+  load(Math.max(0, unlocked()));
+})();
+</script>
+</body>
+</html>

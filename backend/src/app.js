@@ -119,6 +119,8 @@ app.use('/api', assignmentRoutes);
 app.use('/api/achievements', auth, ensureAchievement, achievementRoutes);
 // 登录请求路由 - 必须在 resourceRoutes 之前，因为 resourceRoutes 使用 router.use(auth) 全局中间件
 app.use('/api/login-requests', loginRequestRoutes);
+// 游戏路由同样必须在 resourceRoutes 之前：游戏文件、封面以游戏票 Cookie 鉴权或公开访问，不带登录令牌
+app.use('/api/games', gameRoutes);
 app.use('/api', resourceRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api', aiGradeRoutes);
@@ -137,7 +139,6 @@ app.use('/api/point-shop', auth, ensureAchievement, pointShopRoutes);
 app.use('/api/crowdfunding', auth, ensureAchievement, crowdfundingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/im', userMessageRoutes);
-app.use('/api/games', gameRoutes);
 app.use('/api/flowchart', flowchartRoutes);
 app.use('/api/spreadsheet', spreadsheetRoutes);
 app.use('/api/spreadsheet-submissions', spreadsheetSubmissionRoutes);

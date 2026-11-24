@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华容道</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #3b2a1a 0%, #1b120a 100%);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; color: #f6ead7;
+  }
+  .wrap { display: flex; gap: 28px; align-items: flex-start; padding: 16px; flex-wrap: wrap; justify-content: center; }
+  .panel {
+    width: 230px; background: rgba(255, 244, 225, 0.08); border: 1px solid rgba(255, 230, 190, 0.2);
+    border-radius: 10px; padding: 18px;
+  }
+  h1 { font-size: 30px; letter-spacing: 6px; margin-bottom: 4px; color: #ffd98a; }
+  .sub { font-size: 13px; color: #cdb999; margin-bottom: 16px; line-height: 1.6; }
+  label { font-size: 13px; color: #cdb999; }
+  select, button {
+    font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid #8a6a43; padding: 7px 10px;
+    background: #2a1c10; color: #f6ead7; cursor: pointer;
+  }
+  select { width: 100%; margin: 6px 0 14px; }
+  button:hover { background: #3a2817; }
+  button.primary { background: #c98b2f; border-color: #c98b2f; color: #1b120a; font-weight: bold; }
+  button.primary:hover { background: #dda046; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .stat { display: flex; justify-content: space-between; font-size: 15px; padding: 6px 0; border-bottom: 1px dashed rgba(255, 230, 190, 0.15); }
+  .stat b { color: #ffd98a; }
+  .tip { font-size: 12px; color: #a99476; margin-top: 12px; line-height: 1.7; }
+  .board-wrap { position: relative; }
+  .board {
+    position: relative; background: #5a3d22; border-radius: 10px;
+    border: 10px solid #7a532c; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), inset 0 0 20px rgba(0, 0, 0, 0.4);
+  }
+  .exit {
+    position: absolute; bottom: -10px; height: 10px; background: #2a1a0c;
+    border-radius: 0 0 4px 4px;
+  }
+  .exit::after {
+    content: "出口"; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #cdb999; letter-spacing: 4px;
+  }
+  .piece {
+    position: absolute; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; cursor: grab; transition: left 0.12s ease, top 0.12s ease, box-shadow 0.15s;
+    touch-action: none; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.25), 0 3px 6px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+  .piece.selected { outline: 3px solid #fff3c4; outline-offset: -3px; }
+  .piece.hint { animation: pulse 0.6s ease-in-out 3; }
+  @keyframes pulse { 50% { filter: brightness(1.45); } }
+  .boss { background: linear-gradient(160deg, #e2483d, #a8231b); color: #ffe9b0; font-size: 34px; letter-spacing: 6px; }
+  .gen-h, .gen-v { background: linear-gradient(160deg, #3d8f62, #23603f); color: #e9ffe9; font-size: 22px; }
+  .gen-v { writing-mode: vertical-rl; letter-spacing: 8px; }
+  .soldier { background: linear-gradient(160deg, #d9b26a, #a77d36); color: #3b2a1a; font-size: 20px; }
+  .overlay {
+    position: absolute; inset: 0; background: rgba(20, 12, 5, 0.82); border-radius: 10px; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 20px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h2 { color: #ffd98a; font-size: 30px; letter-spacing: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>华容道</h1>
+    <div class="sub">移动方块，让<b style="color:#ff8a7a">曹操</b>从底部出口逃出。</div>
+    <label>选择布局</label>
+    <select id="level"></select>
+    <div class="btns">
+      <button id="undo">撤销</button>
+      <button id="restart">重来</button>
+      <button id="hint" class="primary" style="grid-column: span 2">提示下一步</button>
+    </div>
+    <div class="stat"><span>步数</span><b id="steps">0</b></div>
+    <div class="stat"><span>最少步数</span><b id="best">—</b></div>
+    <div class="stat"><span>我的最好</span><b id="record">—</b></div>
+    <div class="tip">
+      操作：拖动方块，或点击方块后用方向键移动。<br>
+      只有一个方向能动时，直接点一下就会移动。<br>
+      每移动一格计一步。
+    </div>
+  </div>
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+    <div class="overlay" id="win">
+      <h2>曹操逃出华容道！</h2>
+      <div id="winText"></div>
+      <button class="primary" id="next">下一关</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= 纯逻辑（可单独测试） ================= */
+const Klotski = (() => {
+  const W = 4, H = 5;
+  // 布局：字母代表方块，同一字母组成一个矩形；'.' 为空格。名字按字母顺序给出。
+  const LEVELS = [
+    { name: '入门练习', grid: ['.CC.', '.CC.', 'ABBD', 'AEFD', 'G..H'],
+      names: { A: '张飞', B: '关羽', D: '赵云', E: '兵', F: '兵', G: '兵', H: '兵' } },
+    { name: '横刀立马', grid: ['ACCB', 'ACCB', 'DEEF', 'DGHF', 'I..J'],
+      names: { A: '张飞', B: '赵云', D: '马超', E: '关羽', F: '黄忠', G: '兵', H: '兵', I: '兵', J: '兵' } },
+    { name: '指挥若定', grid: ['ACCB', 'ACCB', 'GEEH', 'DIJF', 'D..F'],
+      names: { A: '张飞', B: '赵云', D: '马超', E: '关羽', F: '黄忠', G: '兵', H: '兵', I: '兵', J: '兵' } },
+    { name: '齐头并进', grid: ['ACCB', 'ACCB', 'GHIJ', 'DEEF', 'D..F'],
+      names: { A: '张飞', B: '赵云', D: '马超', E: '关羽', F: '黄忠', G: '兵', H: '兵', I: '兵', J: '兵' } },
+    { name: '兵分三路', grid: ['GCCH', 'ACCB', 'AEEB', 'DIJF', 'D..F'],
+      names: { A: '张飞', B: '赵云', D: '马超', E: '关羽', F: '黄忠', G: '兵', H: '兵', I: '兵', J: '兵' } }
+  ];
+
+  function parse(level) {
+    const seen = {};
+    level.grid.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      const p = seen[ch] || (seen[ch] = { id: ch, x, y, w: 0, h: 0, x2: x, y2: y });
+      p.x = Math.min(p.x, x); p.y = Math.min(p.y, y); p.x2 = Math.max(p.x2, x); p.y2 = Math.max(p.y2, y);
+    }));
+    return Object.values(seen).map(p => {
+      const w = p.x2 - p.x + 1, h = p.y2 - p.y + 1;
+      const kind = w === 2 && h === 2 ? 'boss' : w === 2 ? 'gen-h' : h === 2 ? 'gen-v' : 'soldier';
+      return { id: p.id, x: p.x, y: p.y, w, h, kind, name: kind === 'boss' ? '曹操' : (level.names[p.id] || '兵') };
+    }).sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  function occupancy(pieces, skip) {
+    const g = Array.from({ length: H }, () => Array(W).fill(null));
+    for (const p of pieces) {
+      if (p === skip) continue;
+      for (let dy = 0; dy < p.h; dy++) for (let dx = 0; dx < p.w; dx++) g[p.y + dy][p.x + dx] = p.id;
+    }
+    return g;
+  }
+
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
+  function canMove(pieces, p, dir) {
+    const [dx, dy] = DIRS[dir];
+    const nx = p.x + dx, ny = p.y + dy;
+    if (nx < 0 || ny < 0 || nx + p.w > W || ny + p.h > H) return false;
+    const g = occupancy(pieces, p);
+    for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) if (g[ny + y][nx + x]) return false;
+    return true;
+  }
+
+  const isWin = (pieces) => { const b = pieces.find(p => p.kind === 'boss'); return b.x === 1 && b.y === 3; };
+
+  // 状态键：按格子写方块「形状」，同形状方块视为等价，大幅缩小搜索空间
+  function key(pieces) {
+    const g = Array(W * H).fill('.');
+    for (const p of pieces) {
+      const c = p.kind === 'boss' ? 'B' : p.kind === 'gen-h' ? 'H' : p.kind === 'gen-v' ? 'V' : 'S';
+      g[p.y * W + p.x] = c;
+      for (let dy = 0; dy < p.h; dy++) for (let dx = 0; dx < p.w; dx++) if (dx || dy) g[(p.y + dy) * W + p.x + dx] = '#';
+    }
+    return g.join('');
+  }
+
+  const clone = (pieces) => pieces.map(p => ({ ...p }));
+
+  /** 广度优先求最少步数解（每移动一格一步），返回 [{id, dir}] 或 null */
+  function solve(start, limit = 400000) {
+    const startKey = key(start);
+    const prev = new Map([[startKey, null]]);
+    const states = new Map([[startKey, clone(start)]]);
+    let frontier = [startKey];
+    while (frontier.length) {
+      const next = [];
+      for (const k of frontier) {
+        const s = states.get(k);
+        if (isWin(s)) {
+          const path = [];
+          for (let cur = k; prev.get(cur); cur = prev.get(cur).from) path.push(prev.get(cur).move);
+          return path.reverse();
+        }
+        for (const p of s) for (const dir of Object.keys(DIRS)) {
+          if (!canMove(s, p, dir)) continue;
+          const ns = clone(s); const q = ns.find(x => x.id === p.id);
+          q.x += DIRS[dir][0]; q.y += DIRS[dir][1];
+          const nk = key(ns);
+          if (prev.has(nk)) continue;
+          prev.set(nk, { from: k, move: { id: p.id, dir } });
+          states.set(nk, ns);
+          next.push(nk);
+        }
+      }
+      for (const k of frontier) states.delete(k);
+      if (prev.size > limit) return null;
+      frontier = next;
+    }
+    return null;
+  }
+
+  return { W, H, LEVELS, DIRS, parse, canMove, isWin, solve, clone };
+})();
+
+/* ================= 界面 ================= */
+(() => {
+  const CELL = Math.max(56, Math.min(88, Math.floor((window.innerHeight - 90) / 5)));
+  const GAP = 4;
+  const board = document.getElementById('board');
+  const levelSel = document.getElementById('level');
+  const $ = (id) => document.getElementById(id);
+  let levelIdx = 0, pieces = [], history = [], selected = null, minSteps = {}, solving = false;
+
+  board.style.width = Klotski.W * CELL + 20 + 'px';   // +20：左右各 10px 边框
+  board.style.height = Klotski.H * CELL + 20 + 'px';
+  const exit = document.createElement('div');
+  exit.className = 'exit'; exit.style.left = CELL + 'px'; exit.style.width = 2 * CELL + 'px';
+  board.appendChild(exit);
+
+  Klotski.LEVELS.forEach((lv, i) => {
+    const o = document.createElement('option'); o.value = i; o.textContent = `${i + 1}. ${lv.name}`; levelSel.appendChild(o);
+  });
+
+  const recordKey = (i) => 'klotski_best_' + i;
+
+  function load(i) {
+    levelIdx = i; levelSel.value = i;
+    pieces = Klotski.parse(Klotski.LEVELS[i]); history = []; selected = null;
+    $('win').classList.remove('show');
+    $('record').textContent = localStorage.getItem(recordKey(i)) || '—';
+    $('best').textContent = minSteps[i] || '计算中…';
+    render();
+    if (!minSteps[i]) setTimeout(() => {
+      const sol = Klotski.solve(Klotski.parse(Klotski.LEVELS[i]));
+      minSteps[i] = sol ? sol.length : '—';
+      if (levelIdx === i) $('best').textContent = minSteps[i];
+    }, 50);
+  }
+
+  function render() {
+    board.querySelectorAll('.piece').forEach(el => el.remove());
+    for (const p of pieces) {
+      const el = document.createElement('div');
+      el.className = `piece ${p.kind}${selected === p.id ? ' selected' : ''}`;
+      el.dataset.id = p.id;
+      el.style.left = p.x * CELL + GAP / 2 + 'px'; el.style.top = p.y * CELL + GAP / 2 + 'px';
+      el.style.width = p.w * CELL - GAP + 'px'; el.style.height = p.h * CELL - GAP + 'px';
+      el.textContent = p.name;
+      board.appendChild(el);
+    }
+    $('steps').textContent = history.length;
+  }
+
+  function move(id, dir) {
+    const p = pieces.find(x => x.id === id);
+    if (!p || !Klotski.canMove(pieces, p, dir)) return false;
+    history.push(Klotski.clone(pieces));
+    p.x += Klotski.DIRS[dir][0]; p.y += Klotski.DIRS[dir][1];
+    render();
+    if (Klotski.isWin(pieces)) win();
+    return true;
+  }
+
+  function win() {
+    const steps = history.length;
+    const old = Number(localStorage.getItem(recordKey(levelIdx))) || Infinity;
+    if (steps < old) localStorage.setItem(recordKey(levelIdx), steps);
+    $('record').textContent = Math.min(steps, old);
+    const best = minSteps[levelIdx];
+    $('winText').innerHTML = `用了 <b>${steps}</b> 步` + (typeof best === 'number' ? `（最少 ${best} 步）` : '');
+    $('next').textContent = levelIdx + 1 < Klotski.LEVELS.length ? '下一关' : '再玩一遍';
+    $('win').classList.add('show');
+  }
+
+  // 拖动 / 点击
+  let drag = null;
+  board.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.piece'); if (!el) return;
+    drag = { id: el.dataset.id, x: e.clientX, y: e.clientY, moved: false };
+    el.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < CELL * 0.4) return;
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    if (move(drag.id, dir)) { drag.x = e.clientX; drag.y = e.clientY; drag.moved = true; }
+  });
+  board.addEventListener('pointerup', () => {
+    if (!drag) return;
+    const { id, moved } = drag; drag = null;
+    if (moved) { selected = id; render(); return; }
+    const p = pieces.find(x => x.id === id);
+    const dirs = Object.keys(Klotski.DIRS).filter(d => Klotski.canMove(pieces, p, d));
+    selected = id;
+    if (dirs.length === 1) move(id, dirs[0]); else render();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right' };
+    if (map[e.key] && selected) { e.preventDefault(); move(selected, map[e.key]); }
+    if ((e.key === 'z' && (e.ctrlKey || e.metaKey)) || e.key === 'Backspace') { e.preventDefault(); undo(); }
+  });
+
+  function undo() {
+    if (!history.length) return;
+    pieces = history.pop(); render();
+  }
+
+  $('undo').onclick = undo;
+  $('restart').onclick = () => load(levelIdx);
+  levelSel.onchange = () => load(Number(levelSel.value));
+  $('next').onclick = () => load((levelIdx + 1) % Klotski.LEVELS.length);
+  $('hint').onclick = () => {
+    if (solving || Klotski.isWin(pieces)) return;
+    solving = true; $('hint').textContent = '思考中…';
+    setTimeout(() => {
+      const sol = Klotski.solve(pieces);
+      solving = false; $('hint').textContent = '提示下一步';
+      if (!sol || !sol.length) return;
+      const { id, dir } = sol[0];
+      selected = id; render();
+      const el = board.querySelector(`.piece[data-id="${id}"]`);
+      el.classList.add('hint');
+      setTimeout(() => move(id, dir), 900);
+    }, 30);
+  };
+
+  window.addEventListener('click', () => window.focus());
+  window.Klotski = Klotski;
+  load(0);
+})();
+</script>
+</body>
+</html>

@@ -1,18 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const { getRemainingTime, updateRemainingTime } = require('../controllers/gameController');
+const c = require('../controllers/gameController');
 
-// 需要认证
-router.get('/time', auth, getRemainingTime);
-router.put('/time', auth, updateRemainingTime);
+// 剩余时长
+router.get('/time', auth, c.getRemainingTime);
+router.put('/time', auth, c.updateRemainingTime);
+
+// 游戏会话：开始 / 心跳 / 关闭
+router.post('/session', auth, c.openSession);
+router.post('/session/heartbeat', auth, c.heartbeat);
+router.delete('/session', auth, c.closeSession);
+
+// 热度榜
+router.get('/stats', auth, c.getStats);
+
+// 封面（公开）
+router.get('/cover/:gameId', c.cover);
+
+// 游戏文件：以游戏票（Cookie）鉴权，不使用登录令牌
+router.get('/play/_alive', c.alive);
+router.get('/play/:gameId/*', c.serveGameFile);
+router.get('/play/:gameId', (req, res) => res.redirect(`/api/games/play/${encodeURIComponent(req.params.gameId)}/index.html`));
 
 module.exports = router;
-
-
-
-
-
-
-
-

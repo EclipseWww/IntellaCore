@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>连连看</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #f6d9e8 0%, #d8e4fb 100%);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; color: #3d3550;
+  }
+  .game { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px; }
+  .bar { display: flex; gap: 18px; align-items: center; background: rgba(255, 255, 255, 0.7); padding: 10px 18px; border-radius: 30px; box-shadow: 0 4px 14px rgba(120, 90, 160, 0.15); }
+  .bar .title { font-size: 22px; font-weight: bold; color: #b0458a; letter-spacing: 3px; }
+  .bar span { font-size: 15px; }
+  .bar b { color: #6a3fb5; font-size: 18px; }
+  .timebar { width: 150px; height: 10px; background: #e7dff2; border-radius: 5px; overflow: hidden; }
+  .timebar div { height: 100%; background: linear-gradient(90deg, #7bd88f, #4cb8e8); }
+  .timebar div.low { background: linear-gradient(90deg, #ff7a8a, #ffb36b); }
+  button {
+    font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 20px; border: none; cursor: pointer;
+    background: #8a5cd6; color: #fff;
+  }
+  button:disabled { background: #c9bde0; cursor: default; }
+  .board { position: relative; }
+  .tile {
+    position: absolute; border-radius: 8px; background: #fffdf8; cursor: pointer;
+    box-shadow: 0 3px 0 #d6c9b5, 0 4px 8px rgba(80, 60, 40, 0.15); display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s, box-shadow 0.1s, opacity 0.25s;
+  }
+  .tile:hover { transform: translateY(-2px); }
+  .tile.sel { background: #fff3b8; box-shadow: 0 0 0 3px #f5a623, 0 4px 8px rgba(80, 60, 40, 0.2); }
+  .tile.hint { animation: hint 0.5s ease-in-out 4; }
+  .tile.gone { opacity: 0; transform: scale(0.6); pointer-events: none; }
+  @keyframes hint { 50% { box-shadow: 0 0 0 4px #4cb8e8, 0 4px 8px rgba(80, 60, 40, 0.2); } }
+  svg.line { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .msg {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(60, 40, 90, 0.45); z-index: 5;
+  }
+  .msg.show { display: flex; }
+  .msg .box { background: #fff; border-radius: 16px; padding: 28px 40px; text-align: center; box-shadow: 0 12px 40px rgba(60, 40, 90, 0.3); }
+  .msg h2 { color: #b0458a; margin-bottom: 10px; letter-spacing: 3px; }
+  .msg p { margin-bottom: 16px; line-height: 1.8; }
+  .toast { height: 20px; font-size: 14px; color: #6a3fb5; }
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="bar">
+    <span class="title">连连看</span>
+    <span>第<b id="level">1</b>关</span>
+    <span>得分 <b id="score">0</b></span>
+    <div class="timebar"><div id="time" style="width:100%"></div></div>
+    <button id="hint">提示 (<span id="hints">3</span>)</button>
+    <button id="shuffle">重排 (<span id="shuffles">3</span>)</button>
+  </div>
+  <div class="board" id="board"><svg class="line" id="line"></svg></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<div class="msg show" id="msg">
+  <div class="box">
+    <h2 id="msgTitle">连连看</h2>
+    <p id="msgText">点击两个相同的图案，如果能用<b>不超过两次拐弯</b>的线连起来（线可以绕到外圈），就能消除。<br>在时间内消除全部图案即可过关。</p>
+    <button id="msgBtn">开始游戏</button>
+  </div>
+</div>
+
+<script>
+/* ================= 纯逻辑 ================= */
+const LinkGame = (() => {
+  const LEVELS = [
+    { rows: 6, cols: 10, types: 15, time: 200 },
+    { rows: 7, cols: 12, types: 21, time: 260 },
+    { rows: 8, cols: 14, types: 28, time: 330 }
+  ];
+
+  /** 生成棋盘：外圈留一圈空格（null）供连线绕行 */
+  function createBoard(level, rand = Math.random) {
+    const { rows, cols, types } = level;
+    const n = rows * cols;
+    const tiles = [];
+    for (let i = 0; i < n / 2; i++) { const t = i % types; tiles.push(t, t); }
+    shuffleArray(tiles, rand);
+    const grid = Array.from({ length: rows + 2 }, () => Array(cols + 2).fill(null));
+    let k = 0;
+    for (let r = 1; r <= rows; r++) for (let c = 1; c <= cols; c++) grid[r][c] = tiles[k++];
+    return grid;
+  }
+
+  function shuffleArray(a, rand) {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  /**
+   * 求 a、b 之间拐弯不超过 2 次的连线；返回拐点序列 [[r,c],...] 或 null
+   * 0-1 BFS：同方向延伸不增加拐弯数，换方向 +1
+   */
+  function findPath(grid, a, b) {
+    const [ar, ac] = a, [br, bc] = b;
+    if ((ar === br && ac === bc) || grid[ar][ac] === null || grid[ar][ac] !== grid[br][bc]) return null;
+    const R = grid.length, C = grid[0].length;
+    const best = new Map();
+    const deque = [];
+    for (let d = 0; d < 4; d++) deque.push({ r: ar, c: ac, d, turns: 0, path: [[ar, ac]] });
+    while (deque.length) {
+      const s = deque.shift();
+      const nr = s.r + DIRS[s.d][0], nc = s.c + DIRS[s.d][1];
+      if (nr < 0 || nc < 0 || nr >= R || nc >= C) continue;
+      if (nr === br && nc === bc) return [...s.path, [br, bc]];
+      if (grid[nr][nc] !== null) continue;
+      for (let d = 0; d < 4; d++) {
+        if (d === (s.d ^ 1)) continue; // 不能掉头
+        const turns = s.turns + (d === s.d ? 0 : 1);
+        if (turns > 2) continue;
+        const key = `${nr},${nc},${d}`;
+        if (best.has(key) && best.get(key) <= turns) continue;
+        best.set(key, turns);
+        const node = { r: nr, c: nc, d, turns, path: d === s.d ? s.path : [...s.path, [nr, nc]] };
+        if (d === s.d) deque.unshift(node); else deque.push(node);
+      }
+    }
+    return null;
+  }
+
+  /** 找一对可以消除的图案 */
+  function findMove(grid) {
+    const pos = new Map();
+    grid.forEach((row, r) => row.forEach((t, c) => { if (t !== null) (pos.get(t) || pos.set(t, []).get(t)).push([r, c]); }));
+    for (const list of pos.values()) {
+      for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const path = findPath(grid, list[i], list[j]);
+        if (path) return { a: list[i], b: list[j], path };
+      }
+    }
+    return null;
+  }
+
+  /** 打乱剩余图案的位置，直到至少有一步可走 */
+  function reshuffle(grid, rand = Math.random) {
+    const cells = [], tiles = [];
+    grid.forEach((row, r) => row.forEach((t, c) => { if (t !== null) { cells.push([r, c]); tiles.push(t); } }));
+    if (!tiles.length) return grid;
+    for (let tries = 0; tries < 200; tries++) {
+      shuffleArray(tiles, rand);
+      cells.forEach(([r, c], i) => { grid[r][c] = tiles[i]; });
+      if (findMove(grid)) return grid;
+    }
+    return grid;
+  }
+
+  const remaining = (grid) => grid.reduce((n, row) => n + row.filter(t => t !== null).length, 0);
+
+  return { LEVELS, createBoard, findPath, findMove, reshuffle, remaining };
+})();
+
+/* ================= 图案 ================= */
+const ICONS = (() => {
+  const colors = ['#e8505b', '#3a86ff', '#2bb673', '#9b5de5'];
+  const shapes = [
+    (c) => `<circle cx="20" cy="20" r="13" fill="${c}"/><circle cx="20" cy="20" r="5" fill="#fff"/>`,
+    (c) => `<rect x="8" y="8" width="24" height="24" rx="4" fill="${c}"/><rect x="15" y="15" width="10" height="10" fill="#fff"/>`,
+    (c) => `<path d="M20 6 L34 32 L6 32 Z" fill="${c}"/>`,
+    (c) => `<path d="M20 5 L34 20 L20 35 L6 20 Z" fill="${c}"/><path d="M20 13 L27 20 L20 27 L13 20 Z" fill="#fff"/>`,
+    (c) => `<path d="M20 5 L24.4 15 L35 16 L27 23.3 L29.3 34 L20 28.5 L10.7 34 L13 23.3 L5 16 L15.6 15 Z" fill="${c}"/>`,
+    (c) => `<path d="M20 34 C6 24 5 15 11 10 C15 7 19 9 20 13 C21 9 25 7 29 10 C35 15 34 24 20 34 Z" fill="${c}"/>`,
+    (c) => `<path d="M20 5 L33 12.5 L33 27.5 L20 35 L7 27.5 L7 12.5 Z" fill="${c}"/><circle cx="20" cy="20" r="5" fill="#fff"/>`
+  ];
+  const out = [];
+  for (const c of colors) for (const s of shapes) out.push(`<svg viewBox="0 0 40 40" width="78%" height="78%">${s(c)}</svg>`);
+  return out; // 28 种：形状 × 颜色
+})();
+
+/* ================= 界面 ================= */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const board = $('board'), line = $('line');
+  let levelIdx = 0, grid, size, sel = null, score = 0, hints, shuffles, deadline, timer, total, combo = 0, lastClear = 0, busy = false;
+
+  function startLevel(i) {
+    levelIdx = i;
+    const lv = LinkGame.LEVELS[i];
+    size = Math.floor(Math.min((window.innerWidth - 40) / (lv.cols + 2), (window.innerHeight - 130) / (lv.rows + 2), 64));
+    grid = LinkGame.createBoard(lv);
+    if (!LinkGame.findMove(grid)) LinkGame.reshuffle(grid);
+    hints = 3; shuffles = 3; sel = null; combo = 0; busy = false;
+    board.style.width = (lv.cols + 2) * size + 'px'; board.style.height = (lv.rows + 2) * size + 'px';
+    total = lv.time; deadline = performance.now() + total * 1000;
+    clearInterval(timer); timer = setInterval(tick, 200);
+    $('msg').classList.remove('show');
+    render(); hud();
+  }
+
+  function render() {
+    board.querySelectorAll('.tile').forEach(el => el.remove());
+    grid.forEach((row, r) => row.forEach((t, c) => {
+      if (t === null) return;
+      const el = document.createElement('div');
+      el.className = 'tile' + (sel && sel[0] === r && sel[1] === c ? ' sel' : '');
+      el.dataset.r = r; el.dataset.c = c;
+      el.style.left = c * size + 2 + 'px'; el.style.top = r * size + 2 + 'px';
+      el.style.width = size - 4 + 'px'; el.style.height = size - 4 + 'px';
+      el.innerHTML = ICONS[(t % 4) * 7 + (t % 7)]; // 4 色 × 7 形互质：图案均匀分布在各颜色上
+      board.appendChild(el);
+    }));
+  }
+
+  const tileEl = (r, c) => board.querySelector(`.tile[data-r="${r}"][data-c="${c}"]`);
+
+  function hud() {
+    $('level').textContent = levelIdx + 1; $('score').textContent = score;
+    $('hints').textContent = hints; $('shuffles').textContent = shuffles;
+    $('hint').disabled = !hints; $('shuffle').disabled = !shuffles;
+  }
+
+  function toast(t) { $('toast').textContent = t; clearTimeout(toast.h); toast.h = setTimeout(() => { $('toast').textContent = ''; }, 1500); }
+
+  board.addEventListener('click', (e) => {
+    const el = e.target.closest('.tile'); if (!el || busy) return;
+    const p = [Number(el.dataset.r), Number(el.dataset.c)];
+    if (!sel) { sel = p; el.classList.add('sel'); return; }
+    if (sel[0] === p[0] && sel[1] === p[1]) { sel = null; el.classList.remove('sel'); return; }
+    const path = LinkGame.findPath(grid, sel, p);
+    if (!path) {
+      tileEl(...sel).classList.remove('sel');
+      sel = p; el.classList.add('sel');
+      return;
+    }
+    clear(sel, p, path);
+  });
+
+  function clear(a, b, path) {
+    busy = true;
+    drawLine(path);
+    tileEl(...a).classList.add('gone'); tileEl(...b).classList.add('gone');
+    grid[a[0]][a[1]] = null; grid[b[0]][b[1]] = null; sel = null;
+    const now = performance.now();
+    combo = now - lastClear < 3000 ? combo + 1 : 0; lastClear = now;
+    score += 10 + combo * 5;
+    if (combo >= 2) toast(`连击 ×${combo + 1}！`);
+    hud();
+    setTimeout(() => {
+      line.innerHTML = ''; busy = false;
+      if (LinkGame.remaining(grid) === 0) return levelDone();
+      if (!LinkGame.findMove(grid)) { LinkGame.reshuffle(grid); toast('没有可以消除的了，已自动重排'); }
+      render();
+    }, 260);
+  }
+
+  function drawLine(path) {
+    const pts = path.map(([r, c]) => `${c * size + size / 2},${r * size + size / 2}`).join(' ');
+    line.innerHTML = `<polyline points="${pts}" fill="none" stroke="#f5a623" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+
+  function tick() {
+    const left = deadline - performance.now();
+    const pct = Math.max(0, left / (total * 1000) * 100);
+    $('time').style.width = pct + '%'; $('time').className = pct < 25 ? 'low' : '';
+    if (left <= 0) {
+      clearInterval(timer);
+      showMsg('时间到', `得分 ${score}。<br>再试一次吧！`, '重新开始', () => { score = 0; startLevel(0); });
+    }
+  }
+
+  function levelDone() {
+    clearInterval(timer);
+    const bonus = Math.round(Math.max(0, deadline - performance.now()) / 1000) * 2;
+    score += bonus; hud();
+    const best = Math.max(score, Number(localStorage.getItem('linkup_best')) || 0);
+    localStorage.setItem('linkup_best', best);
+    if (levelIdx + 1 < LinkGame.LEVELS.length) {
+      showMsg('过关！', `剩余时间奖励 +${bonus}，当前得分 ${score}`, '下一关', () => startLevel(levelIdx + 1));
+    } else {
+      showMsg('全部通关！', `总得分 ${score}<br>历史最高 ${best}`, '再玩一次', () => { score = 0; startLevel(0); });
+    }
+  }
+
+  function showMsg(title, text, btn, fn) {
+    $('msgTitle').textContent = title; $('msgText').innerHTML = text; $('msgBtn').textContent = btn;
+    $('msgBtn').onclick = fn; $('msg').classList.add('show');
+  }
+
+  $('hint').onclick = () => {
+    if (!hints || busy) return;
+    const m = LinkGame.findMove(grid); if (!m) return;
+    hints--; hud();
+    tileEl(...m.a).classList.add('hint'); tileEl(...m.b).classList.add('hint');
+  };
+  $('shuffle').onclick = () => {
+    if (!shuffles || busy) return;
+    shuffles--; sel = null; LinkGame.reshuffle(grid); render(); hud();
+  };
+  $('msgBtn').onclick = () => startLevel(0);
+  window.LinkGame = LinkGame;
+})();
+</script>
+</body>
+</html>

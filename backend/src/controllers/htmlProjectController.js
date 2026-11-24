@@ -1,4 +1,5 @@
 const HtmlProject = require('../models/HtmlProject');
+const { detectGameCopy, isGameCopyCached, COPY_MESSAGE } = require('../services/gameCopyGuard');
 
 // Create a new HTML project
 exports.createProject = async (req, res) => {
@@ -100,6 +101,13 @@ exports.updateProject = async (req, res) => {
             });
         }
 
+        // 已发布的作品改成了游戏中心的游戏代码：照常保存，但取消发布
+        if (project.isPublished && code !== undefined && detectGameCopy(project.code)) {
+            project.isPublished = false;
+            await project.save();
+            return res.json({ success: true, data: project, unpublished: true, message: COPY_MESSAGE + '已自动取消发布。' });
+        }
+
         res.json({
             success: true,
             data: project
@@ -165,7 +173,16 @@ exports.publishProject = async (req, res) => {
             });
         }
 
-        // 2. Check and deduct points (500 pts)
+        // 2. 不允许发布从游戏中心复制的游戏（在扣积分之前检查）
+        const target = await HtmlProject.findOne({ _id: req.params.id, creator: req.user.id }).select('code');
+        if (!target) {
+            return res.status(404).json({ success: false, message: '项目不存在' });
+        }
+        if (detectGameCopy(target.code)) {
+            return res.status(400).json({ success: false, message: COPY_MESSAGE, code: 'GAME_COPY' });
+        }
+
+        // 3. Check and deduct points (500 pts)
         const Achievement = require('../models/Achievement');
         const POINT_COST = 500;
 
@@ -268,6 +285,11 @@ exports.teacherPublishProject = async (req, res) => {
             });
         }
 
+        const target = await HtmlProject.findById(req.params.id).select('code');
+        if (target && detectGameCopy(target.code)) {
+            return res.status(400).json({ success: false, message: COPY_MESSAGE, code: 'GAME_COPY' });
+        }
+
         const project = await HtmlProject.findByIdAndUpdate(
             req.params.id,
             {
@@ -343,13 +365,14 @@ exports.getPublishedProjects = async (req, res) => {
             .sort({ publishedAt: -1 })
             .skip((page - 1) * limit)
             .limit(parseInt(limit))
-            .select('name description thumbnail viewCount creator publishedAt isPublished code');
+            .select('name description thumbnail viewCount creator publishedAt isPublished code updatedAt');
 
         const total = await HtmlProject.countDocuments({ isPublished: true });
 
         res.json({
             success: true,
-            data: projects,
+            // 屏蔽从游戏中心复制的游戏（作品本身不删除，作者仍可在自己的列表里看到）
+            data: projects.filter(p => !isGameCopyCached(p)),
             pagination: {
                 page: parseInt(page),
                 limit: parseInt(limit),
@@ -389,6 +412,11 @@ exports.viewPublishedProject = async (req, res) => {
                 success: false,
                 message: '作品不存在或未发布'
             });
+        }
+
+        const isCreator = req.user && project.creator && String(project.creator._id) === String(req.user.id);
+        if (!isCreator && isGameCopyCached(project)) {
+            return res.status(403).json({ success: false, message: '这个作品包含游戏中心的游戏代码，已被屏蔽' });
         }
 
         res.json({
