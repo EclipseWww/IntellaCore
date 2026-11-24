@@ -18,6 +18,9 @@ const Question = require('../models/Question');
 const QuizAnalytics = require('../models/QuizAnalytics');
 const QuizSubmission = require('../models/QuizSubmission');
 const Setting = require('../models/Setting');
+const ScheduleSlot = require('../models/ScheduleSlot');
+const ScheduleAdjustment = require('../models/ScheduleAdjustment');
+const LessonSession = require('../models/LessonSession');
 const TypingRecord = require('../models/TypingRecord');
 const TypingText = require('../models/TypingText');
 const Achievement = require('../models/Achievement');
@@ -167,6 +170,9 @@ exports.exportBackup = async (req, res) => {
       { model: QuizAnalytics, fileName: 'quizAnalytics.json' },
       { model: QuizSubmission, fileName: 'quizSubmissions.json' },
       { model: Setting, fileName: 'settings.json' },
+      { model: ScheduleSlot, fileName: 'scheduleSlots.json' },
+      { model: ScheduleAdjustment, fileName: 'scheduleAdjustments.json' },
+      { model: LessonSession, fileName: 'lessonSessions.json' },
       { model: TypingRecord, fileName: 'typingRecords.json' },
       { model: TypingText, fileName: 'typingTexts.json' },
       { model: Achievement, fileName: 'achievements.json' },
@@ -417,6 +423,9 @@ exports.importBackup = async (req, res) => {
       { model: QuizAnalytics, fileName: 'quizAnalytics.json' },
       { model: QuizSubmission, fileName: 'quizSubmissions.json' },
       { model: Setting, fileName: 'settings.json' },
+      { model: ScheduleSlot, fileName: 'scheduleSlots.json' },
+      { model: ScheduleAdjustment, fileName: 'scheduleAdjustments.json' },
+      { model: LessonSession, fileName: 'lessonSessions.json' },
       { model: TypingRecord, fileName: 'typingRecords.json' },
       { model: TypingText, fileName: 'typingTexts.json' },
       { model: Achievement, fileName: 'achievements.json' },
@@ -765,6 +774,9 @@ exports.createBackup = async (req, res) => {
           { model: QuizAnalytics, fileName: 'quizAnalytics.json' },
           { model: QuizSubmission, fileName: 'quizSubmissions.json' },
           { model: Setting, fileName: 'settings.json' },
+          { model: ScheduleSlot, fileName: 'scheduleSlots.json' },
+          { model: ScheduleAdjustment, fileName: 'scheduleAdjustments.json' },
+          { model: LessonSession, fileName: 'lessonSessions.json' },
           { model: TypingRecord, fileName: 'typingRecords.json' },
           { model: TypingText, fileName: 'typingTexts.json' },
           { model: Achievement, fileName: 'achievements.json' },

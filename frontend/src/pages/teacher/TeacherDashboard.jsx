@@ -12,6 +12,7 @@ import TeacherHtmlGallery from './TeacherHtmlGallery';
 import DashboardWelcome from './components/DashboardWelcome';
 import UserManual from './components/UserManual';
 import ClassManagement from '../../components/Class/ClassManagement';
+import TeacherSchedule from '../../components/Schedule/TeacherSchedule';
 import ClassroomManagement from '../../components/Classroom/ClassroomManagement';
 import ClassroomLayoutManagement from '../../components/Classroom/ClassroomLayoutManagement';
 import TypingTextManagement from '../../components/Typing/TypingTextManagement';
@@ -27,6 +28,7 @@ import LearningStatsManagement from '../../components/Stats/LearningStatsManagem
 import PointShopManagement from './PointShopManagement';
 import {
   DesktopOutlined,
+  CalendarOutlined,
   EditOutlined,
   BookOutlined,
   TeamOutlined,
@@ -97,6 +99,11 @@ const TeacherDashboard = () => {
       key: 'classroom',
       icon: <DesktopOutlined />,
       label: '上课',
+    },
+    {
+      key: 'schedule',
+      icon: <CalendarOutlined />,
+      label: '课表',
     },
     {
       key: 'course',
@@ -247,6 +254,8 @@ const TeacherDashboard = () => {
     switch (selectedKey) {
       case 'classroom':
         return <ClassroomManagement />;
+      case 'schedule':
+        return <TeacherSchedule />;
       case 'classroom-layout':
         return <ClassroomLayoutManagement />;
       case 'course':

@@ -271,6 +271,7 @@ async function cleanupOldBackups() {
 function initAllSchedulers() {
   startClassScheduler();
   startBackupScheduler();
+  require('./scheduleService').startScheduleTicker();
   logger.info('所有定时任务已初始化');
 }
 

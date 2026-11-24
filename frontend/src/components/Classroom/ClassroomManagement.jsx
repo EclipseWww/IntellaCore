@@ -1870,6 +1870,8 @@ const ClassroomManagement = () => {
             onClick={async () => {
               const newStatus = !settings.isInClass;
               await updateClassSettings('isInClass', newStatus);
+              // 上课时课表可能自动切换了课时，刷新显示
+              if (newStatus) fetchClassSettings();
             }}
           >
             {settings.isInClass ? '下课' : '上课'}

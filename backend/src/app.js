@@ -53,6 +53,7 @@ const pythonRoutes = require('./routes/pythonRoutes');
 const assignmentTreeRoutes = require('./routes/assignmentTreeRoutes');
 const examRoutes = require('./routes/examRoutes');
 const loginRequestRoutes = require('./routes/loginRequestRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
 
 const app = express();
 
@@ -146,6 +147,7 @@ app.use('/api/fillblank', fillBlankRoutes);
 app.use('/api/python', pythonRoutes);
 app.use('/api/teacher', assignmentTreeRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/schedule', scheduleRoutes);
 app.use('/api/quiz/free-practice', require('./routes/freePracticeRoutes'));
 
 // 错误处理中间件

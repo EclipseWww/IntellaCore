@@ -5,6 +5,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import api, { backupAPI, assignmentFilesAPI, courseManagementAPI, classAPI, getSystemStats, getSettings, updateSetting } from '../../services/api';
 import { archiveGrade as archiveGradeAPI, restoreClass as restoreClassAPI, getArchivedClasses, deleteArchivedClassFiles } from '../../services/classService';
 import moment from 'moment';
+import ScheduleSettings from '../../components/Schedule/ScheduleSettings';
 
 const { Header, Content } = Layout;
 const { Option } = Select;
@@ -1614,6 +1615,10 @@ const AdminDashboard = () => {
                   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', render: (date) => new Date(date).toLocaleString() }
                 ]}
               />
+            </TabPane>
+
+            <TabPane tab="课表设置" key="schedule">
+              <ScheduleSettings />
             </TabPane>
 
             <TabPane tab="系统管理" key="system">

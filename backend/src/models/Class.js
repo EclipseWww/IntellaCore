@@ -119,6 +119,8 @@ const classSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // 教师最近一次手动选择课时的时间（课表据此判断手动上课时是否沿用教师所选课时）
+  lessonSelectedAt: { type: Date, default: null },
   // 班级归档相关字段（用于毕业/升年级处理）
   status: {
     type: String,

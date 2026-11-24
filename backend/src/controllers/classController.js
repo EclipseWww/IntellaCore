@@ -1072,9 +1072,27 @@ exports.updateClassSettings = async (req, res) => {
       { new: true }
     );
 
+    // 与课表联动：手动上课 -> 绑定到对应课节（提前上课也算同一节）；手动下课 -> 结束课节；切换课时 -> 同步课节进度
+    let responseClass = updatedClass;
+    try {
+      const scheduleService = require('../services/scheduleService');
+      if (currentLesson) {
+        await Class.updateOne({ _id: classId }, { $set: { lessonSelectedAt: new Date() } });
+        await scheduleService.onManualLessonChange({ classId, lessonId: currentLesson });
+      }
+      if (isInClass === true && !classObj.isInClass) {
+        await scheduleService.onManualStart({ classId, teacherId: req.user._id });
+      } else if (isInClass === false) {
+        await scheduleService.onManualStop({ classId });
+      }
+      if (isInClass !== undefined) responseClass = await Class.findById(classId);
+    } catch (e) {
+      logger.warn('同步课表课节状态失败', { classId, error: e.message });
+    }
+
     res.status(200).json({
       success: true,
-      data: updatedClass
+      data: responseClass
     });
   } catch (error) {
     logger.error('更新班级设置出错', { error: error.message });
