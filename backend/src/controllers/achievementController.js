@@ -3,6 +3,9 @@ const Achievement = require('../models/Achievement');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 
+// 子文档单独序列化时不会经过 Achievement 的 toJSON，这里显式保留两位小数
+const roundTransaction = transaction => ({ ...transaction.toObject(), amount: roundPoints(transaction.amount) });
+
 // 获取学生的所有成就
 exports.getStudentAchievements = async (req, res) => {
   try {
@@ -148,7 +151,8 @@ exports.getPointTransactions = async (req, res) => {
     // 从子文档中分页获取交易记录
     const totalCount = achievement.pointTransactions.length;
     const transactions = achievement.pointTransactions
-      .slice(parseInt(skip), parseInt(skip) + parseInt(limit));
+      .slice(parseInt(skip), parseInt(skip) + parseInt(limit))
+      .map(roundTransaction);
     
     res.status(200).json({
       success: true,
@@ -393,7 +397,8 @@ exports.getStudentPointTransactions = async (req, res) => {
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
     const transactions = sortedTransactions
-      .slice(parseInt(skip), parseInt(skip) + parseInt(limit));
+      .slice(parseInt(skip), parseInt(skip) + parseInt(limit))
+      .map(roundTransaction);
     
     // 提取学生基本信息
     const student = {

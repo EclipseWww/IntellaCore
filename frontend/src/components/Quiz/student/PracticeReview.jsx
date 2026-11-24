@@ -3,6 +3,7 @@ import { Card, Button, Typography, Tag, Divider, Space, Spin, message, Descripti
 import { CheckCircleOutlined, CloseCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { quizAPI } from '../../../services/quizAPI';
 import ReactMarkdown from 'react-markdown';
+import { formatPoints } from '../../../utils/points';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -54,7 +55,7 @@ const PracticeReview = ({ sessionId, onBack }) => {
                         <Text type="success" strong>{sessionInfo.score}</Text> / {sessionInfo.total}
                     </Descriptions.Item>
                     <Descriptions.Item label="获得积分">
-                        <Text type="warning" strong>+{sessionInfo.points}</Text>
+                        <Text type="warning" strong>+{formatPoints(sessionInfo.points)}</Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="开始时间">
                         {new Date(sessionInfo.startTime).toLocaleString()}

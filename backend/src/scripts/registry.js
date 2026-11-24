@@ -37,5 +37,13 @@ module.exports = [
         file: 'fixNegativeDurations.js',
         dangerous: true,
         requiresConfirmation: true
+    },
+    {
+        id: 'round-legacy-points',
+        name: '修正积分小数尾数',
+        description: '将历史遗留的积分余额与积分明细中超过两位小数的数值（如 7.000000000000001）修正为两位小数。可重复执行，已正常的记录不受影响。',
+        file: 'roundLegacyPoints.js',
+        dangerous: true,
+        requiresConfirmation: true
     }
 ];

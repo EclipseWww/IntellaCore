@@ -6,6 +6,7 @@ import { quizAPI } from '../../../services/quizAPI';
 import QuizQuestion from './QuizQuestion';
 import { useNavigate } from 'react-router-dom';
 import './FreePractice.css';
+import { formatPoints } from '../../../utils/points';
 
 const { Title, Text } = Typography;
 
@@ -202,7 +203,7 @@ const FreePractice = () => {
                             <Progress
                                 type="circle"
                                 percent={percentage}
-                                format={() => <span className="points-earned">+{result.pointsEarned}积分</span>}
+                                format={() => <span className="points-earned">+{formatPoints(result.pointsEarned)}积分</span>}
                                 width={160}
                                 strokeColor="#faad14"
                             />

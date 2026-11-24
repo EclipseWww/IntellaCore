@@ -21,6 +21,7 @@ import { getPointBalance, getPointTransactions } from '../../services/achievemen
 import { TeamOutlined, TrophyOutlined, CalendarOutlined, ShoppingOutlined, HistoryOutlined, WalletOutlined } from '@ant-design/icons';
 import CrowdfundingListView from '../../components/Crowdfunding/CrowdfundingListView';
 import CrowdfundingDetailView from '../../components/Crowdfunding/CrowdfundingDetailView';
+import { formatPoints } from '../../utils/points';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -529,7 +530,7 @@ const PointShop = () => {
       try {
           const userData = JSON.parse(localStorage.getItem('user') || '{}');
           if (userData.totalPoints) {
-            setUserPoints(userData.totalPoints);
+            setUserPoints(formatPoints(userData.totalPoints));
         }
       } catch (e) {
         console.error('解析本地用户数据失败:', e);
@@ -677,7 +678,7 @@ const PointShop = () => {
       
       if (response.success) {
         // 更新积分
-        setUserPoints(prev => prev - item.pointCost);
+        setUserPoints(prev => formatPoints(prev - item.pointCost));
         
         // 更新商品库存
         setItems(prev => 
@@ -1035,7 +1036,7 @@ const PointShop = () => {
                 key: 'amount',
                 render: (amount) => (
                   <span style={{ color: amount > 0 ? '#52c41a' : '#f5222d' }}>
-                    {amount > 0 ? `+${amount}` : amount}
+                    {amount > 0 ? `+${formatPoints(amount)}` : formatPoints(amount)}
                   </span>
                 )
               },
@@ -1088,7 +1089,7 @@ const PointShop = () => {
           border: '1px solid #91d5ff'
         }}>
           <Text style={{ fontSize: 16 }}>
-            当前积分: <Text style={{ color: '#1890ff', fontWeight: 'bold', fontSize: 18 }}>{userPoints}</Text>
+            当前积分: <Text style={{ color: '#1890ff', fontWeight: 'bold', fontSize: 18 }}>{formatPoints(userPoints)}</Text>
           </Text>
                         </div>
       </div>
@@ -1125,7 +1126,7 @@ const PointShop = () => {
           <div>
             <p>您确定要兑换 <Text strong>{confirmDialog.item.name}</Text> 吗？</p>
             <p>这将消耗您 <Text style={{ color: '#1890ff' }}>{confirmDialog.item.pointCost}</Text> 积分。</p>
-            <p>您当前有 <Text style={{ color: '#1890ff' }}>{userPoints}</Text> 积分。</p>
+            <p>您当前有 <Text style={{ color: '#1890ff' }}>{formatPoints(userPoints)}</Text> 积分。</p>
           </div>
         )}
       </Modal>

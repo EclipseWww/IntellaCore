@@ -4,6 +4,7 @@ import { quizAPI } from '../../../services/quizAPI';
 
 import PracticeReview from './PracticeReview';
 import { EyeOutlined } from '@ant-design/icons';
+import { formatPoints } from '../../../utils/points';
 
 const { Text } = Typography;
 
@@ -69,7 +70,7 @@ const PracticeHistory = () => {
             title: '获得积分',
             dataIndex: 'pointsEarned',
             key: 'pointsEarned',
-            render: (points) => <Tag color="gold">+{points} 积分</Tag>
+            render: (points) => <Tag color="gold">+{formatPoints(points)} 积分</Tag>
         },
         {
             title: '用时',

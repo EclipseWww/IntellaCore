@@ -1,4 +1,5 @@
 import api from './api';
+import { formatPoints } from '../utils/points';
 
 // 积分事件发布-订阅系统
 const pointsEventListeners = [];
@@ -8,7 +9,7 @@ const pointsEventListeners = [];
  * @param {number} newPoints - 新的积分总额
  */
 export const notifyPointsChange = (newPoints) => {
-  pointsEventListeners.forEach(listener => listener(newPoints));
+  pointsEventListeners.forEach(listener => listener(formatPoints(newPoints)));
 };
 
 /**
@@ -35,7 +36,7 @@ export const subscribeToPointsChange = (listener) => {
 export const getPointBalance = async () => {
   try {
     const response = await api.get('/achievements/points/balance');
-    return response.data;
+    return { ...response.data, totalPoints: formatPoints(response.data?.totalPoints) };
   } catch (error) {
     console.error('获取积分余额失败:', error);
     throw error;

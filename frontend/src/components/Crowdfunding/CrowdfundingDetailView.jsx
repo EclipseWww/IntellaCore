@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Typography, Progress, Button, Spin, Tag, Row, Col, Modal, Input, List, Avatar, message as messageApi, Divider, Alert, Table } from 'antd';
 import { getCrowdfundingDetail, contributeToCrowdfunding } from '../../services/crowdfundingService';
 import { UserOutlined, TrophyOutlined, CalendarOutlined, TeamOutlined } from '@ant-design/icons';
+import { formatPoints } from '../../utils/points';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -356,7 +357,7 @@ const CrowdfundingDetailView = ({ crowdfundingId, onBack }) => {
                 <Row gutter={[16, 8]}>
                   <Col span={12}>
                     <Text type="secondary">贡献积分</Text>
-                    <div><Text strong>{userParticipation.totalPoints || 0}</Text> 分</div>
+                    <div><Text strong>{formatPoints(userParticipation.totalPoints)}</Text> 分</div>
                   </Col>
                   <Col span={12}>
                     <Text type="secondary">参与次数</Text>
@@ -441,7 +442,7 @@ const CrowdfundingDetailView = ({ crowdfundingId, onBack }) => {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{item.name}</div>
                           <div style={{ display: 'flex', alignItems: 'center', marginTop: '4px' }}>
-                            <Tag color="#108ee9">总贡献: {item.totalPoints} 积分</Tag>
+                            <Tag color="#108ee9">总贡献: {formatPoints(item.totalPoints)} 积分</Tag>
                             <Tag color="#87d068">参与 {item.contributionCount} 次</Tag>
                           </div>
                         </div>
@@ -461,7 +462,7 @@ const CrowdfundingDetailView = ({ crowdfundingId, onBack }) => {
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ color: '#1890ff', fontWeight: 'bold' }}>
-                              +{item.latestPoints} 积分
+                              +{formatPoints(item.latestPoints)} 积分
                             </div>
                             {item.latestMessage && (
                               <div style={{ 

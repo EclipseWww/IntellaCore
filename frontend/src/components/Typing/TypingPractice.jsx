@@ -4,6 +4,7 @@ import { ReloadOutlined, TrophyOutlined, CheckCircleOutlined, RocketOutlined, Or
 import TypingLeaderboard from './TypingLeaderboard';
 import { typingAPI } from '../../services/api';
 import { refreshPointBalance } from '../../services/achievementService';
+import { formatPoints } from '../../utils/points';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -464,7 +465,7 @@ const TypingPractice = ({
 
                 // 添加积分信息
                 if (response.pointsEarned > 0) {
-                  notificationDescription += `，获得积分：${response.pointsEarned}`;
+                  notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
                 }
 
                 let notificationIcon = <TrophyOutlined style={{ color: '#ffc53d' }} />;
@@ -478,7 +479,7 @@ const TypingPractice = ({
 
                     // 添加积分信息
                     if (response.pointsEarned > 0) {
-                      notificationDescription += `，获得积分：${response.pointsEarned}`;
+                      notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
                     }
 
                     notificationIcon = <RocketOutlined style={{ color: '#1890ff' }} />;
@@ -490,7 +491,7 @@ const TypingPractice = ({
 
                   // 添加积分信息
                   if (response.pointsEarned > 0) {
-                    notificationDescription += `，获得积分：${response.pointsEarned}`;
+                    notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
                   }
 
                   notificationIcon = <TrophyOutlined style={{ color: '#ffc53d' }} />;
@@ -625,7 +626,7 @@ const TypingPractice = ({
           let notificationDescription = `速度：${response.speed}字/分钟，准确率：${response.accuracy}%`;
 
           if (response.pointsEarned > 0) {
-            notificationDescription += `，获得积分：${response.pointsEarned}`;
+            notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
           }
 
           let notificationIcon = <TrophyOutlined style={{ color: '#ffc53d' }} />;
@@ -637,7 +638,7 @@ const TypingPractice = ({
               notificationDescription = `速度：${response.speed}字/分钟 (+${improvement.toFixed(1)})`;
 
               if (response.pointsEarned > 0) {
-                notificationDescription += `，获得积分：${response.pointsEarned}`;
+                notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
               }
 
               notificationIcon = <RocketOutlined style={{ color: '#1890ff' }} />;
@@ -647,7 +648,7 @@ const TypingPractice = ({
             notificationDescription = `速度：${response.speed}字/分钟，远超目标！`;
 
             if (response.pointsEarned > 0) {
-              notificationDescription += `，获得积分：${response.pointsEarned}`;
+              notificationDescription += `，获得积分：${formatPoints(response.pointsEarned)}`;
             }
 
             notificationIcon = <TrophyOutlined style={{ color: '#ffc53d' }} />;
@@ -980,7 +981,7 @@ const TypingPractice = ({
                 <Text style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
                   {completionResult.isPassed ? '已提交，练习达标！' : '已提交，继续加油！'}
                   {' '}速度 {completionResult.speed} 字/分钟，准确率 {completionResult.accuracy}%
-                  {completionResult.pointsEarned > 0 && `，+${completionResult.pointsEarned} 积分`}
+                  {completionResult.pointsEarned > 0 && `，+${formatPoints(completionResult.pointsEarned)} 积分`}
                 </Text>
                 <Button
                   size="small"

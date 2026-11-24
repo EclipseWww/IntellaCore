@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Badge, Tooltip, Spin } from 'antd';
 import { GiftOutlined } from '@ant-design/icons';
 import { getPointBalance, subscribeToPointsChange } from '../../services/achievementService';
+import { formatPoints } from '../../utils/points';
 
 const { Text } = Typography;
 
@@ -38,9 +39,9 @@ const PointsDisplay = ({ size = 'default', showIcon = true, onPointsChange = nul
         // 尝试从本地存储获取
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         if (userData.totalPoints) {
-          setPoints(userData.totalPoints);
+          setPoints(formatPoints(userData.totalPoints));
           if (onPointsChange) {
-            onPointsChange(userData.totalPoints);
+            onPointsChange(formatPoints(userData.totalPoints));
           }
         } else {
           setPoints(0);
@@ -93,7 +94,7 @@ const PointsDisplay = ({ size = 'default', showIcon = true, onPointsChange = nul
         <GiftOutlined style={{ marginRight: 6, color: '#1890ff' }} />
       )}
       <Badge
-        count={Number.isFinite(Number(points)) ? Math.trunc(Number(Number(points).toFixed(2))) : 0}
+        count={Math.trunc(formatPoints(points))}
         showZero
         color="#1890ff"
         overflowCount={99999}
