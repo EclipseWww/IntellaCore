@@ -110,6 +110,9 @@ const bodyLimit = process.env.JSON_BODY_LIMIT || '100mb';
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
+// 拒绝网址参数中的 MongoDB 操作符（如 ?a[$ne]=x）
+app.use(require('./middleware/rejectQueryOperators'));
+
 // 5xx 响应默认不返回 error/stack 等内部细节
 app.use(require('./middleware/hideServerErrorDetails'));
 
