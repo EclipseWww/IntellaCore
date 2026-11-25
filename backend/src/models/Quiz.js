@@ -68,6 +68,10 @@ quizSchema.virtual('totalPoints').get(function () {
 quizSchema.set('toJSON', { virtuals: true });
 quizSchema.set('toObject', { virtuals: true });
 
+// 教师测验列表（按创建时间倒序）与按题目反查所在测验
+quizSchema.index({ createdBy: 1, createdAt: -1 });
+quizSchema.index({ 'questions.questionId': 1 });
+
 const Quiz = mongoose.model('Quiz', quizSchema);
 
 module.exports = Quiz; 

@@ -58,6 +58,9 @@ const courseUnitSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// 按课程取单元并按顺序排列
+courseUnitSchema.index({ course: 1, order: 1 });
+
 const CourseUnit = mongoose.model('CourseUnit', courseUnitSchema);
 
 module.exports = CourseUnit;

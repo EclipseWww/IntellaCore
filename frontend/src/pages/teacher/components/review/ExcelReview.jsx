@@ -5,7 +5,7 @@ import { Card, Space, Tag, Button, Empty, message, Row, Col, Radio, Input, Spin,
 import { selectOfficeBatchSubmissions } from './officeBatchSelection';
 import { getAutoGrade } from '../../../../utils/submissionGrading';
 import { SaveOutlined, LeftOutlined, RightOutlined, DownloadOutlined, SortAscendingOutlined } from '@ant-design/icons';
-import SpreadsheetEditor from '../../../../components/Spreadsheet/SpreadsheetEditor';
+import SpreadsheetEditor from '../../../../components/Spreadsheet/LazySpreadsheetEditor';
 import { reviewAPI } from '../../../../services/reviewAPI';
 import { courseManagementAPI } from '../../../../services/api';
 

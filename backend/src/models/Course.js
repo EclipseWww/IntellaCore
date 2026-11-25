@@ -100,6 +100,10 @@ const courseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// 教师“我的课程”（按创建时间排序）与学生按班级查可访问课程
+courseSchema.index({ instructor: 1, createdAt: 1 });
+courseSchema.index({ accessibleClasses: 1 });
+
 const Course = mongoose.model('Course', courseSchema);
 
 module.exports = Course;

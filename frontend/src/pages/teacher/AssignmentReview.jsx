@@ -32,7 +32,7 @@ import { courseManagementAPI, API_BASE_URL, flowchartAPI, spreadsheetActivityAPI
 import htmlProjectAPI from '../../services/htmlProjectAPI';
 import { pythonAPI } from '../../services/pythonAPI';
 import MxGraphEditor from '../../components/mxgraph/MxGraphEditor';
-import SpreadsheetEditor from '../../components/Spreadsheet/SpreadsheetEditor';
+import SpreadsheetEditor from '../../components/Spreadsheet/LazySpreadsheetEditor';
 import FillBlankReview from './components/review/FillBlankReview';
 import FlowchartReview from './components/review/FlowchartReview';
 import HtmlReview from './components/review/HtmlReview';

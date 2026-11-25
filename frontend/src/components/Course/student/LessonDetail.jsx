@@ -40,7 +40,7 @@ import AutoGradeFeedback from './AutoGradeFeedback';
 import { isManualGrade, getAutoGrade } from '../../../utils/submissionGrading';
 import TypingPractice from '../../Typing/TypingPractice';
 import MxGraphEditor from '../../mxgraph/MxGraphEditor';
-import SpreadsheetEditor from '../../Spreadsheet/SpreadsheetEditor';
+import SpreadsheetEditor from '../../Spreadsheet/LazySpreadsheetEditor';
 import 'react-quill/dist/quill.snow.css';
 import './LessonDetail.css';
 import CourseAIHelper from './CourseAIHelper';

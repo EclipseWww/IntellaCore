@@ -14,7 +14,7 @@ import {
     UndoOutlined,
     ReloadOutlined
 } from '@ant-design/icons';
-import CodeEditor from './CodeEditor';
+import CodeEditor from './LazyCodeEditor';
 import TurtleWindow from './TurtleWindow';
 import syntaxReferences from './syntaxReferences';
 import { pythonRunner } from './pythonRunner';
