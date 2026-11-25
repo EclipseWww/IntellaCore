@@ -62,6 +62,8 @@ const practiceSessionSchema = new mongoose.Schema({
     timestamps: true
 });
 
+practiceSessionSchema.index({ studentId: 1, status: 1 });
+
 const PracticeSession = mongoose.model('PracticeSession', practiceSessionSchema);
 
 module.exports = PracticeSession;

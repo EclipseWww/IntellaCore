@@ -14,6 +14,7 @@ const auth = require('./middleware/auth');
 const { startQuizPointsRecovery } = require('./services/quizPointsService');
 const { startCrowdfundingRecovery } = require('./services/crowdfundingOperationService');
 const { startShopRecovery } = require('./services/shopOperationService');
+const { createShutdown } = require('./services/gracefulShutdown');
 
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
@@ -242,17 +243,10 @@ const startServer = async () => {
       console.error('未处理的 Promise 拒绝:', reason);
     });
 
-    // 处理终止信号
-    process.on('SIGTERM', () => {
-      console.log('收到 SIGTERM 信号，正在优雅关闭...');
-      server.close(() => {
-        console.log('HTTP 服务器已关闭');
-        mongoose.connection.close(false, () => {
-          console.log('MongoDB 连接已关闭');
-          process.exit(0);
-        });
-      });
-    });
+    // 处理终止信号（docker stop / Ctrl+C）：优雅关闭，超时强制退出
+    const shutdown = createShutdown({ server, closeDatabase: () => mongoose.connection.close(false) });
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 
   } catch (err) {
     console.error('启动服务器失败:', err);

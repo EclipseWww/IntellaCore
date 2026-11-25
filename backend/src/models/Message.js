@@ -74,6 +74,10 @@ messageSchema.pre('save', function(next) {
   next();
 });
 
+// 学生对话列表与教师待审核列表的常用查询
+messageSchema.index({ student: 1, createdAt: -1 });
+messageSchema.index({ status: 1, createdAt: -1 });
+
 const Message = mongoose.model('Message', messageSchema);
 
 module.exports = Message;

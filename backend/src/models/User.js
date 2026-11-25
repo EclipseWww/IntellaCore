@@ -215,6 +215,9 @@ userSchema.methods.addLoginRecord = async function(ip, userAgent) {
 // 旧数据库中的 username_1 是唯一索引，重复声明会导致 User.init() 失败。
 userSchema.index({ role: 1 });
 
+// 按班级查学生（班级名单、统计、审核）非常频繁
+userSchema.index({ classId: 1, role: 1 });
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
