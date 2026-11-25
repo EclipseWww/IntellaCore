@@ -101,6 +101,15 @@ const authController = {
           return res.status(404).json({ message: '未找到指定的班级' });
         }
 
+        // 上课中：学生无需密码，直接登录；非上课时间：必须输入正确密码（先于 IP/设备冲突检查，避免未验证身份就泄露上次登录 IP）
+        if (!classObj.isInClass) {
+          const isMatch = typeof password === 'string' && password !== '' && await bcrypt.compare(password, user.password);
+          if (!isMatch) {
+            logger.warn('学生非上课时间登录密码不匹配:', username);
+            return res.status(401).json({ message: '用户名或密码错误' });
+          }
+        }
+
         const currentIp = getClientIp(req);
         logger.info('IP检查信息:', { allowIpChange: classObj.allowIpChange, currentIp });
 
@@ -176,31 +185,6 @@ const authController = {
             message: '您所在班级已完成本阶段学习，如有问题请联系教师',
             code: 'CLASS_ARCHIVED'
           });
-        }
-
-        if (!classObj.isInClass) {
-          logger.info('班级未上课，拒绝学生登录');
-          logger.warn('学生在非上课时间尝试登录被拒绝', {
-            username,
-            classId: userWithClass.classId,
-            attemptTime: new Date().toISOString()
-          });
-          // 临时措施：禁止学生在非上课时间登录系统，无论密码是否正确
-          return res.status(403).json({
-            message: '当前不在上课时间，暂不能登录',
-            code: 'CLASS_NOT_IN_SESSION',
-            isClassInSession: false
-          });
-
-          // 原密码验证逻辑（暂时注释）
-          /*
-          logger.info('班级未上课，验证学生密码');
-          const isMatch = await bcrypt.compare(password, user.password);
-          if (!isMatch) {
-            logger.warn('学生密码不匹配:', username);
-            return res.status(401).json({ message: '用户名或密码错误' });
-          }
-          */
         }
 
         const ip = getClientIp(req);
