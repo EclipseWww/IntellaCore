@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const auth = require('../middleware/auth');
 const emailController = require('../controllers/emailController');
+const { safeDownloadPath, isSafePathSegment } = require('../utils/safeDownloadPath');
 
 // 确保附件目录存在
 const attachmentDir = path.join(__dirname, '../../uploads/email-attachments');
@@ -67,12 +68,14 @@ router.put('/:id/star', auth, emailController.toggleStar);
 router.delete('/:id', auth, emailController.deleteEmail);
 
 // 附件下载
-router.get('/attachment/:filename', auth, (req, res) => {
-    const filePath = path.join(attachmentDir, req.params.filename);
-    if (fs.existsSync(filePath)) {
+// 文件名经 Express 解码后可能含 ../ 或 %2F 还原出的分隔符，必须限制在附件目录内
+router.get('/attachment/:filename', auth, async (req, res) => {
+    try {
+        if (!isSafePathSegment(req.params.filename)) return res.status(400).json({ message: '无效的文件名' });
+        const filePath = await safeDownloadPath(attachmentDir, req.params.filename);
         res.download(filePath);
-    } else {
-        res.status(404).json({ message: '附件不存在' });
+    } catch (error) {
+        res.status(error.status === 403 ? 403 : 404).json({ message: '附件不存在' });
     }
 });
 

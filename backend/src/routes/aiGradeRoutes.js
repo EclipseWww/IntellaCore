@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const aiGradeController = require('../controllers/aiGradeController');
 
 // 所有路由都需要认证
+const roleCheck = require('../middleware/roleCheck');
 router.use(auth);
 
 /**
@@ -46,6 +47,7 @@ router.use(auth);
  *       500:
  *         description: 服务器错误
  */
-router.post('/submissions/:submissionId/ai-grade', aiGradeController.requestGrade);
+// AI 评阅会改写成绩与积分并消耗 AI 额度，仅教师/管理员可发起
+router.post('/submissions/:submissionId/ai-grade', roleCheck(['teacher', 'admin']), aiGradeController.requestGrade);
 
 module.exports = router; 

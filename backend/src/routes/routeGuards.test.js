@@ -27,6 +27,9 @@ app.use('/api/course-units', require('./courseUnitRoutes'));
 app.use('/api/lessons', require('./lessonRoutes'));
 app.use('/api/media', require('./mediaRoutes'));
 app.use('/api', require('./resourceRoutes'));
+app.use('/api', require('./aiGradeRoutes'));
+app.use('/api/spreadsheet-submissions', require('./spreadsheetSubmission'));
+app.use('/api/email', require('./emailRoutes'));
 
 const ID = '665f1c2a9b1e8a0012345678';
 const writes = [
@@ -42,7 +45,9 @@ const writes = [
   ['PUT', `/api/course-units/lessons/${ID}`, 'teacher'],
   ['DELETE', `/api/course-units/lessons/${ID}`, 'teacher'],
   ['DELETE', `/api/media/courses/${ID}/units/${ID}/lessons/${ID}/media/a.png`, 'teacher'],
-  ['DELETE', `/api/courses/${ID}/units/${ID}/lessons/${ID}/resources/a.pdf`, 'teacher']
+  ['DELETE', `/api/courses/${ID}/units/${ID}/lessons/${ID}/resources/a.pdf`, 'teacher'],
+  ['POST', `/api/submissions/${ID}/ai-grade`, 'teacher'],
+  ['GET', `/api/spreadsheet-submissions/lesson/${ID}/activity/${ID}/all`, 'teacher']
 ];
 
 let base, server;
@@ -76,4 +81,7 @@ test('path params with traversal are rejected before touching the disk', async (
     `/api/courses/${ID}/units/${ID}/lessons/%2e%2e/resources/%2e%2e`,
     `/api/media/courses/${ID}/units/${ID}/lessons/${ID}/media/a%5C..%5Cb`
   ]) assert.equal(await sendRaw('DELETE', url, 'teacher'), 400, url);
+  // 邮件附件：任何登录用户都能访问，%2F 解码后的 ../ 不得读出附件目录外的文件
+  for (const url of ['/api/email/attachment/..%2F..%2F..%2Fpackage.json', '/api/email/attachment/%2e%2e'])
+    assert.equal(await sendRaw('GET', url, 'student'), 400, url);
 });

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
 const spreadsheetSubmissionController = require('../controllers/spreadsheetSubmissionController');
 
 router.use(auth);
@@ -12,6 +13,6 @@ router.get('/lesson/:lessonId/activity/:activityId', spreadsheetSubmissionContro
 router.put('/:id', spreadsheetSubmissionController.updateSubmission);
 
 // Teacher: Get all student submissions for an activity
-router.get('/lesson/:lessonId/activity/:activityId/all', spreadsheetSubmissionController.getActivitySubmissions);
+router.get('/lesson/:lessonId/activity/:activityId/all', roleCheck(['teacher', 'admin']), spreadsheetSubmissionController.getActivitySubmissions);
 
 module.exports = router;
