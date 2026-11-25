@@ -6,6 +6,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const scriptRegistry = require('../scripts/registry');
+const logger = require('../utils/logger');
 
 /**
  * 获取可用脚本列表
@@ -31,7 +32,7 @@ exports.listScripts = async (req, res) => {
             }))
         });
     } catch (error) {
-        console.error('获取脚本列表失败:', error);
+        logger.error('获取脚本列表失败:', error);
         res.status(500).json({
             success: false,
             message: '获取脚本列表失败',
@@ -134,7 +135,7 @@ exports.runScript = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('运行脚本失败:', error);
+        logger.error('运行脚本失败:', error);
         res.status(500).json({
             success: false,
             message: '运行脚本失败',

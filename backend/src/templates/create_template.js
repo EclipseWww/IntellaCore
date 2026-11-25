@@ -1,5 +1,6 @@
 const xlsx = require('xlsx');
 const path = require('path');
+const logger = require('../utils/logger');
 
 // 创建工作簿
 const workbook = xlsx.utils.book_new();
@@ -33,4 +34,4 @@ xlsx.utils.book_append_sheet(workbook, worksheet, '学生信息');
 const templatePath = path.join(__dirname, 'student_template.xlsx');
 xlsx.writeFile(workbook, templatePath);
 
-console.log('模板文件已创建：', templatePath); 
+logger.info('模板文件已创建：', templatePath); 

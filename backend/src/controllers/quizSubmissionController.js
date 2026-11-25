@@ -87,11 +87,11 @@ exports.submit = async (req, res) => {
             if (activitySettings.showAnswerAfterSubmit !== undefined) quizSettings.showAnswerAfterSubmit = activitySettings.showAnswerAfterSubmit;
             if (activitySettings.showScoreAfterSubmit !== undefined) quizSettings.showScoreAfterSubmit = activitySettings.showScoreAfterSubmit;
 
-            console.log('使用了活动层级的测验配置:', { lessonId, activityId, settings: quizSettings });
+            logger.info('使用了活动层级的测验配置:', { lessonId, activityId, settings: quizSettings });
           }
         }
       } catch (err) {
-        console.error('获取课时活动配置失败:', err);
+        logger.error('获取课时活动配置失败:', err);
         // 出错时继续使用默认配置或Quiz模型配置(如果还存在)
       }
     } else if (quiz.settings) {
@@ -113,7 +113,7 @@ exports.submit = async (req, res) => {
     const lastAttempt = await QuizSubmission.findOne({ quizId, studentId, status: { $in: ['IN_PROGRESS', 'SUBMITTED', 'DELETED'] }, ...(activityId ? { activityId } : {}) }).sort('-attemptNumber').select('attemptNumber');
     const nextAttempt = (lastAttempt?.attemptNumber || 0) + 1;
 
-    console.log('提交检查:', {
+    logger.info('提交检查:', {
       studentId,
       quizId,
       activityId: activityId || '无(按测验计数)',
@@ -124,7 +124,7 @@ exports.submit = async (req, res) => {
 
     // 如果不允许多次尝试，且已有提交记录，则返回错误
     if (!quizSettings.allowMultipleAttempts && submissionCount > 0) {
-      console.log('拒绝提交: 不允许多次尝试');
+      logger.info('拒绝提交: 不允许多次尝试');
       return res.status(400).json({
         success: false,
         message: '该测验不允许多次提交'
@@ -133,7 +133,7 @@ exports.submit = async (req, res) => {
 
     // 如果允许多次尝试，检查是否超过最大尝试次数
     if (quizSettings.allowMultipleAttempts && submissionCount >= quizSettings.maxAttempts) {
-      console.log('拒绝提交: 超过最大尝试次数', {
+      logger.info('拒绝提交: 超过最大尝试次数', {
         submissionCount,
         maxAttempts: quizSettings.maxAttempts
       });
@@ -153,7 +153,7 @@ exports.submit = async (req, res) => {
     }
 
     // 处理答案
-    console.log('开始处理答案:', {
+    logger.info('开始处理答案:', {
       receivedAnswers: answers,
       quizQuestions: quiz.questions.map(q => ({
         id: q.questionId._id,
@@ -162,13 +162,13 @@ exports.submit = async (req, res) => {
     });
 
     const processedAnswers = answers.map(answer => {
-      console.log('处理单个答案:', answer);
+      logger.info('处理单个答案:', answer);
 
       const question = quiz.questions.find(
         q => q.questionId._id.toString() === answer.questionId
       )?.questionId;
 
-      console.log('找到的题目:', {
+      logger.info('找到的题目:', {
         questionId: answer.questionId,
         foundQuestion: question ? {
           id: question._id,
@@ -178,7 +178,7 @@ exports.submit = async (req, res) => {
       });
 
       if (!question) {
-        console.log('未找到对应题目，跳过此答案');
+        logger.info('未找到对应题目，跳过此答案');
         return null;
       }
 
@@ -198,7 +198,7 @@ exports.submit = async (req, res) => {
         if (answer.matrixAnswers && typeof answer.matrixAnswers === 'object') {
           // 确保matrixAnswers是Map格式
           answerData.matrixAnswers = new Map(Object.entries(answer.matrixAnswers));
-          console.log('处理矩阵量表答案:', {
+          logger.info('处理矩阵量表答案:', {
             questionId: answer.questionId,
             originalMatrixAnswers: answer.matrixAnswers,
             convertedMatrixAnswers: answerData.matrixAnswers
@@ -206,14 +206,14 @@ exports.submit = async (req, res) => {
         } else if (answer.scaleValue != null) {
           // 单个量表：传入scaleValue（1-N）
           answerData.scaleValue = Number(answer.scaleValue);
-          console.log('处理单个量表答案:', {
+          logger.info('处理单个量表答案:', {
             questionId: answer.questionId,
             scaleValue: answerData.scaleValue
           });
         } else if (answer.selectedOption != null && typeof answer.selectedOption === 'object') {
           // 前端把矩阵答案放在selectedOption里的情况
           answerData.matrixAnswers = new Map(Object.entries(answer.selectedOption));
-          console.log('处理selectedOption中的矩阵答案:', {
+          logger.info('处理selectedOption中的矩阵答案:', {
             questionId: answer.questionId,
             originalSelectedOption: answer.selectedOption,
             convertedMatrixAnswers: answerData.matrixAnswers
@@ -224,13 +224,13 @@ exports.submit = async (req, res) => {
           if (!Number.isNaN(parsed)) {
             answerData.scaleValue = parsed + 1;
           }
-          console.log('处理兼容模式量表答案:', {
+          logger.info('处理兼容模式量表答案:', {
             questionId: answer.questionId,
             originalSelectedOption: answer.selectedOption,
             convertedScaleValue: answerData.scaleValue
           });
         } else {
-          console.warn('量表题目缺少答案数据:', {
+          logger.warn('量表题目缺少答案数据:', {
             questionId: answer.questionId,
             questionType: question.type,
             answerKeys: Object.keys(answer)
@@ -246,7 +246,7 @@ exports.submit = async (req, res) => {
       return answerData;
     }).filter(Boolean);
 
-    console.log('处理后的答案:', {
+    logger.info('处理后的答案:', {
       totalAnswers: processedAnswers.length,
       answers: processedAnswers
     });
@@ -404,7 +404,7 @@ exports.submit = async (req, res) => {
     });
   } catch (error) {
     logger.error('提交测验失败', { error: error.message, stack: error.stack });
-    console.error('提交测验失败:', error);
+    logger.error('提交测验失败:', error);
     res.status(error.status || (error.code === 11000 || error.name === 'VersionError' ? 409 : 500)).json({
       success: false,
       message: '提交测验失败',
@@ -469,7 +469,7 @@ exports.getSubmission = async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('获取课时活动配置失败(getSubmission):', err);
+        logger.error('获取课时活动配置失败(getSubmission):', err);
       }
     } else if (quiz.settings) {
       // 兼容旧逻辑
@@ -531,7 +531,7 @@ exports.getSubmission = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('获取答题记录失败:', error);
+    logger.error('获取答题记录失败:', error);
     res.status(500).json({
       success: false,
       message: '获取答题记录失败',
@@ -589,7 +589,7 @@ exports.getSubmissionsByQuiz = async (req, res) => {
     });
   } catch (error) {
     logger.error('获取测验提交记录失败', { error: error.message, stack: error.stack });
-    console.error('获取测验提交记录失败:', error);
+    logger.error('获取测验提交记录失败:', error);
     res.status(500).json({
       success: false,
       message: '获取测验提交记录失败',
@@ -895,7 +895,7 @@ exports.exportSubmissions = async (req, res) => {
       error: error.message,
       stack: error.stack
     });
-    console.error('导出测验提交记录失败:', error);
+    logger.error('导出测验提交记录失败:', error);
     res.status(500).json({
       success: false,
       message: '导出失败',
@@ -993,7 +993,7 @@ exports.start = async (req, res) => {
           }
         }
       } catch (err) {
-        console.error('获取课时活动配置失败:', err);
+        logger.error('获取课时活动配置失败:', err);
       }
     }
 

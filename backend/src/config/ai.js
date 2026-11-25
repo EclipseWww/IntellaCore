@@ -20,7 +20,7 @@ axiosInstance.interceptors.response.use(null, async (error) => {
   }
 
   config.retryCount += 1;
-  console.log(`Retrying request (${config.retryCount}/${config.maxRetries})...`);
+  logger.info(`Retrying request (${config.retryCount}/${config.maxRetries})...`);
 
   await new Promise(resolve => setTimeout(resolve, config.retryDelay));
   return axiosInstance(config);
@@ -105,7 +105,7 @@ async function generateAIResponse(prompt, onData) {
     const openai = await getOpenAIClient();
     const model = await getAIModel();
 
-    console.log('Creating chat completion with:', {
+    logger.info('Creating chat completion with:', {
       model,
       messagesCount: messages.length,
       firstMessageRole: messages[0]?.role,
@@ -144,7 +144,7 @@ async function generateAIResponse(prompt, onData) {
               onData(data.choices[0].delta.content);
             }
           } catch (error) {
-            console.error('Error parsing SSE data:', error);
+            logger.error('Error parsing SSE data:', error);
           }
         }
       }
@@ -155,7 +155,7 @@ async function generateAIResponse(prompt, onData) {
     const status = error?.response?.status;
     const data = error?.response?.data;
     const headers = error?.response?.headers;
-    console.error('Error in generateAIResponse:', {
+    logger.error('Error in generateAIResponse:', {
       message: error?.message,
       isAxiosError: isAxios,
       status,
@@ -173,7 +173,7 @@ async function generateCodeReview(codeContent, lessonInfo) {
   try {
     const openai = await getOpenAIClient();
     const model = await getAIModel();
-    console.log('Creating code review with model:', model);
+    logger.info('Creating code review with model:', model);
 
     const systemPrompt = `你是一个专门面向初中生的Python编程老师。你需要以鼓励和引导的方式对学生的代码进行分析和评分。评分时要严格考虑到学生的当前学习阶段，重点关注功能实现和对本节课学习目标相关概念的掌握。
 请严格按照以下JSON格式输出，所有字段都必须存在，不要输出任何其他内容。评分必须严格遵循以下规则：
@@ -276,8 +276,8 @@ ${codeContent}
 6. 极其重要：所有评分和建议必须严格基于本节课的学习目标和题目要求，不要提及或建议使用超出当前学习阶段的概念或技术。例如，如果本节课只教了print和变量，不要建议使用循环或函数`;
 
     // 输出完整的 prompt 日志
-    console.log('完整的 system prompt:', systemPrompt);
-    console.log('完整的 user prompt:', userPrompt);
+    logger.info('完整的 system prompt:', systemPrompt);
+    logger.info('完整的 user prompt:', userPrompt);
 
     const response = await openai.createChatCompletion({
       model,
@@ -295,7 +295,7 @@ ${codeContent}
     const isAxios = !!error?.isAxiosError;
     const status = error?.response?.status;
     const data = error?.response?.data;
-    console.error('Error in generateCodeReview:', {
+    logger.error('Error in generateCodeReview:', {
       message: error?.message,
       isAxiosError: isAxios,
       status,

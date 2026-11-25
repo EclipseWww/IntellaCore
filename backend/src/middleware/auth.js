@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 module.exports = async (req, res, next) => {
   try {
@@ -40,7 +41,8 @@ module.exports = async (req, res, next) => {
       req.user = decoded;
       next();
     } catch (jwtError) {
-      console.error('JWT验证错误:', jwtError);
+      // 令牌过期、在其他设备登录等属于正常情况：只记一行原因，不输出堆栈
+      logger.warn('令牌校验未通过', { reason: jwtError.message, path: req.originalUrl });
       if (isSSE) {
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
@@ -63,7 +65,8 @@ module.exports = async (req, res, next) => {
       }
     }
   } catch (error) {
-    console.error('认证错误:', error);
+    // 未携带令牌（如未登录时的请求）非常常见，仅在 LOG_LEVEL=debug 时记录
+    logger.debug('请求未携带令牌', { reason: error.message, path: req.originalUrl });
     
     // 检查是否是 SSE 请求
     const isSSE = req.headers.accept === 'text/event-stream' || 

@@ -5,12 +5,13 @@ const auth = require('../middleware/auth');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 
 // 确保上传目录存在
 const uploadDir = path.join(__dirname, '../../uploads/temp');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
-  console.log(`创建上传临时目录: ${uploadDir}`);
+  logger.info(`创建上传临时目录: ${uploadDir}`);
 }
 
 // 配置文件上传

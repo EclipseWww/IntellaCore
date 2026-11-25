@@ -2,6 +2,7 @@ const Course = require('../models/Course');
 const CourseUnit = require('../models/CourseUnit');
 const Lesson = require('../models/Lesson');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 // 检查用户是否为教师或管理员
 const checkTeacherRole = (req, res) => {
@@ -21,7 +22,7 @@ exports.createCourse = async (req, res) => {
     const error = checkTeacherRole(req, res);
     if (error) return;
 
-    console.log('Current user:', req.user);  // 添加日志
+    logger.info('Current user:', req.user);  // 添加日志
 
     // 处理课程访问控制
     const { isPublic, accessibleClasses, ...otherData } = req.body;
@@ -33,7 +34,7 @@ exports.createCourse = async (req, res) => {
       instructor: req.user.id  // 使用 id 而不是 _id
     };
 
-    console.log('Course data:', courseData);  // 添加日志
+    logger.info('Course data:', courseData);  // 添加日志
 
     const course = await Course.create(courseData);
     res.status(201).json({
@@ -41,7 +42,7 @@ exports.createCourse = async (req, res) => {
       data: course
     });
   } catch (error) {
-    console.error('Error in createCourse:', error);  // 添加错误日志
+    logger.error('Error in createCourse:', error);  // 添加错误日志
     res.status(400).json({
       success: false,
       message: error.message
@@ -94,7 +95,7 @@ exports.updateCourse = async (req, res) => {
       data: updatedCourse
     });
   } catch (error) {
-    console.error('Error in updateCourse:', error);  // 添加错误日志
+    logger.error('Error in updateCourse:', error);  // 添加错误日志
     res.status(400).json({
       success: false,
       message: error.message
@@ -109,7 +110,7 @@ exports.getTeacherCourses = async (req, res) => {
     const error = checkTeacherRole(req, res);
     if (error) return;
 
-    console.log('Current user:', req.user);
+    logger.info('Current user:', req.user);
 
     // 管理员可以看到所有课程，教师只能看到自己的课程
     const query = req.user.role === 'admin' ? {} : { instructor: req.user.id };
@@ -131,7 +132,7 @@ exports.getTeacherCourses = async (req, res) => {
       return courseObj;
     });
 
-    console.log('Query result:', processedCourses);
+    logger.info('Query result:', processedCourses);
 
     res.status(200).json({
       success: true,
@@ -153,7 +154,7 @@ exports.getCourseDetails = async (req, res) => {
     const error = checkTeacherRole(req, res);
     if (error) return;
 
-    console.log('Current user:', req.user);  // 添加日志
+    logger.info('Current user:', req.user);  // 添加日志
     
     const course = await Course.findById(req.params.id);
     
@@ -164,8 +165,8 @@ exports.getCourseDetails = async (req, res) => {
       });
     }
 
-    console.log('Course instructor:', course.instructor);  // 添加日志
-    console.log('Current user id:', req.user.id);  // 添加日志
+    logger.info('Course instructor:', course.instructor);  // 添加日志
+    logger.info('Current user id:', req.user.id);  // 添加日志
 
     // 检查是否为课程的教师或管理员
     if (req.user.role !== 'admin' && course.instructor.toString() !== req.user.id) {
@@ -193,7 +194,7 @@ exports.getCourseDetails = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error in getCourseDetails:', error);  // 添加错误日志
+    logger.error('Error in getCourseDetails:', error);  // 添加错误日志
     res.status(400).json({
       success: false,
       message: error.message
@@ -232,7 +233,7 @@ exports.deleteCourse = async (req, res) => {
 
     res.json({ message: '课程删除成功' });
   } catch (error) {
-    console.error('删除课程失败:', error);
+    logger.error('删除课程失败:', error);
     res.status(500).json({ message: '删除课程失败', error: error.message });
   }
 };

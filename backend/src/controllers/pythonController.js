@@ -3,6 +3,7 @@ const PythonSubmission = require('../models/PythonSubmission');
 const Lesson = require('../models/Lesson');
 const PointsManager = require('../utils/pointsManager');
 const pythonJudge = require('../services/pythonJudge');
+const logger = require('../utils/logger');
 
 /**
  * Python编程活动控制器
@@ -53,7 +54,7 @@ async function syncPoints(submission, newPoints, description) {
         await PythonSubmission.updateOne({ _id: submission._id }, { $set: { awardedPoints: newPoints } });
         submission.awardedPoints = newPoints;
     } catch (error) {
-        console.error('Python作业积分更新失败:', error);
+        logger.error('Python作业积分更新失败:', error);
     }
 }
 
@@ -110,7 +111,7 @@ exports.getSubmission = async (req, res) => {
 
         res.json({ success: true, data: toStudentView(submission) });
     } catch (error) {
-        console.error('获取Python提交记录失败:', error);
+        logger.error('获取Python提交记录失败:', error);
         res.status(500).json({ success: false, message: '获取提交记录失败' });
     }
 };
@@ -141,7 +142,7 @@ exports.saveDraft = async (req, res) => {
             message: existing?.status === 'submitted' ? '修改已保存（尚未提交）' : '草稿已保存'
         });
     } catch (error) {
-        console.error('保存Python草稿失败:', error);
+        logger.error('保存Python草稿失败:', error);
         res.status(500).json({ success: false, message: '保存草稿失败' });
     }
 };
@@ -153,7 +154,7 @@ async function runJudge(activity, code) {
         return { judged: await pythonJudge.judge(code, testCases), judgeError: null };
     } catch (error) {
         if (error instanceof pythonJudge.JudgeBusyError) return { busy: true, judgeError: error.message };
-        console.error('Python判题失败:', error);
+        logger.error('Python判题失败:', error);
         return { judged: null, judgeError: '服务器判题暂时不可用，已提交等待教师评分' };
     }
 }
@@ -238,7 +239,7 @@ exports.submit = async (req, res) => {
 
         res.json({ success: true, data: toStudentView(submission), message: autoMessage });
     } catch (error) {
-        console.error('提交Python代码失败:', error);
+        logger.error('提交Python代码失败:', error);
         res.status(500).json({ success: false, message: '提交代码失败' });
     } finally {
         judgingUsers.delete(userId);
@@ -268,7 +269,7 @@ exports.withdraw = async (req, res) => {
 
         res.json({ success: true, data: toStudentView(submission), message: '已撤回提交' });
     } catch (error) {
-        console.error('撤回Python提交失败:', error);
+        logger.error('撤回Python提交失败:', error);
         res.status(500).json({ success: false, message: '撤回提交失败' });
     }
 };
@@ -280,7 +281,7 @@ exports.getMyAttempts = async (req, res) => {
         const submission = await PythonSubmission.findOne({ lessonId, activityId, studentId: userIdOf(req) }).select('attempts');
         res.json({ success: true, data: (submission?.attempts || []).slice().reverse() });
     } catch (error) {
-        console.error('获取Python提交历史失败:', error);
+        logger.error('获取Python提交历史失败:', error);
         res.status(500).json({ success: false, message: '获取提交历史失败' });
     }
 };
@@ -316,7 +317,7 @@ exports.getActivitySubmissions = async (req, res) => {
 
         res.json({ success: true, data: submissions });
     } catch (error) {
-        console.error('获取Python提交列表失败:', error);
+        logger.error('获取Python提交列表失败:', error);
         res.status(500).json({ success: false, message: '获取提交列表失败' });
     }
 };
@@ -330,7 +331,7 @@ exports.getSubmissionAttempts = async (req, res) => {
         if (!submission) return fail(res, 404, '提交记录不存在');
         res.json({ success: true, data: submission.attempts.slice().reverse() });
     } catch (error) {
-        console.error('获取Python提交历史失败:', error);
+        logger.error('获取Python提交历史失败:', error);
         res.status(500).json({ success: false, message: '获取提交历史失败' });
     }
 };
@@ -375,7 +376,7 @@ exports.gradeSubmission = async (req, res) => {
         const populated = await PythonSubmission.findById(submissionId).select('-attempts.code').populate('studentId', 'name studentId');
         res.json({ success: true, data: populated, message: score === null ? '评分已清除' : '评分成功' });
     } catch (error) {
-        console.error('Python评分失败:', error);
+        logger.error('Python评分失败:', error);
         res.status(500).json({ success: false, message: '评分失败' });
     }
 };
@@ -391,7 +392,7 @@ exports.deleteSubmission = async (req, res) => {
 
         res.json({ success: true, message: '删除成功' });
     } catch (error) {
-        console.error('删除Python提交记录失败:', error);
+        logger.error('删除Python提交记录失败:', error);
         res.status(500).json({ success: false, message: '删除失败' });
     }
 };

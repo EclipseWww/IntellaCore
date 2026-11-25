@@ -119,7 +119,7 @@ const fetchAllSubmissions = async (studentIds, lessonIds) => {
         });
 
     } catch (e) {
-        console.error("Bulk fetch error", e);
+        logger.error("Bulk fetch error", e);
     }
 
     return submissionMap;
@@ -239,7 +239,7 @@ const calculateResultsInternal = async (configId) => {
                 dailyScoreMap[s.studentId.toString()] = s;
             });
         } catch (e) {
-            console.error("Error fetching bulk daily scores", e);
+            logger.error("Error fetching bulk daily scores", e);
         }
     }
 
@@ -361,7 +361,7 @@ const getStudentDailyScoreInternal = async (studentId, semester) => {
 
         return 0;
     } catch (err) {
-        console.error("Internal Daily Score fetch error", err);
+        logger.error("Internal Daily Score fetch error", err);
         return 0;
     }
 };

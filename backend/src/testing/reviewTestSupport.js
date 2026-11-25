@@ -1,6 +1,9 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
+// 与下方静音 console 一致：未单独提供时给日志模块一个静音替身
+const silentLogger = { debug() {}, info() {}, warn() {}, error() {} };
 function load(file, mocks) {
+  mocks = { '../utils/logger': silentLogger, ...mocks };
   const context = { __dirname: require('node:path').dirname(file), module: { exports: {} }, exports: {}, require: name => {
     if (!(name in mocks)) throw new Error('Unexpected dependency: ' + name);
     return mocks[name];

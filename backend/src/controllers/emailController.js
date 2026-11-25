@@ -7,6 +7,7 @@ const Contact = require('../models/Contact');
 const EmailTemplate = require('../models/EmailTemplate');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 
 // 邮件系统开关设置键
 const EMAIL_SYSTEM_KEY = 'emailSystemEnabled';
@@ -57,7 +58,7 @@ exports.getSystemStatus = async (req, res) => {
             domain: EmailAccount.EMAIL_DOMAIN
         });
     } catch (error) {
-        console.error('获取邮件系统状态失败:', error);
+        logger.error('获取邮件系统状态失败:', error);
         res.status(500).json({ message: '获取邮件系统状态失败' });
     }
 };
@@ -81,7 +82,7 @@ exports.setSystemStatus = async (req, res) => {
 
         res.json({ message: enabled ? '邮件系统已启用' : '邮件系统已禁用', enabled });
     } catch (error) {
-        console.error('设置邮件系统状态失败:', error);
+        logger.error('设置邮件系统状态失败:', error);
         res.status(500).json({ message: '设置失败' });
     }
 };
@@ -105,7 +106,7 @@ exports.setTerminalMode = async (req, res) => {
 
         res.json({ message: enabled ? '已切换到命令行模式' : '已切换到现代模式', terminalMode: enabled });
     } catch (error) {
-        console.error('设置命令行模式失败:', error);
+        logger.error('设置命令行模式失败:', error);
         res.status(500).json({ message: '设置失败' });
     }
 };
@@ -163,7 +164,7 @@ exports.registerEmail = async (req, res) => {
             emailAddress: account.emailAddress
         });
     } catch (error) {
-        console.error('注册邮箱失败:', error);
+        logger.error('注册邮箱失败:', error);
         res.status(500).json({ message: '注册失败' });
     }
 };
@@ -185,7 +186,7 @@ exports.getAccount = async (req, res) => {
             createdAt: account.createdAt
         });
     } catch (error) {
-        console.error('获取账号信息失败:', error);
+        logger.error('获取账号信息失败:', error);
         res.status(500).json({ message: '获取账号信息失败' });
     }
 };
@@ -209,7 +210,7 @@ exports.updateSignature = async (req, res) => {
 
         res.json({ message: '签名已更新', signature: account.signature });
     } catch (error) {
-        console.error('更新签名失败:', error);
+        logger.error('更新签名失败:', error);
         res.status(500).json({ message: '更新失败' });
     }
 };
@@ -256,7 +257,7 @@ exports.saveDraft = async (req, res) => {
 
         res.json({ message: '草稿已保存', draft });
     } catch (error) {
-        console.error('保存草稿失败:', error);
+        logger.error('保存草稿失败:', error);
         res.status(500).json({ message: '保存失败' });
     }
 };
@@ -425,7 +426,7 @@ exports.sendEmail = async (req, res) => {
 
         res.json({ message: '邮件发送成功' });
     } catch (error) {
-        console.error('发送邮件失败:', error);
+        logger.error('发送邮件失败:', error);
         res.status(500).json({ message: '发送失败' });
     }
 };
@@ -463,7 +464,7 @@ exports.getEmails = async (req, res) => {
             totalPages: Math.ceil(total / limit)
         });
     } catch (error) {
-        console.error('获取邮件列表失败:', error);
+        logger.error('获取邮件列表失败:', error);
         res.status(500).json({ message: '获取邮件失败' });
     }
 };
@@ -512,7 +513,7 @@ exports.searchEmails = async (req, res) => {
             totalPages: Math.ceil(total / limit)
         });
     } catch (error) {
-        console.error('搜索邮件失败:', error);
+        logger.error('搜索邮件失败:', error);
         res.status(500).json({ message: '搜索失败' });
     }
 };
@@ -544,7 +545,7 @@ exports.getEmailById = async (req, res) => {
 
         res.json(email);
     } catch (error) {
-        console.error('获取邮件详情失败:', error);
+        logger.error('获取邮件详情失败:', error);
         res.status(500).json({ message: '获取邮件失败' });
     }
 };
@@ -573,7 +574,7 @@ exports.markReadStatus = async (req, res) => {
 
         res.json({ message: isRead ? '已标记为已读' : '已标记为未读' });
     } catch (error) {
-        console.error('标记已读状态失败:', error);
+        logger.error('标记已读状态失败:', error);
         res.status(500).json({ message: '操作失败' });
     }
 };
@@ -602,7 +603,7 @@ exports.toggleStar = async (req, res) => {
 
         res.json({ message: email.isStarred ? '已标星' : '已取消标星', isStarred: email.isStarred });
     } catch (error) {
-        console.error('标星操作失败:', error);
+        logger.error('标星操作失败:', error);
         res.status(500).json({ message: '操作失败' });
     }
 };
@@ -638,7 +639,7 @@ exports.deleteEmail = async (req, res) => {
             res.json({ message: '邮件已移到回收站' });
         }
     } catch (error) {
-        console.error('删除邮件失败:', error);
+        logger.error('删除邮件失败:', error);
         res.status(500).json({ message: '删除失败' });
     }
 };
@@ -661,7 +662,7 @@ exports.getUnreadCount = async (req, res) => {
 
         res.json({ count });
     } catch (error) {
-        console.error('获取未读数量失败:', error);
+        logger.error('获取未读数量失败:', error);
         res.status(500).json({ message: '获取失败' });
     }
 };
@@ -742,7 +743,7 @@ exports.searchAccounts = async (req, res) => {
 
         res.json([...classmates, ...others]);
     } catch (error) {
-        console.error('搜索邮箱失败:', error);
+        logger.error('搜索邮箱失败:', error);
         res.status(500).json({ message: '搜索失败' });
     }
 };
@@ -782,7 +783,7 @@ exports.getClassmates = async (req, res) => {
 
         res.json(results);
     } catch (error) {
-        console.error('获取同班同学失败:', error);
+        logger.error('获取同班同学失败:', error);
         res.status(500).json({ message: '获取失败' });
     }
 };
@@ -801,7 +802,7 @@ exports.getTeacherClasses = async (req, res) => {
 
         res.json(classes);
     } catch (error) {
-        console.error('获取班级列表失败:', error);
+        logger.error('获取班级列表失败:', error);
         res.status(500).json({ message: '获取失败' });
     }
 };
@@ -912,7 +913,7 @@ exports.sendBroadcast = async (req, res) => {
             count: toList.length
         });
     } catch (error) {
-        console.error('群发邮件失败:', error);
+        logger.error('群发邮件失败:', error);
         res.status(500).json({ message: '发送失败' });
     }
 };
@@ -927,7 +928,7 @@ exports.getContacts = async (req, res) => {
         const contacts = await Contact.find({ userId: req.user._id }).sort({ name: 1 });
         res.json(contacts);
     } catch (error) {
-        console.error('获取联系人失败:', error);
+        logger.error('获取联系人失败:', error);
         res.status(500).json({ message: '获取失败' });
     }
 };
@@ -954,7 +955,7 @@ exports.addContact = async (req, res) => {
 
         res.json({ message: '联系人已添加', contact });
     } catch (error) {
-        console.error('添加联系人失败:', error);
+        logger.error('添加联系人失败:', error);
         res.status(500).json({ message: '添加失败' });
     }
 };
@@ -968,7 +969,7 @@ exports.deleteContact = async (req, res) => {
         await Contact.findOneAndDelete({ _id: id, userId: req.user._id });
         res.json({ message: '联系人已删除' });
     } catch (error) {
-        console.error('删除联系人失败:', error);
+        logger.error('删除联系人失败:', error);
         res.status(500).json({ message: '删除失败' });
     }
 };
@@ -989,7 +990,7 @@ exports.getTemplates = async (req, res) => {
 
         res.json(templates);
     } catch (error) {
-        console.error('获取模板失败:', error);
+        logger.error('获取模板失败:', error);
         res.status(500).json({ message: '获取失败' });
     }
 };
@@ -1013,7 +1014,7 @@ exports.createTemplate = async (req, res) => {
 
         res.json({ message: '模板已创建', template });
     } catch (error) {
-        console.error('创建模板失败:', error);
+        logger.error('创建模板失败:', error);
         res.status(500).json({ message: '创建失败' });
     }
 };
@@ -1027,7 +1028,7 @@ exports.deleteTemplate = async (req, res) => {
         await EmailTemplate.findOneAndDelete({ _id: id, createdBy: req.user._id });
         res.json({ message: '模板已删除' });
     } catch (error) {
-        console.error('删除模板失败:', error);
+        logger.error('删除模板失败:', error);
         res.status(500).json({ message: '删除失败' });
     }
 };
@@ -1078,7 +1079,7 @@ exports.getAttachmentStats = async (req, res) => {
             debug_errors: errors
         });
     } catch (error) {
-        console.error('获取附件统计失败:', error);
+        logger.error('获取附件统计失败:', error);
         res.status(500).json({ message: '获取统计失败', error: error.message });
     }
 };
@@ -1125,7 +1126,7 @@ exports.clearAttachments = async (req, res) => {
                     freedSpace += stats.size;
                 }
             } catch (e) {
-                console.error('删除文件失败:', file, e);
+                logger.error('删除文件失败:', file, e);
             }
         });
 
@@ -1146,7 +1147,7 @@ exports.clearAttachments = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('清理附件失败:', error);
+        logger.error('清理附件失败:', error);
         res.status(500).json({ message: '清理附件失败' });
     }
 };

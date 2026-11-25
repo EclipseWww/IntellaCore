@@ -198,7 +198,7 @@ exports.getSubmissionDetail = async (req, res) => {
 
     res.json(submission);
   } catch (error) {
-    console.error('获取提交详情失败:', error);
+    logger.error('获取提交详情失败:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -236,7 +236,7 @@ exports.downloadAssignmentFile = async (req, res) => {
 
     res.sendFile(absolutePath);
   } catch (error) {
-    console.error('下载文件失败:', error);
+    logger.error('下载文件失败:', error);
     res.status(error.status || (error.code === 'ENOENT' ? 404 : 500)).json({ message: '文件不存在或无权访问' });
   }
 };
@@ -291,7 +291,7 @@ exports.downloadSubmissionFile = async (req, res) => {
 
     res.sendFile(absolutePath);
   } catch (error) {
-    console.error('下载提交文件失败:', error);
+    logger.error('下载提交文件失败:', error);
     res.status(500).json({ message: '下载文件失败', error: error.message });
   }
 };
@@ -902,7 +902,7 @@ exports.downloadPdfPreview = async (req, res) => {
 
     res.sendFile(filePath);
   } catch (error) {
-    console.error('下载PDF预览失败:', error);
+    logger.error('下载PDF预览失败:', error);
     res.status(error.status || (error.code === 'ENOENT' ? 404 : 500)).json({ message: '预览文件不存在或无权访问' });
   }
 };
@@ -1400,7 +1400,7 @@ exports.getAssignmentFilesStats = async (req, res) => {
  * 构建过滤查询条件
  */
 function buildFilterQuery(filters) {
-  console.log('构建查询条件，原始过滤器:', JSON.stringify(filters, null, 2));
+  logger.info('构建查询条件，原始过滤器:', JSON.stringify(filters, null, 2));
 
   const query = {};
 
@@ -1411,9 +1411,9 @@ function buildFilterQuery(filters) {
         typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
       );
       query.course = { $in: courseObjectIds };
-      console.log('添加课程过滤条件:', JSON.stringify(query.course));
+      logger.info('添加课程过滤条件:', JSON.stringify(query.course));
     } catch (error) {
-      console.error('转换课程ID失败:', error);
+      logger.error('转换课程ID失败:', error);
       query.course = { $in: filters.courseIds };
     }
   }
@@ -1430,10 +1430,10 @@ function buildFilterQuery(filters) {
       $gte: startDate,
       $lte: endDate
     };
-    console.log('添加日期过滤条件:', JSON.stringify(query.submittedAt));
+    logger.info('添加日期过滤条件:', JSON.stringify(query.submittedAt));
   }
 
-  console.log('构建的基础查询条件:', JSON.stringify(query, null, 2));
+  logger.info('构建的基础查询条件:', JSON.stringify(query, null, 2));
   return query;
 }
 

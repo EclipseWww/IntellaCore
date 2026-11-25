@@ -54,7 +54,7 @@ exports.createLesson = async (req, res) => {
       message: '课时创建成功'
     });
   } catch (error) {
-    console.error('创建课时失败:', error);
+    logger.error('创建课时失败:', error);
     res.status(500).json({
       success: false,
       message: error.message || '创建课时失败'
@@ -86,7 +86,7 @@ exports.activityForStudent = activityForStudent;
 exports.getLessonDetails = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    console.log('获取课时详情，lessonId:', lessonId);
+    logger.info('获取课时详情，lessonId:', lessonId);
 
     const lesson = await Lesson.findById(lessonId)
       .populate('unit')
@@ -106,7 +106,7 @@ exports.getLessonDetails = async (req, res) => {
 
     // 记录访问未发布课时的情况（仅用于日志记录）
     if (!isTeacher && lesson.status !== 'published') {
-      console.log(`学生 ${req.user.id} 访问了未发布的课时 ${lessonId}`);
+      logger.info(`学生 ${req.user.id} 访问了未发布的课时 ${lessonId}`);
     }
 
     // 根据用户角色过滤数据
@@ -132,13 +132,13 @@ exports.getLessonDetails = async (req, res) => {
       exercises: lesson.exercises || []
     };
 
-    console.log('找到课时:', response.title);
+    logger.info('找到课时:', response.title);
     res.json({
       success: true,
       data: response
     });
   } catch (error) {
-    console.error('获取课时详情失败:', error);
+    logger.error('获取课时详情失败:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -516,7 +516,7 @@ exports.getUnitLessons = async (req, res) => {
         : lessons
     });
   } catch (error) {
-    console.error('获取单元课时失败:', error);
+    logger.error('获取单元课时失败:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -698,7 +698,7 @@ exports.getTeacherLessons = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('获取教师课程小节失败:', error);
+    logger.error('获取教师课程小节失败:', error);
     res.status(500).json({
       success: false,
       message: '获取教师课程小节失败',
@@ -872,22 +872,22 @@ exports.exportLesson = async (req, res) => {
         typingTextIds.push(activity.typingSettings.text._id);
       }
       if (activity.resources && activity.resources.length > 0) {
-        console.log(`活动 "${activity.title}" 的资源:`, activity.resources);
+        logger.info(`活动 "${activity.title}" 的资源:`, activity.resources);
         activity.resources.forEach(resource => {
           if (resource.path) {
             resourcePaths.push(resource.path);
-            console.log(`添加资源路径: ${resource.path}`);
+            logger.info(`添加资源路径: ${resource.path}`);
           }
         });
       }
     });
 
-    console.log('收集的资源路径:', resourcePaths);
+    logger.info('收集的资源路径:', resourcePaths);
 
     // 3. 获取所有测验数据
     const Quiz = mongoose.model('Quiz');
     const quizzes = await Quiz.find({ _id: { $in: quizIds } });
-    console.log('获取到测验数据:', quizzes.length, '个');
+    logger.info('获取到测验数据:', quizzes.length, '个');
 
     // 收集所有测验中的题目ID
     quizzes.forEach(quiz => {
@@ -899,17 +899,17 @@ exports.exportLesson = async (req, res) => {
         });
       }
     });
-    console.log('收集的题目ID:', questionIds.length, '个');
+    logger.info('收集的题目ID:', questionIds.length, '个');
 
     // 获取所有题目数据
     const Question = mongoose.model('Question');
     const questions = await Question.find({ _id: { $in: questionIds } });
-    console.log('获取到题目数据:', questions.length, '个');
+    logger.info('获取到题目数据:', questions.length, '个');
 
     // 4. 获取所有打字文本数据
     const TypingText = mongoose.model('TypingText');
     const typingTexts = await TypingText.find({ _id: { $in: typingTextIds } });
-    console.log('获取到打字文本数据:', typingTexts.length, '个');
+    logger.info('获取到打字文本数据:', typingTexts.length, '个');
 
     // 5. 准备导出数据
     const exportData = {
@@ -927,14 +927,14 @@ exports.exportLesson = async (req, res) => {
     const tempBaseDir = path.join(os.tmpdir(), 'ai-chat-edu-temp');
     const tempDir = path.join(tempBaseDir, `lesson_${lessonId}_${require("crypto").randomUUID()}`);
     exportTempDir = tempDir;
-    console.log('创建临时目录:', tempDir);
+    logger.info('创建临时目录:', tempDir);
 
     try {
       await fs.mkdir(tempBaseDir, { recursive: true });
       await fs.mkdir(tempDir, { recursive: true });
-      console.log('临时目录创建成功');
+      logger.info('临时目录创建成功');
     } catch (err) {
-      console.error('创建临时目录失败:', err);
+      logger.error('创建临时目录失败:', err);
       throw err;
     }
 
@@ -942,9 +942,9 @@ exports.exportLesson = async (req, res) => {
     const resourceDir = path.join(tempDir, 'resources');
     try {
       await fs.mkdir(resourceDir, { recursive: true });
-      console.log('资源目录创建成功:', resourceDir);
+      logger.info('资源目录创建成功:', resourceDir);
     } catch (err) {
-      console.error('创建资源目录失败:', err);
+      logger.error('创建资源目录失败:', err);
       throw err;
     }
 
@@ -985,20 +985,20 @@ exports.exportLesson = async (req, res) => {
 
         const fileName = path.basename(resourcePath);
         const destPath = path.join(resourceDir, fileName);
-        console.log('复制资源文件:', { from: sourcePath, to: destPath });
+        logger.info('复制资源文件:', { from: sourcePath, to: destPath });
 
         // 检查文件是否存在
         try {
           await fs.access(sourcePath);
         } catch (err) {
-          console.error(`资源文件不存在: ${sourcePath}`, err);
+          logger.error(`资源文件不存在: ${sourcePath}`, err);
           continue; // 跳过不存在的文件
         }
 
         await fs.copyFile(sourcePath, destPath);
-        console.log(`资源文件复制成功: ${fileName}`);
+        logger.info(`资源文件复制成功: ${fileName}`);
       } catch (error) {
-        console.error(`复制文件失败: ${resourcePath}`, error);
+        logger.error(`复制文件失败: ${resourcePath}`, error);
         logger.error(`复制文件失败: ${resourcePath}`, { error: error.message });
       }
     }
@@ -1015,19 +1015,19 @@ exports.exportLesson = async (req, res) => {
 
     // 8. 将导出数据写入JSON文件
     const dataPath = path.join(tempDir, 'lesson_data.json');
-    console.log('写入数据文件:', dataPath);
+    logger.info('写入数据文件:', dataPath);
     try {
       if (mode !== 'media') await fs.writeFile(dataPath, JSON.stringify(exportData, null, 2));
-      console.log('数据文件写入成功');
+      logger.info('数据文件写入成功');
     } catch (err) {
-      console.error('写入数据文件失败:', err);
+      logger.error('写入数据文件失败:', err);
       throw err;
     }
 
     // 9. 创建ZIP文件
     const zipPath = path.join(tempBaseDir, `lesson_${lessonId}_${Date.now()}.zip`);
     exportZipPath = zipPath;
-    console.log('创建ZIP文件:', zipPath);
+    logger.info('创建ZIP文件:', zipPath);
 
     // 使用archiver创建ZIP文件
     const archiver = require('archiver');
@@ -1132,7 +1132,7 @@ exports.importLesson = async (req, res) => {
       lessonData = mediaResult.rewrite(lessonData);
 
       // 记录导入数据的结构，帮助调试
-      console.log('导入数据结构:', {
+      logger.info('导入数据结构:', {
         hasLesson: !!lessonData.lesson,
         hasQuizzes: Array.isArray(lessonData.quizzes) ? lessonData.quizzes.length : 0,
         hasQuestions: Array.isArray(lessonData.questions) ? lessonData.questions.length : 0,
@@ -1151,11 +1151,11 @@ exports.importLesson = async (req, res) => {
       // 6. 导入题目
       const Question = mongoose.model('Question');
       if (lessonData.questions && Array.isArray(lessonData.questions) && lessonData.questions.length > 0) {
-        console.log(`开始导入 ${lessonData.questions.length} 个题目`);
+        logger.info(`开始导入 ${lessonData.questions.length} 个题目`);
 
         // 记录第一个题目的结构，帮助调试
         if (lessonData.questions[0]) {
-          console.log('题目数据示例:', {
+          logger.info('题目数据示例:', {
             id: lessonData.questions[0]._id,
             content: lessonData.questions[0].content,
             type: lessonData.questions[0].type,
@@ -1174,7 +1174,7 @@ exports.importLesson = async (req, res) => {
             if (existingQuestion) {
               // 如果题目已存在，使用已有题目
               idMappings.questions[question._id] = existingQuestion._id;
-              console.log(`题目已存在，使用已有题目: ${existingQuestion._id}`);
+              logger.info(`题目已存在，使用已有题目: ${existingQuestion._id}`);
             } else {
               // 如果题目不存在，创建新题目
               const questionInfo = { ...question };
@@ -1188,15 +1188,15 @@ exports.importLesson = async (req, res) => {
               await newQuestion.save();
 
               idMappings.questions[oldId] = newQuestion._id;
-              console.log(`创建新题目: ${newQuestion._id}`);
+              logger.info(`创建新题目: ${newQuestion._id}`);
             }
           } catch (questionError) {
-            console.error(`导入题目失败:`, questionError);
+            logger.error(`导入题目失败:`, questionError);
             logger.error(`导入题目失败`, { error: questionError.message, questionContent: question.content });
           }
         }
       } else {
-        console.log('没有题目需要导入或题目数据格式不正确:', {
+        logger.info('没有题目需要导入或题目数据格式不正确:', {
           questions: lessonData.questions,
           isArray: Array.isArray(lessonData.questions),
           length: lessonData.questions ? lessonData.questions.length : 0
@@ -1206,11 +1206,11 @@ exports.importLesson = async (req, res) => {
       // 7. 导入测验
       const Quiz = mongoose.model('Quiz');
       if (lessonData.quizzes && Array.isArray(lessonData.quizzes) && lessonData.quizzes.length > 0) {
-        console.log(`开始导入 ${lessonData.quizzes.length} 个测验`);
+        logger.info(`开始导入 ${lessonData.quizzes.length} 个测验`);
 
         // 记录第一个测验的结构，帮助调试
         if (lessonData.quizzes[0]) {
-          console.log('测验数据示例:', {
+          logger.info('测验数据示例:', {
             id: lessonData.quizzes[0]._id,
             title: lessonData.quizzes[0].title,
             hasQuestions: Array.isArray(lessonData.quizzes[0].questions) ? lessonData.quizzes[0].questions.length : 0
@@ -1219,9 +1219,9 @@ exports.importLesson = async (req, res) => {
           // 如果测验有问题，检查问题ID是否在映射表中
           if (lessonData.quizzes[0].questions && lessonData.quizzes[0].questions.length > 0) {
             const firstQuestionId = lessonData.quizzes[0].questions[0].questionId;
-            console.log('第一个问题ID:', firstQuestionId);
-            console.log('问题ID是否在映射表中:', !!idMappings.questions[firstQuestionId]);
-            console.log('问题ID映射表部分内容:', Object.keys(idMappings.questions).slice(0, 5));
+            logger.info('第一个问题ID:', firstQuestionId);
+            logger.info('问题ID是否在映射表中:', !!idMappings.questions[firstQuestionId]);
+            logger.info('问题ID映射表部分内容:', Object.keys(idMappings.questions).slice(0, 5));
           }
         }
 
@@ -1244,7 +1244,7 @@ exports.importLesson = async (req, res) => {
             }).populate('questions.questionId');
 
             if (potentialQuizzes.length > 0) {
-              console.log(`找到 ${potentialQuizzes.length} 个可能匹配的测验`);
+              logger.info(`找到 ${potentialQuizzes.length} 个可能匹配的测验`);
 
               // 准备导入测验的题目ID集合（使用映射后的ID）
               const importQuestionIds = new Set();
@@ -1262,10 +1262,10 @@ exports.importLesson = async (req, res) => {
 
               // 检查每个潜在匹配的测验
               for (const quiz of potentialQuizzes) {
-                console.log(`检查测验 "${quiz.title}"`);
+                logger.info(`检查测验 "${quiz.title}"`);
                 // 检查描述是否匹配
                 if (quiz.description !== quizInfo.description) {
-                  console.log(`描述不匹配: "${quiz.description}" vs "${quizInfo.description}"`);
+                  logger.info(`描述不匹配: "${quiz.description}" vs "${quizInfo.description}"`);
                   continue;
                 }
 
@@ -1277,14 +1277,14 @@ exports.importLesson = async (req, res) => {
                       // 确保获取的是ID字符串，而不是整个对象
                       const qId = typeof q.questionId === 'object' ? q.questionId._id.toString() : q.questionId.toString();
                       quizQuestionIds.add(qId);
-                      console.log(`现有测验题目ID: ${qId}`);
+                      logger.info(`现有测验题目ID: ${qId}`);
                     }
                   });
                 }
 
                 // 比较题目集合大小
                 if (quizQuestionIds.size !== importQuestionIds.size) {
-                  console.log(`题目数量不匹配: ${quizQuestionIds.size} vs ${importQuestionIds.size}`);
+                  logger.info(`题目数量不匹配: ${quizQuestionIds.size} vs ${importQuestionIds.size}`);
                   continue;
                 }
 
@@ -1293,8 +1293,8 @@ exports.importLesson = async (req, res) => {
                 let mismatchedQuestions = [];
 
                 // 打印所有导入题目ID和现有题目ID，帮助调试
-                console.log('导入题目IDs:', Array.from(importQuestionIds));
-                console.log('现有题目IDs:', Array.from(quizQuestionIds));
+                logger.info('导入题目IDs:', Array.from(importQuestionIds));
+                logger.info('现有题目IDs:', Array.from(quizQuestionIds));
 
 
                 for (const id of importQuestionIds) {
@@ -1303,19 +1303,19 @@ exports.importLesson = async (req, res) => {
                   if (!quizQuestionIds.has(idStr)) {
                     allQuestionsMatch = false;
                     mismatchedQuestions.push(idStr);
-                    console.log(`导入测验题目 ${idStr} 不在现有测验中`);
+                    logger.info(`导入测验题目 ${idStr} 不在现有测验中`);
                   }
                 }
 
 
                 if (!allQuestionsMatch) {
-                  console.log(`题目不完全匹配，不匹配的题目: ${mismatchedQuestions.join(', ')}`);
+                  logger.info(`题目不完全匹配，不匹配的题目: ${mismatchedQuestions.join(', ')}`);
                   continue;
                 }
 
                 if (allQuestionsMatch) {
                   existingQuiz = quiz;
-                  console.log(`找到题目集合完全匹配的测验: ${existingQuiz._id}`);
+                  logger.info(`找到题目集合完全匹配的测验: ${existingQuiz._id}`);
                   break;
                 }
               }
@@ -1326,7 +1326,7 @@ exports.importLesson = async (req, res) => {
             if (existingQuiz) {
               // 如果当前用户已有完全匹配的测验，使用现有测验
               newQuizId = existingQuiz._id;
-              console.log(`用户已有相同测验，使用现有测验: ${newQuizId}`);
+              logger.info(`用户已有相同测验，使用现有测验: ${newQuizId}`);
 
               // 更新映射表
               idMappings.quizzes[oldId] = newQuizId;
@@ -1336,7 +1336,7 @@ exports.importLesson = async (req, res) => {
 
               // 更新测验中的题目引用
               if (quizInfo.questions && quizInfo.questions.length > 0) {
-                console.log(`处理测验中的 ${quizInfo.questions.length} 个题目引用`);
+                logger.info(`处理测验中的 ${quizInfo.questions.length} 个题目引用`);
 
                 // 使用for...of循环代替map，允许我们使用await
                 const updatedQuestions = [];
@@ -1351,27 +1351,27 @@ exports.importLesson = async (req, res) => {
                   if (oldQuestionId && idMappings.questions[oldQuestionId]) {
                     // 如果映射表中已有此题目ID的映射，使用映射的ID
                     newQuestionId = idMappings.questions[oldQuestionId];
-                    console.log(`使用映射表中的题目ID: ${oldQuestionId} -> ${newQuestionId}`);
+                    logger.info(`使用映射表中的题目ID: ${oldQuestionId} -> ${newQuestionId}`);
                   } else if (oldQuestionId) {
                     // 如果映射表中没有此题目ID的映射，尝试查找题目
                     try {
-                      console.log(`尝试查找题目: ${oldQuestionId}`);
+                      logger.info(`尝试查找题目: ${oldQuestionId}`);
                       const question = await Question.findById(oldQuestionId);
                       if (question) {
                         // 如果题目存在，直接使用原ID
                         idMappings.questions[oldQuestionId] = oldQuestionId;
                         newQuestionId = oldQuestionId;
-                        console.log(`找到现有题目 ${oldQuestionId}，添加到映射表`);
+                        logger.info(`找到现有题目 ${oldQuestionId}，添加到映射表`);
                       } else {
-                        console.warn(`题目 ${oldQuestionId} 不存在，跳过此题`);
+                        logger.warn(`题目 ${oldQuestionId} 不存在，跳过此题`);
                         continue; // 跳过此题
                       }
                     } catch (err) {
-                      console.error(`查找题目失败: ${oldQuestionId}`, err);
+                      logger.error(`查找题目失败: ${oldQuestionId}`, err);
                       continue; // 跳过此题
                     }
                   } else {
-                    console.warn(`题目ID无效，跳过此题`);
+                    logger.warn(`题目ID无效，跳过此题`);
                     continue; // 跳过此题
                   }
 
@@ -1384,7 +1384,7 @@ exports.importLesson = async (req, res) => {
 
                 // 更新quizInfo中的questions
                 quizInfo.questions = updatedQuestions;
-                console.log(`更新后的题目列表长度: ${updatedQuestions.length}`);
+                logger.info(`更新后的题目列表长度: ${updatedQuestions.length}`);
               }
 
               // 创建新测验
@@ -1396,15 +1396,15 @@ exports.importLesson = async (req, res) => {
 
               newQuizId = newQuiz._id;
               idMappings.quizzes[oldId] = newQuizId;
-              console.log(`创建新测验: ${newQuizId} (包含 ${newQuiz.questions ? newQuiz.questions.length : 0} 个题目)`);
+              logger.info(`创建新测验: ${newQuizId} (包含 ${newQuiz.questions ? newQuiz.questions.length : 0} 个题目)`);
             }
           } catch (quizError) {
-            console.error(`导入测验失败:`, quizError);
+            logger.error(`导入测验失败:`, quizError);
             logger.error(`导入测验失败`, { error: quizError.message, quizTitle: quiz.title });
           }
         }
       } else {
-        console.log('没有测验需要导入或测验数据格式不正确:', {
+        logger.info('没有测验需要导入或测验数据格式不正确:', {
           quizzes: lessonData.quizzes,
           isArray: Array.isArray(lessonData.quizzes),
           length: lessonData.quizzes ? lessonData.quizzes.length : 0
@@ -1423,7 +1423,7 @@ exports.importLesson = async (req, res) => {
         if (existingText) {
           // 如果打字文本已存在，使用已有打字文本
           idMappings.typingTexts[text._id] = existingText._id;
-          console.log(`打字文本已存在，使用已有打字文本: ${existingText._id}`);
+          logger.info(`打字文本已存在，使用已有打字文本: ${existingText._id}`);
         } else {
           // 如果打字文本不存在，创建新打字文本
           const textInfo = { ...text };
@@ -1437,7 +1437,7 @@ exports.importLesson = async (req, res) => {
           await newText.save();
 
           idMappings.typingTexts[oldId] = newText._id;
-          console.log(`创建新打字文本: ${newText._id}`);
+          logger.info(`创建新打字文本: ${newText._id}`);
         }
       }
 
@@ -1489,9 +1489,9 @@ exports.importLesson = async (req, res) => {
 
             if (oldQuizId && idMappings.quizzes[oldQuizId]) {
               newActivity.quizSettings.quiz = idMappings.quizzes[oldQuizId];
-              console.log(`更新活动中的测验引用: ${oldQuizId} -> ${idMappings.quizzes[oldQuizId]}`);
+              logger.info(`更新活动中的测验引用: ${oldQuizId} -> ${idMappings.quizzes[oldQuizId]}`);
             } else {
-              console.warn(`未找到测验映射: ${oldQuizId}`);
+              logger.warn(`未找到测验映射: ${oldQuizId}`);
             }
           }
 
@@ -1531,12 +1531,12 @@ exports.importLesson = async (req, res) => {
         const destPath = path.join(__dirname, '../../uploads', newRelativePath);
 
         try {
-          console.log('复制导入的资源文件:', { from: sourcePath, to: destPath });
+          logger.info('复制导入的资源文件:', { from: sourcePath, to: destPath });
           await fs.copyFile(sourcePath, destPath);
           idMappings.resources[resourcePath] = newRelativePath;
-          console.log(`资源文件导入成功: ${fileName} -> ${newRelativePath}`);
+          logger.info(`资源文件导入成功: ${fileName} -> ${newRelativePath}`);
         } catch (error) {
-          console.error(`复制资源文件失败: ${fileName}`, error);
+          logger.error(`复制资源文件失败: ${fileName}`, error);
           logger.error(`复制资源文件失败: ${fileName}`, { error: error.message });
         }
       }
@@ -1764,7 +1764,7 @@ exports.importLesson = async (req, res) => {
 
         if (updated) {
           await newLesson.save();
-          console.log('更新了课时中的资源路径');
+          logger.info('更新了课时中的资源路径');
         }
       }
 
@@ -1790,14 +1790,14 @@ exports.importLesson = async (req, res) => {
         const fsSync = require('fs');
         if (fsSync.existsSync(extractDir)) {
           await fs.rm(extractDir, { recursive: true, force: true });
-          console.log(`清理临时目录: ${extractDir}`);
+          logger.info(`清理临时目录: ${extractDir}`);
         }
         if (fsSync.existsSync(zipPath)) {
           await fs.unlink(zipPath);
-          console.log(`清理临时ZIP文件: ${zipPath}`);
+          logger.info(`清理临时ZIP文件: ${zipPath}`);
         }
       } catch (cleanupError) {
-        console.error('清理临时文件失败:', cleanupError);
+        logger.error('清理临时文件失败:', cleanupError);
         logger.error('清理临时文件失败', { error: cleanupError.message });
       }
     }

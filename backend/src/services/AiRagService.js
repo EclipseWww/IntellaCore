@@ -143,13 +143,13 @@ class AiRagService {
                       count: parsedReferences.length,
                       dbName: params.dbName || '未指定'
                     });
-                    console.log('===== 检测到知识库引用（字符串格式） =====');
-                    console.log('知识库引用数量:', parsedReferences.length);
-                    console.log('知识库名称:', params.dbName || '未指定');
+                    logger.info('===== 检测到知识库引用（字符串格式） =====');
+                    logger.info('知识库引用数量:', parsedReferences.length);
+                    logger.info('知识库名称:', params.dbName || '未指定');
 
                     // 记录前3个引用的详细信息
                     parsedReferences.slice(0, 3).forEach((ref, index) => {
-                      console.log(`引用 #${index + 1}:`, {
+                      logger.info(`引用 #${index + 1}:`, {
                         index: ref.index,
                         score: ref.score,
                         content: ref.content?.substring(0, 100) + (ref.content?.length > 100 ? '...' : '')
@@ -166,13 +166,13 @@ class AiRagService {
 
               // 只在第一次收到引用时记录
               if (!hasLoggedReferences) {
-                console.log('===== 检测到知识库引用（数组格式） =====');
-                console.log('知识库引用数量:', result.data[1].length);
-                console.log('知识库名称:', params.dbName || '未指定');
+                logger.info('===== 检测到知识库引用（数组格式） =====');
+                logger.info('知识库引用数量:', result.data[1].length);
+                logger.info('知识库名称:', params.dbName || '未指定');
 
                 // 记录前3个引用的详细信息
                 result.data[1].slice(0, 3).forEach((ref, index) => {
-                  console.log(`引用 #${index + 1}:`, {
+                  logger.info(`引用 #${index + 1}:`, {
                     title: ref.title || '未提供标题',
                     score: ref.score || 0,
                     content: ref.content?.substring(0, 100) + (ref.content?.length > 100 ? '...' : '') || '未提供内容'
@@ -198,56 +198,56 @@ class AiRagService {
       });
 
       // 添加控制台输出，显示最终结果
-      console.log('===== AI模型响应结果 =====');
-      console.log('响应总数:', responseCount);
+      logger.info('===== AI模型响应结果 =====');
+      logger.info('响应总数:', responseCount);
 
       if (latestResponse) {
         // 输出历史记录信息
         if (Array.isArray(latestResponse[0]) && latestResponse[0].length > 0) {
-          console.log('历史记录长度:', latestResponse[0].length);
+          logger.info('历史记录长度:', latestResponse[0].length);
           const lastMessage = latestResponse[0][latestResponse[0].length - 1];
           if (Array.isArray(lastMessage) && lastMessage.length >= 2) {
-            console.log('最终回复 (前200字符):',
+            logger.info('最终回复 (前200字符):',
               lastMessage[1]?.substring(0, 200) + (lastMessage[1]?.length > 200 ? '...' : ''));
           }
         }
 
         // 输出知识库引用信息
         if (Array.isArray(latestResponse[1])) {
-          console.log('知识库引用数量:', latestResponse[1].length);
+          logger.info('知识库引用数量:', latestResponse[1].length);
           if (latestResponse[1].length > 0) {
-            console.log('知识库引用详情:');
+            logger.info('知识库引用详情:');
             latestResponse[1].forEach((ref, index) => {
-              console.log(`- 引用 #${index + 1}:`, {
+              logger.info(`- 引用 #${index + 1}:`, {
                 title: ref.title || '未提供标题',
                 score: ref.score || 0,
                 content: ref.content?.substring(0, 100) + (ref.content?.length > 100 ? '...' : '') || '未提供内容'
               });
             });
           } else {
-            console.log('没有知识库引用');
+            logger.info('没有知识库引用');
           }
         } else if (typeof latestResponse[1] === 'string' && latestResponse[1].includes('##')) {
           // 如果引用仍然是字符串格式，尝试解析并显示
           const parsedReferences = this.parseReferenceString(latestResponse[1]);
-          console.log('知识库引用数量 (字符串格式):', parsedReferences.length);
+          logger.info('知识库引用数量 (字符串格式):', parsedReferences.length);
           if (parsedReferences.length > 0) {
-            console.log('知识库引用详情:');
+            logger.info('知识库引用详情:');
             parsedReferences.forEach((ref, index) => {
-              console.log(`- 引用 #${index + 1}:`, {
+              logger.info(`- 引用 #${index + 1}:`, {
                 score: ref.score || 0,
                 content: ref.content?.substring(0, 100) + (ref.content?.length > 100 ? '...' : '') || '未提供内容'
               });
             });
           } else {
-            console.log('解析知识库引用字符串失败或没有引用');
-            console.log('原始字符串:', latestResponse[1].substring(0, 200) + (latestResponse[1].length > 200 ? '...' : ''));
+            logger.info('解析知识库引用字符串失败或没有引用');
+            logger.info('原始字符串:', latestResponse[1].substring(0, 200) + (latestResponse[1].length > 200 ? '...' : ''));
           }
         } else {
-          console.log('没有知识库引用或引用格式不支持');
+          logger.info('没有知识库引用或引用格式不支持');
         }
       } else {
-        console.log('没有收到有效响应');
+        logger.info('没有收到有效响应');
       }
 
       logger.info('获取AI模型响应成功（流式传输）', {

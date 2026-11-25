@@ -276,7 +276,7 @@ exports.getAllCoursesNew = async (req, res) => {
       // 获取用户ID（兼容 _id 和 id）
       const userId = req.user._id || req.user.id;
 
-      console.log('用户信息:', {
+      logger.info('用户信息:', {
         id: userId,
         username: req.user.username,
         role: req.user.role
@@ -284,7 +284,7 @@ exports.getAllCoursesNew = async (req, res) => {
 
       // 先检查用户ID是否有效
       if (!mongoose.Types.ObjectId.isValid(userId)) {
-        console.error('无效的用户ID格式:', userId);
+        logger.error('无效的用户ID格式:', userId);
         return res.status(400).json({
           success: false,
           message: '无效的用户ID格式'
@@ -296,7 +296,7 @@ exports.getAllCoursesNew = async (req, res) => {
 
       // 先检查用户是否存在
       const user = await User.findById(userObjectId);
-      console.log('数据库中的用户信息:', user);
+      logger.info('数据库中的用户信息:', user);
 
       if (!user) {
         return res.status(401).json({
@@ -341,7 +341,7 @@ exports.getAllCoursesNew = async (req, res) => {
       courses
     });
   } catch (error) {
-    console.error('Error getting courses:', error);
+    logger.error('Error getting courses:', error);
     res.status(500).json({
       success: false,
       message: '获取课程列表失败',
@@ -363,7 +363,7 @@ exports.getCourseByIdNew = async (req, res) => {
 
     res.json(course);
   } catch (error) {
-    console.error('Error getting course details:', error);
+    logger.error('Error getting course details:', error);
     res.status(500).json({ message: '获取课程详情失败' });
   }
 };
@@ -395,7 +395,7 @@ exports.getCourseProgressNew = async (req, res) => {
 
     res.json(progress);
   } catch (error) {
-    console.error('Error getting course progress:', error);
+    logger.error('Error getting course progress:', error);
     res.status(500).json({ message: '获取课程进度失败' });
   }
 };
@@ -429,7 +429,7 @@ exports.updateProgressNew = async (req, res) => {
 
     res.json(progress);
   } catch (error) {
-    console.error('Error updating progress:', error);
+    logger.error('Error updating progress:', error);
     res.status(500).json({ message: '更新进度失败' });
   }
 };
@@ -527,7 +527,7 @@ exports.createSampleCourses = async (req, res) => {
 
     res.json({ message: '示例课程数据创建成功' });
   } catch (error) {
-    console.error('Error creating sample courses:', error);
+    logger.error('Error creating sample courses:', error);
     res.status(500).json({ message: '创建示例课程数据失败' });
   }
 };
@@ -718,7 +718,7 @@ exports.getHtmlActivities = async (req, res) => {
       data: htmlActivities
     });
   } catch (error) {
-    console.error('Get HTML activities error:', error);
+    logger.error('Get HTML activities error:', error);
     res.status(500).json({
       success: false,
       message: '获取HTML活动失败',

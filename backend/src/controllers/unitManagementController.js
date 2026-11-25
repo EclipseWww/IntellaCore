@@ -1,6 +1,7 @@
 const Course = require('../models/Course');
 const CourseUnit = require('../models/CourseUnit');
 const Lesson = require('../models/Lesson');
+const logger = require('../utils/logger');
 
 // 检查用户是否为教师
 const checkTeacherRole = (req, res) => {
@@ -20,8 +21,8 @@ exports.createUnit = async (req, res) => {
     const error = checkTeacherRole(req, res);
     if (error) return;
 
-    console.log('Creating unit for course:', req.params.courseId);
-    console.log('User:', req.user);
+    logger.info('Creating unit for course:', req.params.courseId);
+    logger.info('User:', req.user);
 
     const course = await Course.findById(req.params.courseId);
 
@@ -57,7 +58,7 @@ exports.createUnit = async (req, res) => {
       data: unit
     });
   } catch (error) {
-    console.error('Error in createUnit:', error);
+    logger.error('Error in createUnit:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -107,7 +108,7 @@ exports.updateUnit = async (req, res) => {
       data: unit
     });
   } catch (error) {
-    console.error('Error in updateUnit:', error);
+    logger.error('Error in updateUnit:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -175,7 +176,7 @@ exports.deleteUnit = async (req, res) => {
       message: '单元删除成功'
     });
   } catch (error) {
-    console.error('Error in deleteUnit:', error);
+    logger.error('Error in deleteUnit:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -190,8 +191,8 @@ exports.getUnits = async (req, res) => {
     const error = checkTeacherRole(req, res);
     if (error) return;
 
-    console.log('courseId:', req.params.courseId);
-    console.log('user:', req.user);
+    logger.info('courseId:', req.params.courseId);
+    logger.info('user:', req.user);
 
     const course = await Course.findById(req.params.courseId);
 
@@ -219,7 +220,7 @@ exports.getUnits = async (req, res) => {
       data: units
     });
   } catch (error) {
-    console.error('Error in getUnits:', error);
+    logger.error('Error in getUnits:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -278,7 +279,7 @@ exports.updateUnitsOrder = async (req, res) => {
       data: updatedUnits
     });
   } catch (error) {
-    console.error('Error in updateUnitsOrder:', error);
+    logger.error('Error in updateUnitsOrder:', error);
     res.status(400).json({
       success: false,
       message: error.message

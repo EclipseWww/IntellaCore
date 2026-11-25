@@ -1,5 +1,6 @@
 const HtmlProject = require('../models/HtmlProject');
 const { detectGameCopy, isGameCopyCached, COPY_MESSAGE } = require('../services/gameCopyGuard');
+const logger = require('../utils/logger');
 
 // Create a new HTML project
 exports.createProject = async (req, res) => {
@@ -20,7 +21,7 @@ exports.createProject = async (req, res) => {
             data: project
         });
     } catch (error) {
-        console.error('Create HTML project error:', error);
+        logger.error('Create HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '创建项目失败',
@@ -41,7 +42,7 @@ exports.getProjects = async (req, res) => {
             data: projects
         });
     } catch (error) {
-        console.error('Get HTML projects error:', error);
+        logger.error('Get HTML projects error:', error);
         res.status(500).json({
             success: false,
             message: '获取项目列表失败',
@@ -70,7 +71,7 @@ exports.getProject = async (req, res) => {
             data: project
         });
     } catch (error) {
-        console.error('Get HTML project error:', error);
+        logger.error('Get HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '获取项目失败',
@@ -113,7 +114,7 @@ exports.updateProject = async (req, res) => {
             data: project
         });
     } catch (error) {
-        console.error('Update HTML project error:', error);
+        logger.error('Update HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '更新项目失败',
@@ -147,7 +148,7 @@ exports.deleteProject = async (req, res) => {
             message: '项目已删除'
         });
     } catch (error) {
-        console.error('Delete HTML project error:', error);
+        logger.error('Delete HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '删除项目失败',
@@ -226,7 +227,7 @@ exports.publishProject = async (req, res) => {
             message: `发布成功！已消耗 ${POINT_COST} 积分`
         });
     } catch (error) {
-        console.error('Publish HTML project error:', error);
+        logger.error('Publish HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '发布失败',
@@ -265,7 +266,7 @@ exports.unpublishProject = async (req, res) => {
             message: '已取消发布'
         });
     } catch (error) {
-        console.error('Unpublish HTML project error:', error);
+        logger.error('Unpublish HTML project error:', error);
         res.status(500).json({
             success: false,
             message: '取消发布失败',
@@ -312,7 +313,7 @@ exports.teacherPublishProject = async (req, res) => {
             message: '教师发布成功（无积分消耗）'
         });
     } catch (error) {
-        console.error('Teacher publish project error:', error);
+        logger.error('Teacher publish project error:', error);
         res.status(500).json({
             success: false,
             message: '发布失败',
@@ -342,7 +343,7 @@ exports.getProjectsByLesson = async (req, res) => {
             data: projects
         });
     } catch (error) {
-        console.error('Get lesson projects error:', error);
+        logger.error('Get lesson projects error:', error);
         res.status(500).json({
             success: false,
             message: '获取项目列表失败',
@@ -380,7 +381,7 @@ exports.getPublishedProjects = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Get published projects error:', error);
+        logger.error('Get published projects error:', error);
         res.status(500).json({
             success: false,
             message: '获取作品列表失败',
@@ -424,7 +425,7 @@ exports.viewPublishedProject = async (req, res) => {
             data: project
         });
     } catch (error) {
-        console.error('View published project error:', error);
+        logger.error('View published project error:', error);
         res.status(500).json({
             success: false,
             message: '查看作品失败',
@@ -510,7 +511,7 @@ exports.linkAssignment = async (req, res) => {
             message: '作业提交成功'
         });
     } catch (error) {
-        console.error('Link assignment error:', error);
+        logger.error('Link assignment error:', error);
         res.status(500).json({
             success: false,
             message: '提交作业失败',

@@ -1,4 +1,5 @@
 const SpreadsheetSubmission = require('../models/SpreadsheetSubmission');
+const logger = require('../utils/logger');
 
 // Get or create a submission for a student for a specific activity
 exports.getOrCreateSubmission = async (req, res) => {
@@ -27,10 +28,10 @@ exports.getOrCreateSubmission = async (req, res) => {
             });
             if (req.user.role === 'student') {
                 await submission.save();
-                console.log('创建新的电子表格草稿(已写入数据库)');
+                logger.info('创建新的电子表格草稿(已写入数据库)');
             } else {
                 submission._id = new require('mongoose').Types.ObjectId();
-                console.log('教师模拟：创建新的电子表格草稿(未写入数据库)');
+                logger.info('教师模拟：创建新的电子表格草稿(未写入数据库)');
             }
         }
 
@@ -39,7 +40,7 @@ exports.getOrCreateSubmission = async (req, res) => {
             data: submission
         });
     } catch (error) {
-        console.error('Get/Create spreadsheet submission error:', error);
+        logger.error('Get/Create spreadsheet submission error:', error);
         res.status(500).json({
             success: false,
             message: '获取/创建作业提交失败',
@@ -91,9 +92,9 @@ exports.updateSubmission = async (req, res) => {
 
         if (req.user.role === 'student') {
             await submission.save();
-            console.log('更新电子表格(已写入数据库)');
+            logger.info('更新电子表格(已写入数据库)');
         } else {
-            console.log('教师模拟：更新电子表格(未写入数据库)');
+            logger.info('教师模拟：更新电子表格(未写入数据库)');
         }
 
         res.json({
@@ -101,7 +102,7 @@ exports.updateSubmission = async (req, res) => {
             data: submission
         });
     } catch (error) {
-        console.error('Update spreadsheet submission error:', error);
+        logger.error('Update spreadsheet submission error:', error);
         res.status(500).json({
             success: false,
             message: '更新作业保存失败',
@@ -138,7 +139,7 @@ exports.getActivitySubmissions = async (req, res) => {
             data: submissions
         });
     } catch (error) {
-        console.error('Get activity submissions error:', error);
+        logger.error('Get activity submissions error:', error);
         res.status(500).json({
             success: false,
             message: '获取作业列表失败',

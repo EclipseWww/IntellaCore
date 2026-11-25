@@ -29,7 +29,7 @@ exports.createQuiz = async (req, res) => {
 
     res.status(201).json({ success: true, data: quiz });
   } catch (error) {
-    console.error('创建测验失败:', error);
+    logger.error('创建测验失败:', error);
     res.status(500).json({
       success: false,
       message: '创建测验失败',
@@ -55,7 +55,7 @@ exports.getQuizzes = async (req, res) => {
 
     res.status(200).json({ success: true, data: quizzes });
   } catch (error) {
-    console.error('获取测验列表失败:', error);
+    logger.error('获取测验列表失败:', error);
     res.status(500).json({
       success: false,
       message: '获取测验列表失败',
@@ -84,7 +84,7 @@ exports.getQuiz = async (req, res) => {
     }
     res.status(200).json({ success: true, data: req.user.role === 'student' ? withoutAnswers(quiz) : quiz });
   } catch (error) {
-    console.error('获取测验失败:', error);
+    logger.error('获取测验失败:', error);
     res.status(error.status || 500).json({
       success: false,
       message: '获取测验失败',
@@ -129,7 +129,7 @@ exports.updateQuiz = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedQuiz });
   } catch (error) {
-    console.error('更新测验失败:', error);
+    logger.error('更新测验失败:', error);
     res.status(500).json({
       success: false,
       message: '更新测验失败',
@@ -169,7 +169,7 @@ exports.deleteQuiz = async (req, res) => {
     await Quiz.findByIdAndDelete(req.params.id);
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
-    console.error('删除测验失败:', error);
+    logger.error('删除测验失败:', error);
     res.status(500).json({
       success: false,
       message: '删除测验失败',
@@ -206,7 +206,7 @@ exports.publishQuiz = async (req, res) => {
 
     res.status(200).json({ success: true, data: quiz });
   } catch (error) {
-    console.error('修改测验状态失败:', error);
+    logger.error('修改测验状态失败:', error);
     res.status(500).json({
       success: false,
       message: '修改测验状态失败',
@@ -279,7 +279,7 @@ exports.addQuestions = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedQuiz });
   } catch (error) {
-    console.error('添加题目失败:', error);
+    logger.error('添加题目失败:', error);
     res.status(500).json({
       success: false,
       message: '添加题目失败',
@@ -334,7 +334,7 @@ exports.removeQuestion = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedQuiz });
   } catch (error) {
-    console.error('移除题目失败:', error);
+    logger.error('移除题目失败:', error);
     res.status(500).json({
       success: false,
       message: '移除题目失败',
@@ -394,7 +394,7 @@ exports.updateQuestionsOrder = async (req, res) => {
 
     res.status(200).json({ success: true, data: updatedQuiz });
   } catch (error) {
-    console.error('更新题目顺序失败:', error);
+    logger.error('更新题目顺序失败:', error);
     res.status(500).json({
       success: false,
       message: '更新题目顺序失败',

@@ -12,7 +12,7 @@ function load(file, mocks) {
   return typeof context.module.exports === 'function' || Object.keys(context.module.exports).length ? context.module.exports : context.exports;
 }
 function response() { return { statusCode: 200, status(value) { this.statusCode = value; return this; }, json(value) { this.body = value; return this; } }; }
-const logger = { info() {}, warn() {}, error() {} };
+const logger = { debug() {}, info() {}, warn() {}, error() {} };
 
 test('administrator login requires a database account and valid hashed password', async () => {
   const user = { _id: 'admin-id', username: 'admin', name: 'Admin', role: 'admin', isActive: true,
@@ -69,7 +69,7 @@ test('concurrent game activation and a retry after record failure deliver time o
 });
 
 test('student tokens without a live database session and old synthetic admin tokens are rejected', async () => {
-  const auth = load('../middleware/auth', { jsonwebtoken: jwt, '../models/User': { findById: () => ({ select: async () => null }) } });
+  const auth = load('../middleware/auth', { jsonwebtoken: jwt, '../utils/logger': logger, '../models/User': { findById: () => ({ select: async () => null }) } });
   for (const payload of [{ role: 'student', id: 'student' }, { role: 'admin', isAdmin: true }]) {
     const token = jwt.sign(payload, 'test-secret'); const res = response(); let passed = false;
     await auth({ header: () => `Bearer ${token}`, headers: {}, query: {} }, res, () => { passed = true; });

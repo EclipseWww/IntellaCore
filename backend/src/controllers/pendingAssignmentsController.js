@@ -8,6 +8,7 @@ const SpreadsheetSubmission = require('../models/SpreadsheetSubmission');
 const FillBlankSubmission = require('../models/FillBlankSubmission');
 const Class = require('../models/Class');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 /**
  * 获取待批改作业汇总
@@ -253,7 +254,7 @@ exports.getPendingSummary = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('获取待批改作业汇总失败:', error);
+        logger.error('获取待批改作业汇总失败:', error);
         res.status(500).json({
             success: false,
             message: '获取待批改作业汇总失败',

@@ -56,6 +56,7 @@ const assignmentTreeRoutes = require('./routes/assignmentTreeRoutes');
 const examRoutes = require('./routes/examRoutes');
 const loginRequestRoutes = require('./routes/loginRequestRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
+const logger = require('./utils/logger');
 
 const app = express();
 
@@ -65,7 +66,7 @@ dotenv.config();
 // 检查MONGODB_URI是否加载成功
 
 // 打印配置信息（不包含敏感信息）
-console.log('Configuration loaded:', {
+logger.info('Configuration loaded:', {
   port: config.port,
   mongoUri: config.mongoUri ? 'Set' : 'Not set',
   jwtSecret: config.jwtSecret ? 'Set' : 'Not set'
@@ -178,7 +179,7 @@ app.use('/api/quiz/free-practice', require('./routes/freePracticeRoutes'));
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('Error:', err);
   res.status(err.status || 500).json({
     message: err.message || '服务器错误',
     error: process.env.NODE_ENV === 'development' ? err : {}
@@ -189,7 +190,7 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
   try {
     // 连接数据库
-    console.log('正在连接数据库...');
+    logger.info('正在连接数据库...');
     mongoose.set('debug', process.env.MONGOOSE_DEBUG === 'true'); // 查询日志含学生数据，需显式开启
 
     // 使用配置文件中的 mongoUri
@@ -203,13 +204,13 @@ const startServer = async () => {
           serverSelectionTimeoutMS: 5000,
           socketTimeoutMS: 45000,
         });
-        console.log('数据库连接成功');
+        logger.info('数据库连接成功');
         break;
       } catch (err) {
         if (retries === 1) throw err;
         retries -= 1;
-        console.log(`数据库连接失败，剩余重试次数: ${retries}`);
-        console.log(`错误信息: ${err.message}`);
+        logger.info(`数据库连接失败，剩余重试次数: ${retries}`);
+        logger.info(`错误信息: ${err.message}`);
         // 等待 5 秒后重试
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
@@ -217,21 +218,21 @@ const startServer = async () => {
 
     // 启动服务器
     const server = app.listen(config.port, () => {
-      console.log(`服务器运行在端口 ${config.port}`);
-      console.log(`API URL: http://localhost:${config.port}/api`);
-      console.log(`健康检查: http://localhost:${config.port}/api/health`);
+      logger.info(`服务器运行在端口 ${config.port}`);
+      logger.info(`API URL: http://localhost:${config.port}/api`);
+      logger.info(`健康检查: http://localhost:${config.port}/api/health`);
 
       // 初始化所有定时任务
       initAllSchedulers();
       startShopRecovery();
       startQuizPointsRecovery();
       startCrowdfundingRecovery();
-      console.log('所有定时任务已启动');
+      logger.info('所有定时任务已启动');
     });
 
     // 处理未捕获的异常
     process.on('uncaughtException', (error) => {
-      console.error('未捕获的异常:', error);
+      logger.error('未捕获的异常:', error);
       // 不要立即退出，给服务器一些时间来处理现有请求
       setTimeout(() => {
         process.exit(1);
@@ -240,7 +241,7 @@ const startServer = async () => {
 
     // 处理未处理的 Promise 拒绝
     process.on('unhandledRejection', (reason, promise) => {
-      console.error('未处理的 Promise 拒绝:', reason);
+      logger.error('未处理的 Promise 拒绝:', reason);
     });
 
     // 处理终止信号（docker stop / Ctrl+C）：优雅关闭，超时强制退出
@@ -249,7 +250,7 @@ const startServer = async () => {
     process.on('SIGINT', () => shutdown('SIGINT'));
 
   } catch (err) {
-    console.error('启动服务器失败:', err);
+    logger.error('启动服务器失败:', err);
     process.exit(1);
   }
 };

@@ -1,4 +1,5 @@
 const Spreadsheet = require('../models/Spreadsheet');
+const logger = require('../utils/logger');
 
 // Create a new spreadsheet
 exports.createSpreadsheet = async (req, res) => {
@@ -22,7 +23,7 @@ exports.createSpreadsheet = async (req, res) => {
             data: spreadsheet
         });
     } catch (error) {
-        console.error('Create spreadsheet error:', error);
+        logger.error('Create spreadsheet error:', error);
         res.status(500).json({
             success: false,
             message: '创建表格失败',
@@ -49,7 +50,7 @@ exports.getSpreadsheets = async (req, res) => {
             data: spreadsheets
         });
     } catch (error) {
-        console.error('Get spreadsheets error:', error);
+        logger.error('Get spreadsheets error:', error);
         res.status(500).json({
             success: false,
             message: '获取表格列表失败',
@@ -85,7 +86,7 @@ exports.getSpreadsheet = async (req, res) => {
             data: spreadsheet
         });
     } catch (error) {
-        console.error('Get spreadsheet error:', error);
+        logger.error('Get spreadsheet error:', error);
         res.status(500).json({
             success: false,
             message: '获取表格失败',
@@ -130,7 +131,7 @@ exports.updateSpreadsheet = async (req, res) => {
             data: spreadsheet
         });
     } catch (error) {
-        console.error('Update spreadsheet error:', error);
+        logger.error('Update spreadsheet error:', error);
         res.status(500).json({
             success: false,
             message: '保存表格失败',
@@ -168,7 +169,7 @@ exports.deleteSpreadsheet = async (req, res) => {
             message: '表格已删除'
         });
     } catch (error) {
-        console.error('Delete spreadsheet error:', error);
+        logger.error('Delete spreadsheet error:', error);
         res.status(500).json({
             success: false,
             message: '删除表格失败',

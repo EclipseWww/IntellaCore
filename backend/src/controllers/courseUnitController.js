@@ -2,13 +2,14 @@ const CourseUnit = require('../models/CourseUnit');
 const Lesson = require('../models/Lesson');
 const Course = require('../models/Course');
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
 const LessonModel = require('../models/Lesson'); // 添加 Lesson 模型的引用
 
 // 获取课程的所有单元
 exports.getCourseUnits = async (req, res) => {
   try {
     const { courseId } = req.params;
-    console.log('获取课程单元，courseId:', courseId);
+    logger.info('获取课程单元，courseId:', courseId);
     
     // 获取所有顶级单元（章节）
     const units = await CourseUnit.find({
@@ -16,7 +17,7 @@ exports.getCourseUnits = async (req, res) => {
       parent: null
     }).sort('order');
 
-    console.log('找到的顶级单元数量:', units.length);
+    logger.info('找到的顶级单元数量:', units.length);
     
     if (units.length === 0) {
       // 检查课程是否存在
@@ -24,7 +25,7 @@ exports.getCourseUnits = async (req, res) => {
       if (!course) {
         return res.status(404).json({ message: '课程不存在' });
       }
-      console.log('课程存在，但没有找到任何单元');
+      logger.info('课程存在，但没有找到任何单元');
     }
 
     // 递归获取子单元
@@ -38,10 +39,10 @@ exports.getCourseUnits = async (req, res) => {
       })
     );
 
-    console.log('返回单元数据，包含子单元');
+    logger.info('返回单元数据，包含子单元');
     res.json(populatedUnits);
   } catch (error) {
-    console.error('获取课程单元失败:', error);
+    logger.error('获取课程单元失败:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -65,22 +66,22 @@ const getChildUnits = async (parentId) => {
 exports.getUnitLessons = async (req, res) => {
   try {
     const { unitId } = req.params;
-    console.log('获取课时，unitId:', unitId);
+    logger.info('获取课时，unitId:', unitId);
     
     // 从 Lesson 表中获取所有课时
     const lessons = await Lesson.find({
       unit: unitId
     }).sort('order');
 
-    console.log('找到的课时数量:', lessons.length);
-    console.log('课时数据:', lessons);
+    logger.info('找到的课时数量:', lessons.length);
+    logger.info('课时数据:', lessons);
     
     res.json({
       success: true,
       data: lessons
     });
   } catch (error) {
-    console.error('获取课时失败:', error);
+    logger.error('获取课时失败:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -195,7 +196,7 @@ exports.reorderUnits = async (req, res) => {
 exports.getCourseUnitDetails = async (req, res) => {
   try {
     const { unitId } = req.params;
-    console.log('获取单元详情，unitId:', unitId);
+    logger.info('获取单元详情，unitId:', unitId);
     
     const unit = await CourseUnit.findById(unitId);
     if (!unit) {
@@ -204,7 +205,7 @@ exports.getCourseUnitDetails = async (req, res) => {
 
     res.json(unit);
   } catch (error) {
-    console.error('获取单元详情失败:', error);
+    logger.error('获取单元详情失败:', error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -4,6 +4,7 @@ const FillBlankSubmission = require('../models/FillBlankSubmission');
 const Lesson = require('../models/Lesson');
 const auth = require('../middleware/auth');
 const PointsManager = require('../utils/pointsManager');
+const logger = require('../utils/logger');
 
 // 解析填空内容，提取所有{{blank:答案}}中的正确答案
 function extractCorrectAnswers(content) {
@@ -45,7 +46,7 @@ router.get('/:lessonId/:activityId/submission', auth, async (req, res) => {
             data: submission
         });
     } catch (error) {
-        console.error('获取填空提交失败:', error);
+        logger.error('获取填空提交失败:', error);
         res.status(500).json({
             success: false,
             message: '获取填空提交失败'
@@ -90,7 +91,7 @@ router.post('/:lessonId/:activityId/save', auth, async (req, res) => {
             data: submission
         });
     } catch (error) {
-        console.error('保存填空草稿失败:', error);
+        logger.error('保存填空草稿失败:', error);
         res.status(500).json({
             success: false,
             message: '保存草稿失败'
@@ -174,10 +175,10 @@ router.post('/:lessonId/:activityId/submit', auth, async (req, res) => {
 
         if (req.user.role === 'student') {
             await submission.save();
-            console.log('填空题提交成功(已写入数据库)');
+            logger.info('填空题提交成功(已写入数据库)');
         } else {
             submission._id = new require('mongoose').Types.ObjectId();
-            console.log('教师模拟：填空题提交成功(未写入数据库)');
+            logger.info('教师模拟：填空题提交成功(未写入数据库)');
         }
 
         res.json({
@@ -186,7 +187,7 @@ router.post('/:lessonId/:activityId/submit', auth, async (req, res) => {
             correctAnswers: activity.fillBlankSettings?.showCorrectAfterSubmit ? correctAnswers : null
         });
     } catch (error) {
-        console.error('提交填空答案失败:', error);
+        logger.error('提交填空答案失败:', error);
         res.status(500).json({
             success: false,
             message: '提交失败'
@@ -231,7 +232,7 @@ router.get('/:lessonId/:activityId/submissions', auth, async (req, res) => {
             data: submissions
         });
     } catch (error) {
-        console.error('获取提交记录失败:', error);
+        logger.error('获取提交记录失败:', error);
         res.status(500).json({
             success: false,
             message: '获取提交记录失败'
@@ -286,7 +287,7 @@ router.post('/:lessonId/:activityId/withdraw', auth, async (req, res) => {
             message: '已撤回提交，可以重新填写'
         });
     } catch (error) {
-        console.error('撤回提交失败:', error);
+        logger.error('撤回提交失败:', error);
         res.status(500).json({
             success: false,
             message: '撤回失败'
@@ -341,9 +342,9 @@ router.post('/grade/:submissionId', auth, async (req, res) => {
                         '填空作业评分已清除',
                         submissionId
                     );
-                    console.log('填空作业评分已清除，积分已扣除', { submissionId, oldTotalScore });
+                    logger.info('填空作业评分已清除，积分已扣除', { submissionId, oldTotalScore });
                 } catch (pointsError) {
-                    console.error('清除评分时扣除积分失败:', pointsError);
+                    logger.error('清除评分时扣除积分失败:', pointsError);
                 }
             }
 
@@ -379,13 +380,13 @@ router.post('/grade/:submissionId', auth, async (req, res) => {
                 'task_completion',
                 `填空作业评分: ${newTotalScore}分`
             );
-            console.log('填空作业评分积分更新成功', {
+            logger.info('填空作业评分积分更新成功', {
                 submissionId,
                 studentId: submission.studentId,
                 score: newTotalScore
             });
         } catch (pointsError) {
-            console.error('填空作业评分积分更新失败:', pointsError);
+            logger.error('填空作业评分积分更新失败:', pointsError);
         }
 
         res.json({
@@ -394,7 +395,7 @@ router.post('/grade/:submissionId', auth, async (req, res) => {
             message: '评分成功'
         });
     } catch (error) {
-        console.error('评分失败:', error);
+        logger.error('评分失败:', error);
         res.status(500).json({
             success: false,
             message: '评分失败'

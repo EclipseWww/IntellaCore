@@ -742,22 +742,22 @@ exports.forceLogoutAllStudents = async (req, res) => {
 
 // 下载学生导入模板
 exports.downloadStudentTemplate = async (req, res) => {
-  console.log('下载模板请求到达:', req.originalUrl); // 调试信息
+  logger.info('下载模板请求到达:', req.originalUrl); // 调试信息
   try {
     const templatePath = path.join(__dirname, '../templates/student_template.xlsx');
     res.download(templatePath, '学生导入模板.xlsx', (err) => {
       if (err) {
-        console.error('下载模板失败:', err); // 记录错误信息
+        logger.error('下载模板失败:', err); // 记录错误信息
         res.status(500).json({
           success: false,
           message: '下载模板失败'
         });
       } else {
-        console.log('模板下载成功'); // 记录成功信息
+        logger.info('模板下载成功'); // 记录成功信息
       }
     });
   } catch (error) {
-    console.error('下载模板异常:', error); // 记录异常信息
+    logger.error('下载模板异常:', error); // 记录异常信息
     res.status(500).json({
       success: false,
       message: '下载模板失败'

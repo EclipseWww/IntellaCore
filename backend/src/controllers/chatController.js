@@ -616,7 +616,7 @@ ${contextInfo}
         generateAIResponse(prompt, async (content, error) => {
           try {
             if (error) {
-              console.error('AI响应错误:', error);
+              logger.error('AI响应错误:', error);
               await sendChunk(`data: ${JSON.stringify({ error: '处理问题时出错，请稍后重试' })}\n\n`);
               resolve();
               return;
@@ -662,7 +662,7 @@ ${contextInfo}
                 await sendChunk(`data: ${JSON.stringify({ references })}\n\n`);
                 await sendChunk('data: [DONE]\n\n');
               } catch (error) {
-                console.error('保存消息时出错:', error);
+                logger.error('保存消息时出错:', error);
                 await sendChunk(`data: ${JSON.stringify({ error: '保存消息时出错' })}\n\n`);
               }
               resolve();
@@ -679,7 +679,7 @@ ${contextInfo}
 
       res.end();
     } catch (error) {
-      console.error('处理课程问题时出错:', error);
+      logger.error('处理课程问题时出错:', error);
       if (!res.headersSent) {
         res.status(500).json({ message: '处理问题时出错，请稍后重试' });
       } else {
