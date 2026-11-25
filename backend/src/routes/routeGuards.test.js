@@ -30,6 +30,10 @@ app.use('/api', require('./resourceRoutes'));
 app.use('/api', require('./aiGradeRoutes'));
 app.use('/api/spreadsheet-submissions', require('./spreadsheetSubmission'));
 app.use('/api/email', require('./emailRoutes'));
+app.use('/api/flowchart', require('./flowchartRoutes'));
+app.use('/api/question-analytics', require('./questionAnalyticsRoutes'));
+app.use('/api/typing', require('./typingRoutes'));
+app.use('/api/classroom-layout', require('./classroomLayout'));
 
 const ID = '665f1c2a9b1e8a0012345678';
 const writes = [
@@ -47,7 +51,22 @@ const writes = [
   ['DELETE', `/api/media/courses/${ID}/units/${ID}/lessons/${ID}/media/a.png`, 'teacher'],
   ['DELETE', `/api/courses/${ID}/units/${ID}/lessons/${ID}/resources/a.pdf`, 'teacher'],
   ['POST', `/api/submissions/${ID}/ai-grade`, 'teacher'],
-  ['GET', `/api/spreadsheet-submissions/lesson/${ID}/activity/${ID}/all`, 'teacher']
+  ['GET', `/api/spreadsheet-submissions/lesson/${ID}/activity/${ID}/all`, 'teacher'],
+  ['GET', '/api/flowchart/teacher/submissions', 'teacher'],
+  ['POST', `/api/flowchart/teacher/grade/${ID}`, 'teacher'],
+  ['GET', '/api/flowchart/teacher/stats', 'teacher'],
+  ['DELETE', `/api/flowchart/teacher/submissions/${ID}`, 'teacher'],
+  ['GET', '/api/question-analytics/questions', 'teacher'],
+  ['GET', `/api/question-analytics/questions/${ID}`, 'teacher'],
+  ['POST', '/api/typing/texts', 'teacher'],
+  ['PUT', `/api/typing/texts/${ID}`, 'teacher'],
+  ['DELETE', `/api/typing/texts/${ID}`, 'teacher'],
+  ['GET', '/api/typing/teacher/records', 'teacher'],
+  ['GET', '/api/typing/teacher/stats', 'teacher'],
+  ['DELETE', `/api/typing/teacher/records/${ID}`, 'teacher'],
+  ['POST', '/api/classroom-layout', 'teacher'],
+  ['PUT', `/api/classroom-layout/${ID}`, 'teacher'],
+  ['DELETE', `/api/classroom-layout/${ID}`, 'teacher']
 ];
 
 let base, server;
@@ -58,7 +77,7 @@ const send = (method, url, role) => fetch(base + url, {
   method, headers: { 'content-type': 'application/json', ...(role ? { 'x-test-role': role } : {}) }, body: method === 'GET' ? undefined : '{}'
 }).then(r => r.status);
 
-test('students cannot modify course structure, lessons or teaching files', async () => {
+test('students cannot use teacher-only endpoints (course structure, grading, analytics, typing texts, layouts)', async () => {
   for (const [method, url] of writes) assert.equal(await send(method, url, 'student'), 403, `${method} ${url}`);
 });
 

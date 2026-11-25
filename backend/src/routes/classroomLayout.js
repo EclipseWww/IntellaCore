@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
 const classroomLayoutController = require('../controllers/classroomLayoutController');
 
 /**
@@ -107,7 +109,7 @@ router.get('/', auth, classroomLayoutController.getLayouts);
  *       500:
  *         description: 服务器错误
  */
-router.post('/', auth, classroomLayoutController.createLayout);
+router.post('/', auth, teacherOnly, classroomLayoutController.createLayout);
 
 /**
  * @swagger
@@ -218,7 +220,7 @@ router.get('/:id', auth, classroomLayoutController.getLayout);
  *       500:
  *         description: 服务器错误
  */
-router.put('/:id', auth, classroomLayoutController.updateLayout);
+router.put('/:id', auth, teacherOnly, classroomLayoutController.updateLayout);
 
 /**
  * @swagger
@@ -252,6 +254,6 @@ router.put('/:id', auth, classroomLayoutController.updateLayout);
  *       500:
  *         description: 服务器错误
  */
-router.delete('/:id', auth, classroomLayoutController.deleteLayout);
+router.delete('/:id', auth, teacherOnly, classroomLayoutController.deleteLayout);
 
 module.exports = router; 

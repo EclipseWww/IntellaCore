@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const questionAnalyticsController = require('../controllers/questionAnalyticsController');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
+// 题目分析含选项与正确答案，仅教师/管理员可访问
+const teacherOnly = roleCheck(['teacher', 'admin']);
 
 /**
  * @swagger
@@ -76,6 +79,7 @@ const auth = require('../middleware/auth');
 router.get(
   '/questions',
   auth,
+  teacherOnly,
   questionAnalyticsController.getAllQuestionsAnalytics
 );
 
@@ -143,6 +147,7 @@ router.get(
 router.get(
   '/questions/:questionId',
   auth,
+  teacherOnly,
   questionAnalyticsController.getQuestionAnalytics
 );
 

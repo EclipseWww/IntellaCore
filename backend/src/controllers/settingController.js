@@ -11,6 +11,9 @@ const stat = util.promisify(fs.stat);
 const logger = require('../utils/logger');
 const semesterUtils = require('../utils/semesterUtils');
 
+// AI 服务配置（含 API Key）仅管理员可读写，避免学生/教师通过设置接口拿到密钥
+const isAdminOnlyKey = key => typeof key === 'string' && key.startsWith('ai.');
+
 // A single, bounded traversal counts files and bytes, without following symlinks.
 async function scanDirectory(root) {
   let size = 0, fileCount = 0;
@@ -38,6 +41,7 @@ const settingController = {
     try {
       logger.info('获取设置', { key: req.params.key });
       const { key } = req.params;
+      if (isAdminOnlyKey(key) && req.user?.role !== 'admin') return res.status(403).json({ message: '仅管理员可以查看此设置' });
       const setting = await Setting.findOne({ key });
       if (!setting && key === 'rag.enabled') return res.json({ key, value: false });
       if (!setting) {
@@ -57,6 +61,7 @@ const settingController = {
       logger.info('更新设置', { key: req.params.key });
       const { key } = req.params;
       let { value, description } = req.body;
+      if (isAdminOnlyKey(key) && req.user.role !== 'admin') return res.status(403).json({ message: '仅管理员可以修改 AI 服务配置' });
       if (key === 'rag.enabled') {
         if (req.user.role !== 'admin') return res.status(403).json({ message: '仅管理员可以修改此开关' });
         if (typeof value !== 'boolean') return res.status(400).json({ message: '开关必须为布尔值' });
@@ -85,7 +90,9 @@ const settingController = {
     try {
       logger.info('获取所有设置');
       const settings = await Setting.find();
-      res.json(settings.map(s => s.key === 'studentLogoutPassword' ? { key: s.key, configured: true } : s));
+      res.json(settings
+        .filter(s => req.user?.role === 'admin' || !isAdminOnlyKey(s.key))
+        .map(s => s.key === 'studentLogoutPassword' ? { key: s.key, configured: true } : s));
     } catch (error) {
       logger.error('获取所有设置失败', { error: error.message, stack: error.stack });
       res.status(500).json({ message: '服务器错误' });

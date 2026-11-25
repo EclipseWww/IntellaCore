@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const flowchartController = require('../controllers/flowchartController');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
 
 /**
  * @swagger
@@ -160,7 +162,7 @@ router.get('/submission', auth, flowchartController.getSubmission);
  *       500:
  *         description: 服务器错误
  */
-router.get('/teacher/submissions', auth, flowchartController.getActivitySubmissions);
+router.get('/teacher/submissions', auth, teacherOnly, flowchartController.getActivitySubmissions);
 
 /**
  * @swagger
@@ -206,7 +208,7 @@ router.get('/teacher/submissions', auth, flowchartController.getActivitySubmissi
  *       500:
  *         description: 服务器错误
  */
-router.post('/teacher/grade/:submissionId', auth, flowchartController.gradeSubmission);
+router.post('/teacher/grade/:submissionId', auth, teacherOnly, flowchartController.gradeSubmission);
 
 /**
  * @swagger
@@ -245,7 +247,7 @@ router.post('/teacher/grade/:submissionId', auth, flowchartController.gradeSubmi
  *       500:
  *         description: 服务器错误
  */
-router.get('/teacher/stats', auth, flowchartController.getClassStats);
+router.get('/teacher/stats', auth, teacherOnly, flowchartController.getClassStats);
 
 /**
  * @swagger
@@ -274,7 +276,7 @@ router.get('/teacher/stats', auth, flowchartController.getClassStats);
  *       500:
  *         description: 服务器错误
  */
-router.delete('/teacher/submissions/:submissionId', auth, flowchartController.deleteSubmission);
+router.delete('/teacher/submissions/:submissionId', auth, teacherOnly, flowchartController.deleteSubmission);
 
 module.exports = router;
 

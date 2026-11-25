@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const typingController = require('../controllers/typingController');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
 
 // 文本管理路由
 /**
@@ -59,7 +61,7 @@ const auth = require('../middleware/auth');
  *       500:
  *         description: 服务器错误
  */
-router.post('/texts', auth, typingController.createText);
+router.post('/texts', auth, teacherOnly, typingController.createText);
 
 /**
  * @swagger
@@ -246,7 +248,7 @@ router.get('/texts/:id', auth, typingController.getTextById);
  *       500:
  *         description: 服务器错误
  */
-router.put('/texts/:id', auth, typingController.updateText);
+router.put('/texts/:id', auth, teacherOnly, typingController.updateText);
 
 /**
  * @swagger
@@ -280,7 +282,7 @@ router.put('/texts/:id', auth, typingController.updateText);
  *       500:
  *         description: 服务器错误
  */
-router.delete('/texts/:id', auth, typingController.deleteText);
+router.delete('/texts/:id', auth, teacherOnly, typingController.deleteText);
 
 // 练习记录路由
 /**
@@ -594,7 +596,7 @@ router.get('/text-leaderboard/:textId', auth, typingController.getTextLeaderboar
  *       500:
  *         description: 服务器错误
  */
-router.get('/teacher/records', auth, typingController.getTeacherRecords);
+router.get('/teacher/records', auth, teacherOnly, typingController.getTeacherRecords);
 
 /**
  * @swagger
@@ -634,7 +636,7 @@ router.get('/teacher/records', auth, typingController.getTeacherRecords);
  *       500:
  *         description: 服务器错误
  */
-router.get('/teacher/stats', auth, typingController.getTeacherStats);
+router.get('/teacher/stats', auth, teacherOnly, typingController.getTeacherStats);
 
 /**
  * @swagger
@@ -670,6 +672,6 @@ router.get('/teacher/stats', auth, typingController.getTeacherStats);
  *       500:
  *         description: 服务器错误
  */
-router.delete('/teacher/records/:id', auth, typingController.deleteTypingRecord);
+router.delete('/teacher/records/:id', auth, teacherOnly, typingController.deleteTypingRecord);
 
 module.exports = router; 
