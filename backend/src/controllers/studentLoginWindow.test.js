@@ -34,21 +34,26 @@ test('during class students log in without a password', async () => {
   for (const password of [undefined, '', 'anything']) assert.equal((await login(c, password)).statusCode, 200);
 });
 
-test('outside class time students log in with the correct password', async () => {
+test('outside class time students cannot log in, even with the correct password', async () => {
   const c = await setup({ isInClass: false });
-  const res = await login(c, 'right-pass');
-  assert.equal(res.statusCode, 200);
-  assert.equal(jwt.verify(res.body.token, 'test-secret').role, 'student');
+  for (const password of ['right-pass', 'wrong', '', undefined]) {
+    const res = await login(c, password);
+    assert.equal(res.statusCode, 403, String(password));
+    assert.equal(res.body.code, 'CLASS_NOT_IN_SESSION');
+  }
 });
 
-test('outside class time wrong, empty or missing passwords are rejected with 401', async () => {
-  const c = await setup({ isInClass: false });
-  for (const password of ['wrong', '', undefined, null, { $ne: 'x' }]) assert.equal((await login(c, password)).statusCode, 401, String(password));
+test('outside class time nothing about the student is revealed (no IP / device / name details)', async () => {
+  const c = await setup({ isInClass: false, sessionId: 'other-device', loginHistory: [{ ip: '192.168.9.9' }] });
+  const res = await login(c, undefined);
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.code, 'CLASS_NOT_IN_SESSION');
+  for (const key of ['oldIp', 'newIp', 'studentName', 'studentId', 'canRequestLogin']) assert.equal(res.body[key], undefined, key);
 });
 
-test('outside class time IP/device details are not revealed before the password is verified', async () => {
-  const c = await setup({ isInClass: false, sessionId: 'other-device' });
-  const res = await login(c, 'wrong');
-  assert.equal(res.statusCode, 401);
-  assert.equal(res.body.code, undefined); assert.equal(res.body.oldIp, undefined);
+test('during class an existing session on another device still triggers the approval flow', async () => {
+  const c = await setup({ isInClass: true, sessionId: 'other-device' });
+  const res = await login(c, undefined);
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.code, 'DEVICE_CONFLICT');
 });

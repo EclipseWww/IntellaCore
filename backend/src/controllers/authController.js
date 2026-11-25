@@ -101,13 +101,28 @@ const authController = {
           return res.status(404).json({ message: '未找到指定的班级' });
         }
 
-        // 上课中：学生无需密码，直接登录；非上课时间：必须输入正确密码（先于 IP/设备冲突检查，避免未验证身份就泄露上次登录 IP）
+        // 如果班级已归档（已毕业），则禁止登录并返回友好提示
+        if (classObj.status === 'archived') {
+          logger.info('学生尝试登录已归档班级', { username, classId: userWithClass.classId });
+          return res.status(403).json({
+            message: '您所在班级已完成本阶段学习，如有问题请联系教师',
+            code: 'CLASS_ARCHIVED'
+          });
+        }
+
+        // 非上课时间一律不允许学生登录（无论密码是否正确）。
+        // 该检查放在 IP/设备冲突检查之前：未登录成功前不向外返回学生姓名、上次登录 IP 等信息。
         if (!classObj.isInClass) {
-          const isMatch = typeof password === 'string' && password !== '' && await bcrypt.compare(password, user.password);
-          if (!isMatch) {
-            logger.warn('学生非上课时间登录密码不匹配:', username);
-            return res.status(401).json({ message: '用户名或密码错误' });
-          }
+          logger.warn('学生在非上课时间尝试登录被拒绝', {
+            username,
+            classId: userWithClass.classId,
+            attemptTime: new Date().toISOString()
+          });
+          return res.status(403).json({
+            message: '当前不在上课时间，暂不能登录',
+            code: 'CLASS_NOT_IN_SESSION',
+            isClassInSession: false
+          });
         }
 
         const currentIp = getClientIp(req);
@@ -175,15 +190,6 @@ const authController = {
             studentId: user._id,
             studentName: user.name,
             classId: userWithClass.classId
-          });
-        }
-
-        // 如果班级已归档（已毕业），则禁止登录并返回友好提示
-        if (classObj.status === 'archived') {
-          logger.info('学生尝试登录已归档班级', { username, classId: userWithClass.classId });
-          return res.status(403).json({
-            message: '您所在班级已完成本阶段学习，如有问题请联系教师',
-            code: 'CLASS_ARCHIVED'
           });
         }
 
