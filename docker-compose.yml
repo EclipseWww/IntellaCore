@@ -30,7 +30,6 @@ services:
     - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET}
     - OPENAI_API_KEY=${OPENAI_API_KEY:-}
     - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
-    - MASTER_PASSWORD=${MASTER_PASSWORD:?Set MASTER_PASSWORD}
     - MODEL=${MODEL:-qwen-turbo}
     - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://127.0.0.1,http://127.0.0.1:80,http://frontend:80,http://0.0.0.0,http://*:80,http://172.30.145.20}
     - MAX_ASSIGNMENT_FILE_SIZE=20

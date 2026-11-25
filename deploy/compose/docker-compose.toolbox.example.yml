@@ -26,7 +26,6 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
-      MASTER_PASSWORD: ${MASTER_PASSWORD:?Set MASTER_PASSWORD}
       MODEL: ${MODEL:-qwen-turbo}
       # 添加 Docker Toolbox 虚拟机 IP 192.168.99.100
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://192.168.99.100,http://192.168.99.100:80,http://frontend:80,http://0.0.0.0,http://*:80}

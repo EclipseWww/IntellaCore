@@ -17,9 +17,9 @@ def environment(container):
 
 backend = environment('backend')
 mongo = environment('mongodb')
-values = {key: backend.get(key, '') for key in ['JWT_SECRET', 'MASTER_PASSWORD', 'OPENAI_API_KEY', 'DASHSCOPE_API_KEY', 'MONGODB_URI', 'MODEL', 'ALLOWED_ORIGINS']}
+values = {key: backend.get(key, '') for key in ['JWT_SECRET', 'OPENAI_API_KEY', 'DASHSCOPE_API_KEY', 'MONGODB_URI', 'MODEL', 'ALLOWED_ORIGINS']}
 values['MONGO_ROOT_PASSWORD'] = mongo.get('MONGO_INITDB_ROOT_PASSWORD', '')
-if not all(values.get(key) for key in ['JWT_SECRET', 'MASTER_PASSWORD', 'MONGODB_URI', 'MONGO_ROOT_PASSWORD']):
+if not all(values.get(key) for key in ['JWT_SECRET', 'MONGODB_URI', 'MONGO_ROOT_PASSWORD']):
     sys.exit('Required configuration missing; no file written. Keep the existing containers running.')
 
 def quote(value):

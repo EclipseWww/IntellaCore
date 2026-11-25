@@ -30,13 +30,12 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 notepad .env
 ```
 
-在打开的文件中保留以下设置，并把两个占位密码换成自己的随机字符串：
+在打开的文件中保留以下设置，并把占位密钥换成自己的随机字符串：
 
 ```dotenv
 PORT=5003
 MONGODB_URI=mongodb://127.0.0.1:27017/student-ai-chat
 JWT_SECRET=replace-with-random-secret
-MASTER_PASSWORD=replace-with-strong-password
 ALLOWED_ORIGINS=http://localhost:3000
 ```
 
@@ -205,13 +204,12 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 notepad .env
 ```
 
-设置 MONGO_ROOT_PASSWORD、MONGODB_URI、JWT_SECRET、MASTER_PASSWORD；AI Key 可先留空。MongoDB URI 必须使用容器服务名 mongodb，而不是 localhost 或 127.0.0.1，例如：
+设置 MONGO_ROOT_PASSWORD、MONGODB_URI、JWT_SECRET；AI Key 可先留空。MongoDB URI 必须使用容器服务名 mongodb，而不是 localhost 或 127.0.0.1，例如：
 
 ```dotenv
 MONGO_ROOT_PASSWORD=replace-with-your-own-password
 MONGODB_URI=mongodb://admin:replace-with-your-own-password@mongodb:27017/student-ai-chat?authSource=admin
 JWT_SECRET=replace-with-your-own-random-secret
-MASTER_PASSWORD=replace-with-your-own-master-password
 OPENAI_API_KEY=
 DASHSCOPE_API_KEY=
 ALLOWED_ORIGINS=http://localhost:3000
