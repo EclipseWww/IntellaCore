@@ -30,8 +30,9 @@ const upload = multer({
 
 // 需要管理员权限的路由
 router.use(auth);
+// 备份含全部用户数据与 AI 配置，导入会覆盖整个数据库；前端仅管理员后台提供该功能
 router.use((req, res, next) => {
-  if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ message: '需要管理员权限' });
   }
   next();

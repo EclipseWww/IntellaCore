@@ -41,7 +41,7 @@ const roleCheck = require('../middleware/roleCheck');
  */
 router.get('/files',
   auth,
-  roleCheck(['admin', 'teacher']),
+  roleCheck(['admin']),
   logController.getLogFiles
 );
 
@@ -102,7 +102,7 @@ router.get('/files',
  */
 router.get('/content/:filename',
   auth,
-  roleCheck(['admin', 'teacher']),
+  roleCheck(['admin']),
   logController.getLogContent
 );
 
@@ -156,7 +156,7 @@ router.get('/content/:filename',
  */
 router.get('/recent',
   auth,
-  roleCheck(['admin', 'teacher']),
+  roleCheck(['admin']),
   logController.getRecentLogs
 );
 
