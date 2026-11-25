@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const courseController = require('../controllers/courseController');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
 
 /**
  * @swagger
@@ -254,6 +255,6 @@ router.get('/:courseId', auth, courseController.getCourseByIdNew);
  *       201:
  *         description: 成功创建示例课程
  */
-router.post('/create-samples', courseController.createSampleCourses);
+router.post('/create-samples', auth, roleCheck(['admin']), courseController.createSampleCourses);
 
 module.exports = router;

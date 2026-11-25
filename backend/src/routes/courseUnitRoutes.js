@@ -7,6 +7,11 @@ const auth = require('../middleware/auth');
 // 课程单元路由
 // 所有路由都需要认证
 router.use(auth);
+// 课程结构的增删改仅限教师与管理员；查询接口保持原样（学生端也会读取）
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
+router.use((req, res, next) => (req.method === 'GET' || req.method === 'HEAD' ? next() : teacherOnly(req, res, next)));
+
 
 /**
  * @swagger

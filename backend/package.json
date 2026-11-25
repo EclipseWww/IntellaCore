@@ -6,7 +6,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "init-admin": "node src/scripts/initAdmin.js",
-    "test": "node --test src/controllers/*.test.js src/models/*.test.js src/services/*.test.js src/utils/*.test.js"
+    "test": "node --test src/controllers/*.test.js src/models/*.test.js src/services/*.test.js src/utils/*.test.js src/routes/*.test.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",

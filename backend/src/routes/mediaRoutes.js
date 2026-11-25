@@ -3,6 +3,13 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const auth = require('../middleware/auth');
+const { guardPathParams } = require('../utils/safeDownloadPath');
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
+
+// 路径参数会被拼进磁盘路径，先拒绝 . / .. 与分隔符
+guardPathParams(router, ['courseId', 'unitId', 'lessonId', 'filename']);
+
 const mediaController = require('../controllers/mediaController');
 const { promisify } = require('util');
 const fs = require('fs');
@@ -137,6 +144,7 @@ const upload = multer({
 router.post(
   '/courses/:courseId/units/:unitId/lessons/:lessonId/upload',
   auth,
+  teacherOnly,
   upload.single('media'),
   mediaController.uploadMedia
 );
@@ -344,6 +352,7 @@ router.get(
 router.delete(
   '/courses/:courseId/units/:unitId/lessons/:lessonId/media/:filename',
   auth,
+  teacherOnly,
   mediaController.deleteMedia
 );
 

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
-const { safeDownloadPath } = require('./safeDownloadPath');
+const { safeDownloadPath, isSafePathSegment } = require('./safeDownloadPath');
 const { redactLog } = require('./redactLog');
 
 test('downloads allow nested files and reject traversal, Windows paths and missing files', async () => {
@@ -27,4 +27,9 @@ test('log redaction removes nested credentials without changing input', () => {
   const result = redactLog(source);
   assert.equal(result.body.password, '[REDACTED]'); assert.equal(result.body.Authorization, '[REDACTED]');
   assert.equal(result.token, '[REDACTED]'); assert.equal(result.username, 'teacher'); assert.equal(source.body.password, 'private');
+});
+
+test('path segments reject traversal and separators', () => {
+  for (const ok of ['665f1c2a9b1e8a0012345678', 'question-bank', 'single_choice', '1699999999-abc.png']) assert.equal(isSafePathSegment(ok), true);
+  for (const bad of ['', '.', '..', '../x', 'a/b', 'a\\b', 'a\0b', undefined, null]) assert.equal(isSafePathSegment(bad), false);
 });

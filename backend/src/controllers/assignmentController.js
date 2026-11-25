@@ -752,6 +752,7 @@ exports.getPdfPreview = async (req, res) => {
     const { submissionId } = req.params;
     logger.info('请求预览提交ID:', { submissionId });
 
+    let viewer;
     const token = req.query.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -762,6 +763,7 @@ exports.getPdfPreview = async (req, res) => {
     // 验证token
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      viewer = { id: decoded._id || decoded.id, role: decoded.role };
       logger.debug('token验证成功，用户ID:', { userId: decoded.id });
     } catch (error) {
       logger.error('token验证失败:', { error: error.message });
@@ -772,6 +774,11 @@ exports.getPdfPreview = async (req, res) => {
     if (!submission) {
       logger.warn('未找到提交记录:', { submissionId });
       return res.status(404).json({ message: '提交记录不存在' });
+    }
+
+    // 只有提交者本人或教师/管理员可以查看
+    if (String(submission.student) !== String(viewer.id) && viewer.role !== 'teacher' && viewer.role !== 'admin') {
+      return res.status(403).json({ message: '无权限查看此文件' });
     }
 
     if (!submission.content.file) {
@@ -912,6 +919,7 @@ exports.getExcelData = async (req, res) => {
     const MAX_COLS = 50;
     const MAX_CELLS_PER_SHEET = 10000;
 
+    let viewer;
     const token = req.query.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -921,7 +929,8 @@ exports.getExcelData = async (req, res) => {
 
     // 验证token
     try {
-      jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      viewer = { id: decoded._id || decoded.id, role: decoded.role };
     } catch (error) {
       logger.error('token验证失败:', { error: error.message });
       return res.status(401).json({ success: false, message: '无效的token' });
@@ -931,6 +940,11 @@ exports.getExcelData = async (req, res) => {
     if (!submission) {
       logger.warn('未找到提交记录:', { submissionId });
       return res.status(404).json({ success: false, message: '提交记录不存在' });
+    }
+
+    // 只有提交者本人或教师/管理员可以查看
+    if (String(submission.student) !== String(viewer.id) && viewer.role !== 'teacher' && viewer.role !== 'admin') {
+      return res.status(403).json({ success: false, message: '无权限查看此文件' });
     }
 
     if (!submission.content.file) {

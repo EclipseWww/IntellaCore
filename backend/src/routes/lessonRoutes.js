@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const LessonController = require('../controllers/lessonController');
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
+const teacherOnly = roleCheck(['teacher', 'admin']);
 const multer = require('multer');
 const transfer = require('../controllers/lessonTransferController');
 router.get('/:lessonId/media-status', auth, transfer.mediaStatus);
@@ -131,7 +133,7 @@ const excelGradingUpload = multer({
  *       404:
  *         description: 课时或活动不存在
  */
-router.put('/:lessonId/activities/:activityId/publish', LessonController.updateActivityPublishStatus);
+router.put('/:lessonId/activities/:activityId/publish', auth, teacherOnly, LessonController.updateActivityPublishStatus);
 
 /**
  * @swagger
@@ -252,7 +254,7 @@ router.post('/units/:unitId/import', auth, upload.single('lessonFile'), LessonCo
  *       404:
  *         description: 课时或活动不存在
  */
-router.put('/:lessonId/activities/:activityId/details', auth, LessonController.updateActivityDetails);
+router.put('/:lessonId/activities/:activityId/details', auth, teacherOnly, LessonController.updateActivityDetails);
 
 router.post(
   '/:lessonId/activities/:activityId/ppt-grading/upload',

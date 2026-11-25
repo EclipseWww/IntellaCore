@@ -19,4 +19,19 @@ async function safeDownloadPath(root, requestedPath) {
   return realTarget;
 }
 
-module.exports = { safeDownloadPath };
+// 单个路径段（如 courseId、filename）不得为 . / .. 或包含分隔符、空字符，防止拼路径时越出目录
+function isSafePathSegment(value) {
+  return typeof value === 'string' && value !== '' && value !== '.' && value !== '..' && !/[\\/\0]/.test(value);
+}
+
+// 用于 router.param：参数不安全时直接 400，避免进入 multer 建目录或删除文件
+function guardPathParams(router, names) {
+  for (const name of names) {
+    router.param(name, (req, res, next, value) => {
+      if (!isSafePathSegment(value)) return res.status(400).json({ message: '无效的路径参数' });
+      next();
+    });
+  }
+}
+
+module.exports = { safeDownloadPath, isSafePathSegment, guardPathParams };
