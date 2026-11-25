@@ -56,8 +56,12 @@ const QuizQuestion = ({
       value: opt.value // 用于量表题
     }));
 
-    // 如果服务器提供了选项顺序，使用服务器的顺序
-    if (optionOrder && Array.isArray(optionOrder) && optionOrder.length > 0) {
+    if (question.type === 'TRUE_FALSE') {
+      // 判断题固定 A=正确、B=错误；忽略服务器旧答题记录里可能存在的乱序
+      const rank = (opt) => (opt.content === '正确' ? 0 : opt.content === '错误' ? 1 : 2);
+      processedOptions.sort((a, b) => rank(a) - rank(b));
+    } else if (optionOrder && Array.isArray(optionOrder) && optionOrder.length > 0) {
+      // 如果服务器提供了选项顺序，使用服务器的顺序
       const orderedOptions = optionOrder
         .map(optId => processedOptions.find(opt => opt._id?.toString() === optId?.toString()))
         .filter(Boolean);
@@ -67,10 +71,7 @@ const QuizQuestion = ({
       }
     } else {
       // 使用保存的初始randomizeOptions值，而不是当前的props
-      const shouldRandomize = initialRandomizeRef.current && question.type !== 'TRUE_FALSE';
-
-      // 只有在非判断题且启用了选项乱序时才打乱选项顺序
-      if (shouldRandomize) {
+      if (initialRandomizeRef.current) {
         // 对选项进行随机化处理
         processedOptions = shuffleArray(processedOptions);
       }

@@ -250,7 +250,7 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
                           {/* 错误选项 */}
                           {(() => {
                             const isCorrectB = correctOption?.content === '错误';
-                            const isSelectedB = !userSelectedTrue;
+                            const isSelectedB = question.type === 'TRUE_FALSE' && selectedOption?.content === '错误';
                             let bgColorB = 'white';
                             let borderColorB = '#d9d9d9';
                             let borderWidthB = '1px';
@@ -505,7 +505,7 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
                               <Text style={{ marginRight: '4px' }}><strong>B.</strong></Text>
                               <Text>错误</Text>
                             </div>
-                            {!userSelectedTrue && <Text style={{ marginLeft: '8px' }}>{answerLabel}</Text>}
+                            {selectedOption?.content === '错误' && <Text style={{ marginLeft: '8px' }}>{answerLabel}</Text>}
                           </div>
                         </Space>
                       ) : (

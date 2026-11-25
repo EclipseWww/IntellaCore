@@ -1099,7 +1099,8 @@ exports.start = async (req, res) => {
     const optionOrderMap = new Map();
     if (quizSettings.randomizeOptions) {
       quiz.questions.forEach(q => {
-        if (q.questionId && q.questionId.options && q.questionId.options.length > 0) {
+        // 判断题固定 A=正确、B=错误，不参与选项乱序
+        if (q.questionId && q.questionId.type !== 'TRUE_FALSE' && q.questionId.options && q.questionId.options.length > 0) {
           const optionIds = q.questionId.options.map(opt => opt._id);
           optionOrderMap.set(q.questionId._id.toString(), shuffleArray(optionIds));
         }

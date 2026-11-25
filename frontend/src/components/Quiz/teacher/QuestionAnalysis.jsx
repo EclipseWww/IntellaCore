@@ -436,7 +436,7 @@ const QuestionAnalysis = () => {
                                 const optionStats = stats.optionDistribution[optionId] || { count: 0, percentage: 0 };
                                 
                                 pieData.push({
-                                  name: option.isCorrect ? '正确' : '错误',
+                                  name: option.content || (index === 0 ? '正确' : '错误'),
                                   value: parseInt(optionStats.count || 0),
                                   percentage: parseFloat(optionStats.percentage || 0).toFixed(2)
                                 });
@@ -500,7 +500,7 @@ const QuestionAnalysis = () => {
                       
                       // 判断题特殊处理选项标签
                       const optionLabel = question.type === 'TRUE_FALSE' 
-                        ? (option.isCorrect ? '正确' : '错误')
+                        ? (option.content || (index === 0 ? '正确' : '错误'))
                         : String.fromCharCode(65 + index);
                       
                       return (
