@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Button, Space, message, Tag, Spin, Alert, Progress, Modal, List, Tooltip, Empty } from 'antd';
 import {
     SaveOutlined,
@@ -6,7 +6,6 @@ import {
     CheckCircleOutlined,
     ClockCircleOutlined,
     TrophyOutlined,
-    ExperimentOutlined,
     HistoryOutlined,
     LockOutlined,
     EditOutlined
@@ -14,7 +13,6 @@ import {
 import { pythonAPI } from '../../../services/api';
 import PythonEditor from '../../Python/PythonEditor';
 import TestResultList from '../../Python/TestResultList';
-import { pythonRunner } from '../../Python/pythonRunner';
 import MarkdownRenderer from '../../shared/MarkdownRenderer';
 import './PythonActivity.css';
 
@@ -44,7 +42,7 @@ const formatTime = (value) => (value ? new Date(value).toLocaleString('zh-CN', {
 
 /**
  * Python编程活动组件（学生端）
- * - 运行、自测（公开样例）在浏览器 Worker 中进行；正式提交由服务器运行全部测试点并评分
+ * - 运行在浏览器 Worker 中进行；提交由服务器运行全部测试点并评分
  * - 代码自动保存到本机，并定时同步草稿到服务器
  */
 const PythonActivity = ({
@@ -59,8 +57,6 @@ const PythonActivity = ({
     const [submission, setSubmission] = useState(null);
     const [code, setCode] = useState('');
     const [lastOutput, setLastOutput] = useState('');
-    const [selfTesting, setSelfTesting] = useState(false);
-    const [selfTestResults, setSelfTestResults] = useState(null);
     const [historyOpen, setHistoryOpen] = useState(false);
     const [attempts, setAttempts] = useState(null);
     const [expandedAttempt, setExpandedAttempt] = useState(null);
@@ -77,11 +73,6 @@ const PythonActivity = ({
     const codeRef = useRef('');
     const localTimerRef = useRef(null);
     const busyRef = useRef(false);
-
-    const sampleCases = useMemo(
-        () => testCases.filter(tc => !tc.isHidden && ((tc.input || '') !== '' || (tc.expectedOutput || '') !== '')),
-        [testCases]
-    );
 
     const applySubmission = useCallback((data) => {
         setSubmission(data);
@@ -143,7 +134,6 @@ const PythonActivity = ({
     const handleCodeChange = useCallback((newCode) => {
         setCode(newCode);
         codeRef.current = newCode;
-        setSelfTestResults(null);
         clearTimeout(localTimerRef.current);
         localTimerRef.current = setTimeout(() => {
             try {
@@ -180,23 +170,6 @@ const PythonActivity = ({
             setSaving(false);
         }
     }, [lessonId, activityId, lastOutput, applySubmission]);
-
-    const handleSelfTest = async () => {
-        if (!sampleCases.length) return;
-        setSelfTesting(true);
-        setSelfTestResults([]);
-        try {
-            const results = await pythonRunner.runTests(codeRef.current, sampleCases, { onProgress: setSelfTestResults });
-            const passed = results.filter(r => r.passed).length;
-            if (passed === results.length) message.success(`公开样例全部通过（${passed}/${results.length}），可以提交了`);
-            else message.warning(`公开样例通过 ${passed}/${results.length}，请查看左侧的自测结果`);
-        } catch (error) {
-            message.error(`自测失败：${error.message || '无法启动 Python 运行环境'}`);
-            setSelfTestResults(null);
-        } finally {
-            setSelfTesting(false);
-        }
-    };
 
     const handleSubmit = async () => {
         const snapshot = codeRef.current;
@@ -315,21 +288,6 @@ const PythonActivity = ({
                         <Alert message="教师评语" description={submission.feedback} type="info" showIcon style={{ marginTop: 16 }} />
                     )}
 
-                    {selfTestResults && (
-                        <Card
-                            title={<Space><span>🧪 自测结果（公开样例，仅供参考）</span>
-                                <Tag color={selfTestResults.length === sampleCases.length && selfTestResults.every(r => r.passed) ? 'success' : 'warning'}>
-                                    {selfTestResults.filter(r => r.passed).length}/{sampleCases.length} 通过
-                                </Tag>
-                            </Space>}
-                            size="small"
-                            style={{ marginTop: 16 }}
-                        >
-                            {selfTesting && <Spin size="small" style={{ marginBottom: 8 }} tip={`正在运行样例 ${selfTestResults.length + 1}/${sampleCases.length}`} />}
-                            <TestResultList results={selfTestResults} testCases={sampleCases} labelPrefix="样例" />
-                        </Card>
-                    )}
-
                     {serverResults && (
                         <Card
                             title={
@@ -373,11 +331,6 @@ const PythonActivity = ({
                                 <Tooltip title="保存到服务器 (Ctrl+S)；代码也会自动备份在本机">
                                     <Button icon={<SaveOutlined />} onClick={handleSaveDraft} loading={saving}>保存</Button>
                                 </Tooltip>
-                                {sampleCases.length > 0 && (
-                                    <Tooltip title="用公开样例在本机检查答案，不计成绩">
-                                        <Button icon={<ExperimentOutlined />} onClick={handleSelfTest} loading={selfTesting}>自测</Button>
-                                    </Tooltip>
-                                )}
                                 <Tooltip title={submitDisabledReason || (testCases.length ? '提交后由服务器运行全部测试点（含隐藏测试点）自动评分' : '提交给老师评分')}>
                                     <Button
                                         type="primary"

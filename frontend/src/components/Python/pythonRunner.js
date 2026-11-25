@@ -6,11 +6,10 @@
  */
 
 // 修改 public/libs/python-runner 下的文件后递增，避免浏览器缓存旧版本
-const RUNNER_VERSION = '1';
+const RUNNER_VERSION = '2';
 const WORKER_URL = `/libs/python-runner/worker.js?v=${RUNNER_VERSION}`;
-export const DEFAULT_TEST_TIMEOUT_MS = 5000;
 
-/** 与服务器判题一致：去掉每行行尾空白与首尾空行，兼容 Windows 换行 */
+/** 与服务器判题一致：去掉每行行尾空白与首尾空行，兼容 Windows 换行（用于输出差异对比） */
 export function normalizeOutput(text) {
     return String(text ?? '')
         .replace(/\r\n?/g, '\n')
@@ -99,8 +98,7 @@ class PythonRunner {
             case 'input-request':
                 handlers.onInputRequest?.(message.prompt);
                 break;
-            case 'done':
-            case 'test-result': {
+            case 'done': {
                 this.finish(message);
                 // 解释器崩溃后无法继续使用，重建 Worker
                 const type = message.error?.type;
@@ -166,51 +164,6 @@ class PythonRunner {
         clearTimeout(task.timer);
         this.restart();
         task.resolve({ stopped: true, error: null });
-    }
-
-    /** 以给定输入运行一次，超时则重启 Worker */
-    async runOnce(code, input, timeoutMs = DEFAULT_TEST_TIMEOUT_MS) {
-        if (this.task) this.stop();
-        await this.ensure();
-        const id = this.nextId++;
-        return new Promise(resolve => {
-            const task = { id, kind: 'test', resolve };
-            task.timer = setTimeout(() => {
-                if (this.task !== task) return;
-                this.task = null;
-                this.restart();
-                resolve({ timeout: true });
-            }, timeoutMs);
-            this.task = task;
-            this.worker.postMessage({ type: 'test', id, code, input });
-        });
-    }
-
-    /**
-     * 用公开测试点自测（结果仅供参考，正式成绩以服务器判题为准）。
-     * @returns {Promise<Array<{index, status, passed, actualOutput, expectedOutput, input, error, timeMs}>>}
-     */
-    async runTests(code, testCases, { timeoutMs = DEFAULT_TEST_TIMEOUT_MS, onProgress } = {}) {
-        const results = [];
-        for (const [index, testCase] of testCases.entries()) {
-            const run = await this.runOnce(code, testCase.input || '', timeoutMs);
-            const base = { index, input: testCase.input || '', expectedOutput: testCase.expectedOutput || '', timeMs: run.timeMs ?? null };
-            let result;
-            if (run.timeout) {
-                result = { ...base, status: 'TLE', passed: false, actualOutput: '', error: `运行超时（超过 ${timeoutMs / 1000} 秒），可能存在死循环` };
-            } else if (run.error) {
-                result = { ...base, status: 'RE', passed: false, actualOutput: normalizeOutput(run.stdout), errorInfo: run.error };
-            } else if (run.truncated) {
-                result = { ...base, status: 'OLE', passed: false, actualOutput: normalizeOutput(run.stdout), error: '输出内容过多，超过限制' };
-            } else {
-                const actual = normalizeOutput(run.stdout);
-                const passed = actual === normalizeOutput(testCase.expectedOutput);
-                result = { ...base, status: passed ? 'AC' : 'WA', passed, actualOutput: actual };
-            }
-            results.push(result);
-            onProgress?.(results.slice());
-        }
-        return results;
     }
 }
 

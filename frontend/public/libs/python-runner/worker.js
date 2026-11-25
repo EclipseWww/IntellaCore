@@ -6,9 +6,8 @@
  * 消息协议（主线程 → Worker）：
  *   { type: 'run', id, code }            交互运行
  *   { type: 'input', id, value }         回应 input-request
- *   { type: 'test', id, code, input }    以给定输入运行一次（自测样例）
  * Worker → 主线程：
- *   ready / init-error / stdout / turtle / input-request / done / test-result
+ *   ready / init-error / stdout / turtle / input-request / done
  */
 var VERSION_QUERY = self.location.search || '';
 var PYODIDE_BASE = '/libs/pyodide/';
@@ -18,7 +17,6 @@ var STDOUT_FLUSH_CHARS = 4096;
 var TURTLE_FLUSH_COUNT = 200;
 var MAX_TURTLE_COMMANDS = 200000;
 var INTERACTIVE_OUTPUT_LIMIT = 2 * 1024 * 1024;
-var TEST_OUTPUT_LIMIT = 65536;
 
 importScripts(PYODIDE_BASE + 'pyodide.js');
 
@@ -108,24 +106,6 @@ async function runInteractive(message) {
   current = null;
 }
 
-function runTest(message) {
-  var started = now();
-  var result;
-  try {
-    result = toPlain(harness.run_judge(message.code, message.input || '', TEST_OUTPUT_LIMIT));
-  } catch (error) {
-    result = { stdout: '', truncated: false, error: { type: 'Crash', message: String((error && error.message) || error) } };
-  }
-  self.postMessage({
-    type: 'test-result',
-    id: message.id,
-    stdout: result.stdout || '',
-    truncated: !!result.truncated,
-    error: result.error || null,
-    timeMs: Math.round(now() - started)
-  });
-}
-
 self.onmessage = function (event) {
   var message = event.data || {};
   if (message.type === 'input') {
@@ -138,7 +118,6 @@ self.onmessage = function (event) {
   }
   ready.then(function () {
     if (message.type === 'run') return runInteractive(message);
-    if (message.type === 'test') return runTest(message);
     return undefined;
   });
 };
