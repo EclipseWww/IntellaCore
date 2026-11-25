@@ -10,7 +10,7 @@
 
 ## npm 源码部署（无需 Docker）
 
-这是独立于 Docker 的部署方式，不需要访问 Docker 镜像仓库。需要先安装 Node.js（含 npm）、Git 和 MongoDB，并启动本机 MongoDB 服务。npm 不会自动安装或启动数据库。下面以 Windows PowerShell 为例，先按下面步骤验证基本运行，再按“生产运行与开机自启”改为后台部署。
+这是独立于 Docker 的部署方式，不需要访问 Docker 镜像仓库。需要先安装 Node.js 22.13 或更高版本（含 npm）、Git 和 MongoDB，并启动本机 MongoDB 服务。后端的 Python 服务器判题依赖 Node.js 22.13+ 的权限模型隔离学生代码，版本过低时 Python 活动仍可提交，但会转为等待教师手动评分。npm 不会自动安装或启动数据库。下面以 Windows PowerShell 为例，先按下面步骤验证基本运行，再按“生产运行与开机自启”改为后台部署。
 
 ### 1. 下载源码
 
@@ -314,6 +314,7 @@ docker compose --project-directory . -f deploy/compose/docker-compose.deploy.yml
 - 端口占用：检查是否还运行着 npm 实例或另一套容器，不能同时占用 3000/8080。
 - backend 一直重启：查看 backend 和 mongodb 日志；Linux 挂载目录还需检查写入权限。
 - 镜像已拉取但页面未更新：确认已重建前端容器，浏览器刷新后检查实际镜像版本。
+- Python 活动提交后提示“服务器判题暂时不可用”：查看 backend 日志中的“Python判题失败”。常见原因是后端 Node.js 版本低于 22.13（旧镜像基于 Node 16，需要重新构建后端镜像），或 npm install 时没有装上 pyodide 依赖。判题并发、超时、内存上限可通过 PYTHON_JUDGE_* 环境变量调整，见 backend/.env.example。
 
 ## 更新与回退
 

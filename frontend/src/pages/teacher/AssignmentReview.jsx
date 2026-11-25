@@ -608,7 +608,8 @@ const AssignmentReview = () => {
               setIsHtmlActivity(false);
               setActivityDetails({
                 description: activity.pythonSettings?.instructions || '',
-                referenceAnswer: activity.pythonSettings?.starterCode || ''
+                referenceAnswer: activity.pythonSettings?.starterCode || '',
+                testCases: activity.pythonSettings?.testCases || []
               });
               // 获取Python提交
               try {
@@ -3721,6 +3722,7 @@ const AssignmentReview = () => {
                 }))}
                 sortMode={sortMode}
                 onSortChange={handleSortChange}
+                testCases={activityDetails?.testCases || []}
               />
             </div>
           ) : isQuizActivity ? (

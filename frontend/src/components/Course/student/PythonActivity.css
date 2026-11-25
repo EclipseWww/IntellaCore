@@ -24,7 +24,12 @@
     max-width: 35%;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+}
+
+.python-activity-left > .ant-card:not(.instructions-card),
+.python-activity-left > .ant-alert {
+    flex-shrink: 0;
 }
 
 /* 右侧编辑器区域 */
@@ -36,7 +41,8 @@
 }
 
 .instructions-card {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 200px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -137,4 +143,17 @@
     .python-activity-left {
         max-height: 250px;
     }
+}
+/* 提交历史中的代码 */
+.python-attempt-code {
+    margin: 8px 0 0;
+    padding: 8px 12px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    max-height: 320px;
+    overflow: auto;
 }

@@ -1,4 +1,5 @@
-FROM node:16-bullseye
+# Node 22.13+：服务器 Python 判题依赖 Node 权限模型（--permission）隔离学生代码
+FROM node:22-bullseye
 
 # 换源为清华源
 RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list && \

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Space, Tag, Button, Empty, message, Row, Col, Radio, Input, Spin, InputNumber, Tooltip, Tabs } from 'antd';
-import { SaveOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, RobotOutlined, PlayCircleOutlined, FileTextOutlined, SortAscendingOutlined, SortDescendingOutlined } from '@ant-design/icons';
+import { Space, Tag, Button, Empty, message, Row, Col, Radio, Input, Spin, InputNumber, Tooltip, Tabs, Modal, List } from 'antd';
+import { SaveOutlined, LeftOutlined, RightOutlined, CheckCircleOutlined, RobotOutlined, PlayCircleOutlined, FileTextOutlined, SortAscendingOutlined, SortDescendingOutlined, BarChartOutlined, HistoryOutlined } from '@ant-design/icons';
 import { pythonAPI } from '../../../../services/pythonAPI';
 import PythonEditor from '../../../../components/Python/PythonEditor';
+import TestResultList from '../../../../components/Python/TestResultList';
+import PythonClassStats from './PythonClassStats';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
 import { vs2015 } from 'react-syntax-highlighter/dist/esm/styles/hljs';
@@ -37,7 +39,8 @@ const PythonReview = ({
     gradingState,
     onUpdateGradingState,
     sortMode,
-    onSortChange
+    onSortChange,
+    testCases = []
 }) => {
     const [selectedSubmission, setSelectedSubmission] = useState(null);
     const [currentIndex, setCurrentIndex] = useState(-1);
@@ -47,6 +50,24 @@ const PythonReview = ({
     const [feedback, setFeedback] = useState('');
     const [showFeedback, setShowFeedback] = useState(false);
     const [customScore, setCustomScore] = useState(null);
+    const [statsOpen, setStatsOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [attempts, setAttempts] = useState(null);
+    const [expandedAttempt, setExpandedAttempt] = useState(null);
+
+    const openHistory = async () => {
+        if (!selectedSubmission) return;
+        setHistoryOpen(true);
+        setAttempts(null);
+        setExpandedAttempt(null);
+        try {
+            const response = await pythonAPI.getSubmissionAttempts(selectedSubmission._id);
+            setAttempts(response.success ? response.data : []);
+        } catch {
+            setAttempts([]);
+            message.error('获取提交历史失败');
+        }
+    };
 
     const gradeScoreMap = { 'A': 10, 'B': 8, 'C': 6, 'D': 4, 'E': 2, 'F': 0 };
 
@@ -65,7 +86,7 @@ const PythonReview = ({
             const currentScore = selectedSubmission.score ?? null;
             setScore(currentScore);
             setCustomScore(currentScore);
-            setFeedback(selectedSubmission.feedback || '');
+            setFeedback(selectedSubmission.feedback === '自动评测' ? '' : (selectedSubmission.feedback || ''));
             setShowFeedback(false);
         }
     }, [selectedSubmission]);
@@ -274,6 +295,9 @@ const PythonReview = ({
                     <div style={{ flex: 1, overflow: 'hidden', border: '1px solid #f0f0f0', borderRadius: 4 }}>
                         <div style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', background: '#fafafa', fontSize: 13, fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>学生列表 ({submissions.length})</span>
+                            <Tooltip title="班级统计：各测试点通过率与常见错误">
+                                <Button type="text" size="small" icon={<BarChartOutlined />} onClick={() => setStatsOpen(true)} style={{ marginLeft: 'auto' }} />
+                            </Tooltip>
                             {onSortChange && (
                                 <Button 
                                     type="text" 
@@ -353,6 +377,11 @@ const PythonReview = ({
                                 {selectedSubmission && (
                                     <>
                                         <Tag color="blue">{selectedSubmission.studentId?.name || '未知学生'}</Tag>
+                                        {selectedSubmission.attempts?.length > 0 && (
+                                            <Button size="small" icon={<HistoryOutlined />} onClick={openHistory}>
+                                                提交 {selectedSubmission.attempts.length} 次
+                                            </Button>
+                                        )}
                                         {hasAutoScore && (
                                             <Tooltip title="此分数由自动评测生成，教师可修改">
                                                 <Tag color="cyan" icon={<RobotOutlined />}>
@@ -441,102 +470,11 @@ const PythonReview = ({
                                                                 <CheckCircleOutlined style={{ marginRight: 4 }} />
                                                                 测试结果 ({selectedSubmission.testResults.passedCount}/{selectedSubmission.testResults.totalCount} 通过)
                                                             </div>
-                                                            {selectedSubmission.testResults.results.map((test, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    style={{
-                                                                        padding: '8px 12px',
-                                                                        marginBottom: 8,
-                                                                        background: test.passed ? '#f6ffed' : '#fff2f0',
-                                                                        borderRadius: 4,
-                                                                        border: `1px solid ${test.passed ? '#b7eb8f' : '#ffccc7'}`
-                                                                    }}
-                                                                >
-                                                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: test.passed ? 0 : 8 }}>
-                                                                        <Tag color={test.passed ? 'success' : 'error'} style={{ margin: 0 }}>
-                                                                            测试点 {idx + 1}
-                                                                        </Tag>
-                                                                        <span style={{ fontSize: 12, marginLeft: 8 }}>
-                                                                            {test.passed ? '✅ 通过' : '❌ 未通过'}
-                                                                        </span>
-                                                                        {test.isHidden && (
-                                                                            <Tag style={{ margin: '0 0 0 8px' }}>隐藏测试点</Tag>
-                                                                        )}
-                                                                    </div>
-
-                                                                    {/* 未通过时显示详细信息 */}
-                                                                    {!test.passed && (
-                                                                        <div style={{ marginTop: 8, fontFamily: 'Consolas, Monaco, monospace', fontSize: 12 }}>
-                                                                            {/* 输入 */}
-                                                                            {test.input && !test.isHidden && (
-                                                                                <div style={{ marginBottom: 8 }}>
-                                                                                    <div style={{ color: '#666', marginBottom: 2 }}>📥 输入:</div>
-                                                                                    <pre style={{
-                                                                                        background: '#fff',
-                                                                                        padding: 6,
-                                                                                        margin: 0,
-                                                                                        borderRadius: 3,
-                                                                                        whiteSpace: 'pre-wrap',
-                                                                                        border: '1px solid #d9d9d9'
-                                                                                    }}>
-                                                                                        {test.input}
-                                                                                    </pre>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* 期望输出 */}
-                                                                            {test.expectedOutput && !test.isHidden && (
-                                                                                <div style={{ marginBottom: 8 }}>
-                                                                                    <div style={{ color: '#52c41a', marginBottom: 2 }}>✅ 期望输出:</div>
-                                                                                    <pre style={{
-                                                                                        background: '#f6ffed',
-                                                                                        padding: 6,
-                                                                                        margin: 0,
-                                                                                        borderRadius: 3,
-                                                                                        whiteSpace: 'pre-wrap',
-                                                                                        border: '1px solid #b7eb8f'
-                                                                                    }}>
-                                                                                        {test.expectedOutput}
-                                                                                    </pre>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* 学生实际输出 */}
-                                                                            <div style={{ marginBottom: test.error ? 8 : 0 }}>
-                                                                                <div style={{ color: '#ff4d4f', marginBottom: 2 }}>❌ 学生实际输出:</div>
-                                                                                <pre style={{
-                                                                                    background: '#fff2f0',
-                                                                                    padding: 6,
-                                                                                    margin: 0,
-                                                                                    borderRadius: 3,
-                                                                                    whiteSpace: 'pre-wrap',
-                                                                                    border: '1px solid #ffccc7'
-                                                                                }}>
-                                                                                    {test.actualOutput || '(无输出)'}
-                                                                                </pre>
-                                                                            </div>
-
-                                                                            {/* 错误信息 */}
-                                                                            {test.error && (
-                                                                                <div>
-                                                                                    <div style={{ color: '#ff4d4f', marginBottom: 2 }}>⚠️ 错误信息:</div>
-                                                                                    <pre style={{
-                                                                                        background: '#fff1f0',
-                                                                                        padding: 6,
-                                                                                        margin: 0,
-                                                                                        borderRadius: 3,
-                                                                                        whiteSpace: 'pre-wrap',
-                                                                                        border: '1px solid #ffa39e',
-                                                                                        color: '#cf1322'
-                                                                                    }}>
-                                                                                        {test.error}
-                                                                                    </pre>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
+                                                            <TestResultList
+                                                                results={selectedSubmission.testResults.results}
+                                                                testCases={testCases}
+                                                                revealHidden
+                                                            />
                                                         </div>
                                                     )}
                                                 </div>
@@ -573,6 +511,58 @@ const PythonReview = ({
                     </div>
                 </Col>
             </Row>
+
+            <Modal
+                title="班级统计"
+                open={statsOpen}
+                onCancel={() => setStatsOpen(false)}
+                footer={null}
+                width={760}
+            >
+                <PythonClassStats submissions={submissions} testCases={testCases} />
+            </Modal>
+
+            <Modal
+                title={`${selectedSubmission?.studentId?.name || ''} 的提交历史（最近 30 次）`}
+                open={historyOpen}
+                onCancel={() => setHistoryOpen(false)}
+                footer={null}
+                width={760}
+            >
+                {attempts === null ? <Spin /> : attempts.length === 0 ? <Empty description="没有提交记录" /> : (
+                    <List
+                        dataSource={attempts}
+                        renderItem={(attempt, idx) => (
+                            <List.Item
+                                key={attempt._id || idx}
+                                actions={[
+                                    <Button size="small" type="link" onClick={() => setExpandedAttempt(expandedAttempt === idx ? null : idx)}>
+                                        {expandedAttempt === idx ? '收起代码' : '查看代码'}
+                                    </Button>
+                                ]}
+                            >
+                                <div style={{ width: '100%' }}>
+                                    <Space>
+                                        <span>第 {attempts.length - idx} 次</span>
+                                        <span style={{ color: '#999' }}>{attempt.submittedAt ? new Date(attempt.submittedAt).toLocaleString('zh-CN', { hour12: false }) : ''}</span>
+                                        {attempt.totalCount > 0 && (
+                                            <Tag color={attempt.passedCount === attempt.totalCount ? 'success' : 'warning'}>
+                                                通过 {attempt.passedCount}/{attempt.totalCount}
+                                            </Tag>
+                                        )}
+                                        {attempt.score != null && <Tag color="gold">{attempt.score}/10</Tag>}
+                                    </Space>
+                                    {expandedAttempt === idx && (
+                                        <SyntaxHighlighter language="python" style={vs2015} showLineNumbers customStyle={{ marginTop: 8, maxHeight: 320, fontSize: 13 }}>
+                                            {attempt.code || ''}
+                                        </SyntaxHighlighter>
+                                    )}
+                                </div>
+                            </List.Item>
+                        )}
+                    />
+                )}
+            </Modal>
         </>
     );
 };

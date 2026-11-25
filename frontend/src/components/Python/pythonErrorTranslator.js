@@ -211,6 +211,38 @@ export function translatePythonError(errorOutput) {
     return translatedLines.join('\n');
 }
 
+const CHINESE_PUNCTUATION = [
+    ['（', '('], ['）', ')'], ['“', '"'], ['”', '"'], ['‘', "'"], ['’', "'"],
+    ['：', ':'], ['，', ','], ['；', ';'], ['。', '.'], ['【', '['], ['】', ']']
+];
+
+/** 在出错的代码行里查找中文标点（去掉英文引号括起的字符串后粗略判断） */
+function findChinesePunctuation(codeLine) {
+    if (!codeLine) return [];
+    const outsideStrings = codeLine.replace(/"[^"]*"|'[^']*'/g, '');
+    return CHINESE_PUNCTUATION.filter(([zh]) => outsideStrings.includes(zh));
+}
+
+/**
+ * 格式化运行器 / 服务器判题返回的结构化错误 { type, message, line, text }
+ * @returns {string} 例如：❌ 第 3 行：值错误\n  原因：...\n  代码：...
+ */
+export function formatPythonError(error) {
+    if (!error) return '';
+    if (error.type === 'Crash' || error.type === 'InternalError') return `❌ ${error.message}`;
+    const typeName = errorTypeTranslations[error.type] || error.type || '错误';
+    let reason = translateErrorMessage(error.message || '');
+    if (error.type === 'KeyError' && error.message) reason = `键 ${error.message} 不存在`;
+    const lines = [`❌ ${error.line ? `第 ${error.line} 行：` : ''}${typeName}`];
+    if (reason) lines.push(`  原因：${reason}`);
+    if (error.text && error.text.trim()) lines.push(`  代码：${error.text.trim()}`);
+    const punctuation = findChinesePunctuation(error.text);
+    if (punctuation.length) {
+        lines.push(`  💡 检测到中文标点 ${punctuation.map(([zh, en]) => `${zh} → ${en}`).join('，')}，请切换到英文输入法`);
+    }
+    return lines.join('\n');
+}
+
 /**
  * 格式化执行结果
  * @param {string} output - 标准输出
@@ -234,5 +266,6 @@ export function formatExecutionResult(output, error) {
 
 export default {
     translatePythonError,
+    formatPythonError,
     formatExecutionResult
 };

@@ -507,6 +507,7 @@ const LessonEdit = () => {
           pythonSettings: {
             instructions: values.pythonSettings?.instructions || '',
             starterCode: values.pythonSettings?.starterCode || '# 在这里编写你的Python代码\n',
+            maxAttempts: values.pythonSettings?.maxAttempts || 0,
             testCases: values.pythonSettings?.testCases || []
           }
         };
@@ -2165,6 +2166,14 @@ const LessonEdit = () => {
                                     />
                                   </Form.Item>
 
+                                  <Form.Item
+                                    name={['pythonSettings', 'maxAttempts']}
+                                    label="最多提交次数"
+                                    extra="0 表示不限；有测试点时每次提交都会在服务器重新评测"
+                                  >
+                                    <InputNumber min={0} max={100} precision={0} style={{ width: 160 }} />
+                                  </Form.Item>
+
                                   <Divider orientation="left">测试用例（OJ自动评测）</Divider>
 
                                   <Form.List name={['pythonSettings', 'testCases']}>
@@ -2193,7 +2202,7 @@ const LessonEdit = () => {
                                                   {...restField}
                                                   name={[name, 'input']}
                                                   label="输入数据"
-                                                  extra="每行一个输入，模拟input()的返回值"
+                                                  extra="每行对应一次 input() 的返回值；输入用完后 input() 返回空字符串"
                                                 >
                                                   <Input.TextArea
                                                     rows={3}

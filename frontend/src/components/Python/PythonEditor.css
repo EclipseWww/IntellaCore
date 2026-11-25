@@ -484,3 +484,39 @@
 .terminal-body::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+/* CodeMirror 编辑器 */
+.code-editor-inner .python-code-editor {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.code-editor-inner .python-code-editor .cm-editor {
+    height: 100%;
+}
+
+/* 预设输入 */
+.preset-input-toggle {
+    font-size: 12px;
+    font-weight: normal;
+    color: #ccc;
+    display: inline-flex;
+    align-items: center;
+}
+
+.preset-input-panel {
+    padding: 8px 12px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+.preset-input-panel .preset-input-textarea,
+.preset-input-panel .preset-input-textarea:focus {
+    background: #0c0c0c;
+    color: #d4d4d4;
+    border-color: #444;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+}

@@ -1,25 +1,51 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Button, Space, message, Tag, Spin, Alert, Progress, Collapse } from 'antd';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Card, Button, Space, message, Tag, Spin, Alert, Progress, Modal, List, Tooltip, Empty } from 'antd';
 import {
     SaveOutlined,
     SendOutlined,
-    RollbackOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
     TrophyOutlined,
-    CheckOutlined,
-    CloseOutlined
+    ExperimentOutlined,
+    HistoryOutlined,
+    LockOutlined,
+    EditOutlined
 } from '@ant-design/icons';
 import { pythonAPI } from '../../../services/api';
 import PythonEditor from '../../Python/PythonEditor';
+import TestResultList from '../../Python/TestResultList';
+import { pythonRunner } from '../../Python/pythonRunner';
 import MarkdownRenderer from '../../shared/MarkdownRenderer';
 import './PythonActivity.css';
 
-const { Panel } = Collapse;
+const DEFAULT_STARTER = '# 在这里编写你的Python代码\n';
+const LOCAL_SAVE_DELAY_MS = 1000;
+const SERVER_AUTOSAVE_INTERVAL_MS = 60 * 1000;
+
+const currentUserId = () => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        return user?.id || user?._id || 'anonymous';
+    } catch {
+        return 'anonymous';
+    }
+};
+
+const readLocalDraft = (key) => {
+    try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return value && typeof value.code === 'string' ? value : null;
+    } catch {
+        return null;
+    }
+};
+
+const formatTime = (value) => (value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '');
 
 /**
  * Python编程活动组件（学生端）
- * 支持OJ自动评测功能
+ * - 运行、自测（公开样例）在浏览器 Worker 中进行；正式提交由服务器运行全部测试点并评分
+ * - 代码自动保存到本机，并定时同步草稿到服务器
  */
 const PythonActivity = ({
     lessonId,
@@ -30,458 +56,203 @@ const PythonActivity = ({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [withdrawing, setWithdrawing] = useState(false);
     const [submission, setSubmission] = useState(null);
     const [code, setCode] = useState('');
     const [lastOutput, setLastOutput] = useState('');
-
-    // 测评相关状态
-    const [testResults, setTestResults] = useState(null);
-
-    const editorRef = useRef(null);
+    const [selfTesting, setSelfTesting] = useState(false);
+    const [selfTestResults, setSelfTestResults] = useState(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [attempts, setAttempts] = useState(null);
+    const [expandedAttempt, setExpandedAttempt] = useState(null);
 
     const {
         instructions = '',
-        starterCode = '# 在这里编写你的Python代码\n',
-        testCases = []
+        starterCode = DEFAULT_STARTER,
+        testCases = [],
+        maxAttempts = 0
     } = pythonSettings;
-    // 解码内容 helper function
-    const decodeContent = (content) => {
-        if (!content) return '';
-        if (typeof content !== 'string') return content;
-        if (content.startsWith('ENC:')) {
-            try {
-                return atob(content.substring(4));
-            } catch (e) {
-                console.error('解码失败:', e);
-                return content;
-            }
-        }
-        return content;
-    };
 
-    // 加载提交记录
+    const storageKey = `python-draft:${currentUserId()}:${lessonId}:${activityId}`;
+    const serverCodeRef = useRef('');   // 服务器上最新的代码（草稿或未提交修改）
+    const codeRef = useRef('');
+    const localTimerRef = useRef(null);
+    const busyRef = useRef(false);
+
+    const sampleCases = useMemo(
+        () => testCases.filter(tc => !tc.isHidden && ((tc.input || '') !== '' || (tc.expectedOutput || '') !== '')),
+        [testCases]
+    );
+
+    const applySubmission = useCallback((data) => {
+        setSubmission(data);
+        serverCodeRef.current = data?.draftCode ?? data?.code ?? '';
+    }, []);
+
+    // 加载提交记录；若本机有更新的未保存代码则恢复
     useEffect(() => {
-        const fetchSubmission = async () => {
+        let cancelled = false;
+        const load = async () => {
+            setLoading(true);
+            let serverCode = starterCode;
+            let serverUpdatedAt = 0;
             try {
-                setLoading(true);
                 const response = await pythonAPI.getSubmission(lessonId, activityId);
-                if (response.success && response.data) {
-                    setSubmission(response.data);
-                    setCode(response.data.code || starterCode);
+                if (!cancelled && response.success && response.data) {
+                    applySubmission(response.data);
+                    serverCode = response.data.draftCode ?? response.data.code ?? starterCode;
+                    serverUpdatedAt = Date.parse(response.data.updatedAt) || 0;
                     setLastOutput(response.data.output || '');
-                    // 加载保存的测评结果
-                    if (response.data.testResults && response.data.testResults.totalCount > 0) {
-                        setTestResults(response.data.testResults);
-                    }
-                } else {
-                    setCode(starterCode);
                 }
             } catch (error) {
                 console.error('获取Python提交记录失败:', error);
-                setCode(starterCode);
-            } finally {
-                setLoading(false);
+                message.warning('获取已保存的代码失败，先显示本机或初始代码');
             }
+            if (cancelled) return;
+            const local = readLocalDraft(storageKey);
+            if (local && local.code !== serverCode && local.savedAt > serverUpdatedAt) {
+                setCode(local.code);
+                codeRef.current = local.code;
+                message.info('已恢复本机上次未保存的代码');
+            } else {
+                setCode(serverCode);
+                codeRef.current = serverCode;
+            }
+            setLoading(false);
         };
+        if (lessonId && activityId) load();
+        return () => { cancelled = true; };
+    }, [lessonId, activityId, starterCode, storageKey, applySubmission]);
 
-        if (lessonId && activityId) {
-            fetchSubmission();
-        }
-    }, [lessonId, activityId, starterCode]);
+    // 定时把未保存的修改同步到服务器（静默）
+    useEffect(() => {
+        const timer = setInterval(async () => {
+            if (busyRef.current || codeRef.current === serverCodeRef.current) return;
+            const snapshot = codeRef.current;
+            try {
+                const response = await pythonAPI.saveDraft(lessonId, activityId, snapshot);
+                if (response.success) applySubmission(response.data);
+            } catch {
+                // 本机已有备份，下次再试
+            }
+        }, SERVER_AUTOSAVE_INTERVAL_MS);
+        return () => clearInterval(timer);
+    }, [lessonId, activityId, applySubmission]);
 
-    // 处理代码变化
+    useEffect(() => () => clearTimeout(localTimerRef.current), []);
+
     const handleCodeChange = useCallback((newCode) => {
         setCode(newCode);
-        // 代码变化时清除之前的测评结果
-        setTestResults(null);
-    }, []);
+        codeRef.current = newCode;
+        setSelfTestResults(null);
+        clearTimeout(localTimerRef.current);
+        localTimerRef.current = setTimeout(() => {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ code: newCode, savedAt: Date.now() }));
+            } catch {
+                // 本机存储已满时忽略
+            }
+        }, LOCAL_SAVE_DELAY_MS);
+    }, [storageKey]);
 
-    // 处理执行完成
-    const handleExecutionComplete = useCallback((output, hasError) => {
+    const handleExecutionComplete = useCallback((output) => {
         setLastOutput(output);
     }, []);
 
-    // 标准化输出：去除每行末尾空格，用于比较
-    const normalizeOutput = (output) => {
-        return output
-            .split('\n')
-            .map(line => line.trimEnd())  // 去除每行末尾空格
-            .join('\n')
-            .trim();  // 去除首尾空行
-    };
+    const errorMessageOf = (error, fallback) => error?.response?.data?.message || fallback;
 
-    // 运行单个测试用例（带超时保护）
-    const runSingleTest = async (testCase, pyodide) => {
-        const inputs = (testCase.input || '').split('\n');
-        let inputIndex = 0;
-        let capturedOutput = '';
-
-        window._testInputCallback = () => {
-            if (inputIndex < inputs.length) {
-                return decodeContent(inputs[inputIndex++]);
-            }
-            return '';
-        };
-
-        // 设置输出回调
-        window._testOutputCallback = (text) => {
-            capturedOutput += text;
-        };
-
-        // 超时Promise
-        const timeoutMs = 8000; // 8秒超时
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('代码执行超时（超过8秒），可能存在无限循环')), timeoutMs);
-        });
-
+    const handleSaveDraft = useCallback(async () => {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setSaving(true);
+        const snapshot = codeRef.current;
         try {
-            // 准备测试代码
-            const userCode = code.trim() || 'pass';
-            const indentedCode = userCode.split('\n').map(line => '    ' + line).join('\n');
-            const transformedCode = indentedCode.replace(/input\s*\(/g, '_test_input(');
-
-            // 设置测试环境
-            const setupCode = `
-import sys
-
-class TestOutput:
-    def write(self, text):
-        if text:
-            import js
-            js.window._testOutputCallback(str(text))
-    def flush(self):
-        pass
-
-sys.stdout = TestOutput()
-sys.stderr = TestOutput()
-
-def _test_input(prompt=''):
-    # 忽略提示词，不输出到结果（这样学生在input()中写提示词不影响测评）
-    import js
-    return str(js.window._testInputCallback())
-`;
-            await pyodide.runPythonAsync(setupCode);
-
-            // 运行用户代码（带超时保护）
-            const wrapperCode = `
-async def _test_main():
-${transformedCode}
-
-import asyncio
-asyncio.ensure_future(_test_main())
-`;
-
-            // 使用Promise.race实现超时保护
-            await Promise.race([
-                (async () => {
-                    await pyodide.runPythonAsync(wrapperCode);
-                    // 等待一小段时间让异步代码完成
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                })(),
-                timeoutPromise
-            ]);
-
-            // 比较输出（忽略行末尾空格差异）
-            const actualOutput = normalizeOutput(capturedOutput);
-            const expectedOutput = normalizeOutput(decodeContent(testCase.expectedOutput || ''));
-            const passed = actualOutput === expectedOutput;
-
-            return {
-                passed,
-                actualOutput,
-                expectedOutput,
-                error: null
-            };
-        } catch (error) {
-            return {
-                passed: false,
-                actualOutput: capturedOutput.trim(),
-                expectedOutput: normalizeOutput(decodeContent(testCase.expectedOutput || '')),
-                error: error.message
-            };
-        }
-    };
-
-    // 运行所有测试并计算分数
-    const runAllTests = async () => {
-        if (testCases.length === 0) {
-            return { results: [], passedCount: 0, totalCount: 0, score: null };
-        }
-
-        try {
-            // 获取Pyodide实例
-            if (!window.loadPyodide) {
-                throw new Error('Python运行环境未加载');
-            }
-
-            const pyodide = await window.loadPyodide({
-                stdLibURL: '/libs/pyodide/python_stdlib.bin',
-                    indexURL: '/libs/pyodide/'
-            });
-
-            const results = [];
-
-            for (let i = 0; i < testCases.length; i++) {
-                const testCase = testCases[i];
-                const result = await runSingleTest(testCase, pyodide);
-                results.push({
-                    index: i,
-                    ...result,
-                    isHidden: testCase.isHidden,
-                    input: testCase.input
-                });
-            }
-
-            const passedCount = results.filter(r => r.passed).length;
-            const totalCount = testCases.length;
-            // 根据通过率计算0-10分
-            const score = Math.round((passedCount / totalCount) * 10);
-
-            return { results, passedCount, totalCount, score };
-        } catch (error) {
-            console.error('测评失败:', error);
-            throw error;
-        }
-    };
-
-    // 保存草稿
-    const handleSaveDraft = async () => {
-        try {
-            setSaving(true);
-            const response = await pythonAPI.saveDraft(lessonId, activityId, code, lastOutput);
+            const response = await pythonAPI.saveDraft(lessonId, activityId, snapshot, lastOutput);
             if (response.success) {
-                setSubmission(response.data);
-                message.success('草稿已保存');
+                applySubmission(response.data);
+                message.success(response.message || '已保存');
             } else {
                 message.error(response.message || '保存失败');
             }
         } catch (error) {
-            console.error('保存草稿失败:', error);
-            message.error('保存失败');
+            message.error(errorMessageOf(error, '保存失败（代码已备份在本机）'));
         } finally {
+            busyRef.current = false;
             setSaving(false);
+        }
+    }, [lessonId, activityId, lastOutput, applySubmission]);
+
+    const handleSelfTest = async () => {
+        if (!sampleCases.length) return;
+        setSelfTesting(true);
+        setSelfTestResults([]);
+        try {
+            const results = await pythonRunner.runTests(codeRef.current, sampleCases, { onProgress: setSelfTestResults });
+            const passed = results.filter(r => r.passed).length;
+            if (passed === results.length) message.success(`公开样例全部通过（${passed}/${results.length}），可以提交了`);
+            else message.warning(`公开样例通过 ${passed}/${results.length}，请查看左侧的自测结果`);
+        } catch (error) {
+            message.error(`自测失败：${error.message || '无法启动 Python 运行环境'}`);
+            setSelfTestResults(null);
+        } finally {
+            setSelfTesting(false);
         }
     };
 
-    // 提交代码（如果有测试点则自动评分）
     const handleSubmit = async () => {
-        if (!code.trim()) {
+        const snapshot = codeRef.current;
+        if (!snapshot.trim()) {
             message.warning('请先编写代码');
             return;
         }
-
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setSubmitting(true);
+        const key = 'python-submit';
+        message.loading({ content: testCases.length ? '正在服务器评测全部测试点…' : '正在提交…', key, duration: 0 });
         try {
-            setSubmitting(true);
-
-            let autoScore = null;
-            let testResultsData = null;
-
-            // 如果有测试用例，先运行测试
-            if (testCases.length > 0) {
-                message.loading({ content: '正在测评...', key: 'submit' });
-                try {
-                    const testData = await runAllTests();
-                    autoScore = testData.score;
-                    testResultsData = testData;
-                    setTestResults(testData);
-
-                    message.loading({
-                        content: `测评完成: ${testData.passedCount}/${testData.totalCount} 通过，得分: ${autoScore}/10`,
-                        key: 'submit'
-                    });
-                } catch (error) {
-                    message.warning({ content: '测评失败，将提交等待教师评分', key: 'submit' });
-                }
-            }
-
-            // 提交代码，包含自动评分和测试结果
-            const response = await pythonAPI.submit(lessonId, activityId, code, lastOutput, autoScore, testResultsData);
+            const response = await pythonAPI.submit(lessonId, activityId, snapshot, lastOutput);
             if (response.success) {
-                setSubmission(response.data);
-                if (autoScore !== null) {
-                    message.success({ content: `提交成功！自动评分: ${autoScore}/10`, key: 'submit' });
-                } else {
-                    message.success({ content: '代码已提交，等待教师评分', key: 'submit' });
-                }
-                if (onSubmitSuccess) {
-                    onSubmitSuccess();
-                }
+                applySubmission(response.data);
+                try { localStorage.removeItem(storageKey); } catch { /* 忽略 */ }
+                const data = response.data;
+                const allPassed = data?.testResults?.totalCount > 0 && data.testResults.passedCount === data.testResults.totalCount;
+                (allPassed || !testCases.length ? message.success : message.warning)({ content: response.message, key, duration: 4 });
+                onSubmitSuccess?.();
             } else {
-                message.error({ content: response.message || '提交失败', key: 'submit' });
+                message.error({ content: response.message || '提交失败', key });
             }
         } catch (error) {
-            console.error('提交代码失败:', error);
-            message.error({ content: '提交失败', key: 'submit' });
+            message.error({ content: errorMessageOf(error, '提交失败，请稍后重试'), key, duration: 4 });
         } finally {
+            busyRef.current = false;
             setSubmitting(false);
         }
     };
 
-    // 撤回提交
-    const handleWithdraw = async () => {
+    const openHistory = async () => {
+        setHistoryOpen(true);
+        setAttempts(null);
+        setExpandedAttempt(null);
         try {
-            setWithdrawing(true);
-            const response = await pythonAPI.withdraw(lessonId, activityId);
-            if (response.success) {
-                setSubmission(response.data);
-                setTestResults(null);
-                message.success('已撤回提交，可以继续编辑');
-            } else {
-                message.error(response.message || '撤回失败');
+            const response = await pythonAPI.getMyAttempts(lessonId, activityId);
+            setAttempts(response.success ? response.data : []);
+        } catch {
+            setAttempts([]);
+            message.error('获取提交历史失败');
+        }
+    };
+
+    const restoreAttempt = (attempt) => {
+        Modal.confirm({
+            title: '把这次提交的代码恢复到编辑器？',
+            content: '编辑器中当前的代码会被替换（不会自动提交）。',
+            okText: '恢复',
+            cancelText: '取消',
+            onOk: () => {
+                handleCodeChange(attempt.code || '');
+                setHistoryOpen(false);
             }
-        } catch (error) {
-            console.error('撤回提交失败:', error);
-            message.error('撤回失败');
-        } finally {
-            setWithdrawing(false);
-        }
-    };
-
-    // 渲染提交状态标签
-    const renderStatusTag = () => {
-        if (!submission) return null;
-
-        if (submission.score !== null && submission.score !== undefined) {
-            return (
-                <Tag icon={<TrophyOutlined />} color="gold">
-                    得分: {submission.score}/10
-                </Tag>
-            );
-        }
-
-        if (submission.status === 'submitted') {
-            return (
-                <Tag icon={<CheckCircleOutlined />} color="success">
-                    已提交
-                </Tag>
-            );
-        }
-
-        return (
-            <Tag icon={<ClockCircleOutlined />} color="processing">
-                草稿
-            </Tag>
-        );
-    };
-
-    // 渲染测评结果
-    const renderTestResults = () => {
-        if (!testResults || testResults.totalCount === 0) return null;
-
-        const { results, passedCount, totalCount } = testResults;
-        const percent = totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0;
-
-        // 合并当前最新的测试用例设置和保存的运行结果
-        // 这样确保如果由于老师修改了隐藏状态，学生端能立即生效
-        const mergedResults = testCases.map((testCase, idx) => {
-            const result = results[idx] || {};
-            return {
-                ...result,
-                // 使用当前的设置覆盖保存的结果（主要是隐藏状态和输入输出）
-                input: testCase.input,
-                expectedOutput: testCase.expectedOutput,
-                isHidden: testCase.isHidden,
-                // 保持运行结果
-                passed: result.passed,
-                actualOutput: result.actualOutput,
-                error: result.error
-            };
         });
-
-        return (
-            <Card
-                title={
-                    <Space>
-                        <span>📊 测评结果</span>
-                        <Tag color={passedCount === totalCount ? 'success' : 'warning'}>
-                            {passedCount}/{totalCount} 通过
-                        </Tag>
-                    </Space>
-                }
-                size="small"
-                style={{ marginBottom: 16 }}
-            >
-                <Progress
-                    percent={percent}
-                    status={passedCount === totalCount ? 'success' : 'exception'}
-                    style={{ marginBottom: 16 }}
-                />
-                <Collapse size="small">
-                    {mergedResults.map((result, idx) => (
-                        <Panel
-                            key={idx}
-                            header={
-                                <Space>
-                                    {result.passed ? (
-                                        <CheckOutlined style={{ color: '#52c41a' }} />
-                                    ) : (
-                                        <CloseOutlined style={{ color: '#ff4d4f' }} />
-                                    )}
-                                    <span>测试点 {idx + 1}</span>
-                                    {result.isHidden && <Tag size="small">隐藏</Tag>}
-                                    {result.passed ? (
-                                        <Tag color="success" size="small">通过</Tag>
-                                    ) : (
-                                        <Tag color="error" size="small">未通过</Tag>
-                                    )}
-                                </Space>
-                            }
-                        >
-                            {result.isHidden ? (
-                                <div style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}>
-                                    <Alert
-                                        message="此测试点为隐藏测试点，输入和预期输出已隐藏"
-                                        type="info"
-                                        showIcon
-                                        style={{ marginBottom: 16 }}
-                                    />
-                                    <div>
-                                        <strong>实际输出：</strong>
-                                        <pre style={{
-                                            background: result.passed ? '#f6ffed' : '#fff2f0',
-                                            padding: 8,
-                                            margin: '4px 0',
-                                            whiteSpace: 'pre-wrap',
-                                            borderLeft: `3px solid ${result.passed ? '#52c41a' : '#ff4d4f'}`
-                                        }}>
-                                            {result.error ? `错误: ${result.error}` : (result.actualOutput || '(无输出)')}
-                                        </pre>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div style={{ fontFamily: 'Consolas, Monaco, monospace', fontSize: 13 }}>
-                                    <div style={{ marginBottom: 8 }}>
-                                        <strong>输入：</strong>
-                                        <pre style={{ background: '#f5f5f5', padding: 8, margin: '4px 0', whiteSpace: 'pre-wrap' }}>
-                                            {decodeContent(result.input || '(无输入)')}
-                                        </pre>
-                                    </div>
-                                    <div style={{ marginBottom: 8 }}>
-                                        <strong>预期输出：</strong>
-                                        <pre style={{ background: '#f6ffed', padding: 8, margin: '4px 0', whiteSpace: 'pre-wrap', borderLeft: '3px solid #52c41a' }}>
-                                            {decodeContent(result.expectedOutput || '(无输出)')}
-                                        </pre>
-                                    </div>
-                                    <div>
-                                        <strong>实际输出：</strong>
-                                        <pre style={{
-                                            background: result.passed ? '#f6ffed' : '#fff2f0',
-                                            padding: 8,
-                                            margin: '4px 0',
-                                            whiteSpace: 'pre-wrap',
-                                            borderLeft: `3px solid ${result.passed ? '#52c41a' : '#ff4d4f'}`
-                                        }}>
-                                            {result.error ? `错误: ${result.error}` : (result.actualOutput || '(无输出)')}
-                                        </pre>
-                                    </div>
-                                </div>
-                            )}
-                        </Panel>
-                    ))}
-                </Collapse>
-            </Card>
-        );
     };
 
     if (loading) {
@@ -494,76 +265,179 @@ asyncio.ensure_future(_test_main())
 
     const isSubmitted = submission?.status === 'submitted';
     const isGraded = submission?.score !== null && submission?.score !== undefined;
+    const locked = !!submission?.locked;
+    const attemptCount = submission?.attemptCount || 0;
+    const attemptsExhausted = maxAttempts > 0 && attemptCount >= maxAttempts;
+    const hasUnsubmittedChanges = isSubmitted && code !== submission.code;
+    const serverResults = submission?.testResults?.totalCount > 0 ? submission.testResults : null;
+
+    const statusTags = (
+        <Space wrap size={[4, 4]}>
+            {locked && <Tag icon={<LockOutlined />} color="purple">老师已评分</Tag>}
+            {!locked && isSubmitted && <Tag icon={<CheckCircleOutlined />} color="success">已提交</Tag>}
+            {!isSubmitted && <Tag icon={<ClockCircleOutlined />} color="processing">草稿</Tag>}
+            {hasUnsubmittedChanges && <Tag icon={<EditOutlined />} color="orange">有未提交的修改</Tag>}
+            {attemptCount > 0 && (
+                <Tag>已提交 {attemptCount}{maxAttempts > 0 ? `/${maxAttempts}` : ''} 次</Tag>
+            )}
+            {attemptCount === 0 && maxAttempts > 0 && <Tag>最多提交 {maxAttempts} 次</Tag>}
+        </Space>
+    );
+
+    const submitDisabledReason = locked
+        ? '老师已评分，不能再提交；如需修改请联系老师'
+        : attemptsExhausted ? `已达到最多提交次数（${maxAttempts} 次）` : null;
 
     return (
         <div className="python-activity-container">
             <div className="python-activity-layout">
-                {/* 左侧：活动说明 */}
                 <div className="python-activity-left">
                     {instructions && (
-                        <Card
-                            title="📝 活动说明"
-                            size="small"
-                            className="instructions-card"
-                        >
+                        <Card title="📝 活动说明" size="small" className="instructions-card" extra={statusTags}>
                             <div className="instructions-content">
                                 <MarkdownRenderer content={instructions} />
                             </div>
                         </Card>
                     )}
+                    {!instructions && <div style={{ marginBottom: 12 }}>{statusTags}</div>}
 
-                    {/* 评分反馈（只显示教师手动评语，不显示自动评测） */}
-                    {isGraded && submission.feedback && submission.feedback !== '自动评测' && (
+                    {locked && (
                         <Alert
-                            message={`教师评语`}
-                            description={submission.feedback}
                             type="info"
                             showIcon
                             style={{ marginTop: 16 }}
+                            message="老师已评分，作业已锁定"
+                            description="可以继续在编辑器里练习，但不能再提交。如需重新提交，请联系老师清除评分。"
                         />
                     )}
 
-                    {/* 测评结果 - 放在说明下方 */}
-                    {renderTestResults()}
+                    {isGraded && submission.feedback && submission.feedback !== '自动评测' && (
+                        <Alert message="教师评语" description={submission.feedback} type="info" showIcon style={{ marginTop: 16 }} />
+                    )}
+
+                    {selfTestResults && (
+                        <Card
+                            title={<Space><span>🧪 自测结果（公开样例，仅供参考）</span>
+                                <Tag color={selfTestResults.length === sampleCases.length && selfTestResults.every(r => r.passed) ? 'success' : 'warning'}>
+                                    {selfTestResults.filter(r => r.passed).length}/{sampleCases.length} 通过
+                                </Tag>
+                            </Space>}
+                            size="small"
+                            style={{ marginTop: 16 }}
+                        >
+                            {selfTesting && <Spin size="small" style={{ marginBottom: 8 }} tip={`正在运行样例 ${selfTestResults.length + 1}/${sampleCases.length}`} />}
+                            <TestResultList results={selfTestResults} testCases={sampleCases} labelPrefix="样例" />
+                        </Card>
+                    )}
+
+                    {serverResults && (
+                        <Card
+                            title={
+                                <Space>
+                                    <span>📊 最近一次提交的评测结果</span>
+                                    <Tag color={serverResults.passedCount === serverResults.totalCount ? 'success' : 'warning'}>
+                                        {serverResults.passedCount}/{serverResults.totalCount} 通过
+                                    </Tag>
+                                    {isGraded && <Tag icon={<TrophyOutlined />} color="gold">{submission.score}/10</Tag>}
+                                </Space>
+                            }
+                            size="small"
+                            style={{ marginTop: 16 }}
+                        >
+                            <Progress
+                                percent={Math.round((serverResults.passedCount / serverResults.totalCount) * 100)}
+                                status={serverResults.passedCount === serverResults.totalCount ? 'success' : 'exception'}
+                                style={{ marginBottom: 12 }}
+                            />
+                            {hasUnsubmittedChanges && (
+                                <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="代码已修改，这是上次提交时的结果" />
+                            )}
+                            <TestResultList results={serverResults.results} testCases={testCases} />
+                        </Card>
+                    )}
                 </div>
 
-                {/* 右侧：代码编辑器 */}
                 <div className="python-activity-right">
                     <PythonEditor
-                        ref={editorRef}
                         initialCode={code}
+                        starterCode={starterCode}
                         onCodeChange={handleCodeChange}
                         onExecutionComplete={handleExecutionComplete}
+                        onSave={handleSaveDraft}
                         height="100%"
-                        scoreTag={
-                            isGraded ? (
-                                <Tag icon={<TrophyOutlined />} color="gold">
-                                    得分: {submission.score}/10
-                                </Tag>
-                            ) : null
-                        }
+                        scoreTag={isGraded ? (
+                            <Tag icon={<TrophyOutlined />} color="gold">得分: {submission.score}/10</Tag>
+                        ) : null}
                         extraButtons={
                             <>
-                                <Button
-                                    icon={<SaveOutlined />}
-                                    onClick={handleSaveDraft}
-                                    loading={saving}
-                                >
-                                    保存
-                                </Button>
-                                <Button
-                                    type="primary"
-                                    icon={<SendOutlined />}
-                                    onClick={handleSubmit}
-                                    loading={submitting}
-                                >
-                                    提交
-                                </Button>
+                                <Tooltip title="保存到服务器 (Ctrl+S)；代码也会自动备份在本机">
+                                    <Button icon={<SaveOutlined />} onClick={handleSaveDraft} loading={saving}>保存</Button>
+                                </Tooltip>
+                                {sampleCases.length > 0 && (
+                                    <Tooltip title="用公开样例在本机检查答案，不计成绩">
+                                        <Button icon={<ExperimentOutlined />} onClick={handleSelfTest} loading={selfTesting}>自测</Button>
+                                    </Tooltip>
+                                )}
+                                <Tooltip title={submitDisabledReason || (testCases.length ? '提交后由服务器运行全部测试点（含隐藏测试点）自动评分' : '提交给老师评分')}>
+                                    <Button
+                                        type="primary"
+                                        icon={<SendOutlined />}
+                                        onClick={handleSubmit}
+                                        loading={submitting}
+                                        disabled={!!submitDisabledReason}
+                                    >
+                                        提交
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip title="提交历史">
+                                    <Button icon={<HistoryOutlined />} onClick={openHistory} disabled={attemptCount === 0} />
+                                </Tooltip>
                             </>
                         }
                     />
                 </div>
             </div>
+
+            <Modal
+                title="提交历史（最近 30 次）"
+                open={historyOpen}
+                onCancel={() => setHistoryOpen(false)}
+                footer={null}
+                width={720}
+            >
+                {attempts === null ? <Spin /> : attempts.length === 0 ? <Empty description="还没有提交记录" /> : (
+                    <List
+                        dataSource={attempts}
+                        renderItem={(attempt, idx) => (
+                            <List.Item
+                                key={attempt._id || idx}
+                                actions={[
+                                    <Button size="small" type="link" onClick={() => setExpandedAttempt(expandedAttempt === idx ? null : idx)}>
+                                        {expandedAttempt === idx ? '收起代码' : '查看代码'}
+                                    </Button>,
+                                    <Button size="small" type="link" onClick={() => restoreAttempt(attempt)}>恢复到编辑器</Button>
+                                ]}
+                            >
+                                <div style={{ width: '100%' }}>
+                                    <Space>
+                                        <span>第 {attempts.length - idx} 次</span>
+                                        <span style={{ color: '#999' }}>{formatTime(attempt.submittedAt)}</span>
+                                        {attempt.totalCount > 0 && (
+                                            <Tag color={attempt.passedCount === attempt.totalCount ? 'success' : 'warning'}>
+                                                通过 {attempt.passedCount}/{attempt.totalCount}
+                                            </Tag>
+                                        )}
+                                        {attempt.score != null && <Tag color="gold">{attempt.score}/10</Tag>}
+                                    </Space>
+                                    {expandedAttempt === idx && (
+                                        <pre className="python-attempt-code">{attempt.code}</pre>
+                                    )}
+                                </div>
+                            </List.Item>
+                        )}
+                    />
+                )}
+            </Modal>
         </div>
     );
 };

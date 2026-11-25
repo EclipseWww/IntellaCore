@@ -63,6 +63,26 @@ exports.createLesson = async (req, res) => {
 };
 
 // 获取课时详情
+// 学生端看到的活动：去掉测验答案、参考答案、教师批阅配置，隐藏测试点只保留占位（内容只在服务器判题时使用）
+function activityForStudent(activity) {
+  const activityObj = activity.toObject ? activity.toObject() : { ...activity };
+  if (activityObj.quizSettings?.quiz) {
+    activityObj.quizSettings = { ...activityObj.quizSettings,
+      quiz: require('../services/quizSecurity').withoutAnswers(activityObj.quizSettings.quiz) };
+  }
+  if (activityObj.pythonSettings?.testCases) {
+    activityObj.pythonSettings = {
+      ...activityObj.pythonSettings,
+      testCases: activityObj.pythonSettings.testCases.map(testCase => (testCase.isHidden
+        ? { _id: testCase._id, isHidden: true, input: '', expectedOutput: '' }
+        : testCase))
+    };
+  }
+  const { referenceAnswer, pptGradingSettings, excelGradingSettings, ...rest } = activityObj;
+  return rest;
+}
+exports.activityForStudent = activityForStudent;
+
 exports.getLessonDetails = async (req, res) => {
   try {
     const { lessonId } = req.params;
@@ -98,34 +118,7 @@ exports.getLessonDetails = async (req, res) => {
           return null;
         }
 
-        // 深拷贝活动对象以避免修改原始数据
-        const activityObj = activity.toObject ? activity.toObject() : { ...activity };
-        if (activityObj.quizSettings?.quiz) {
-          activityObj.quizSettings = { ...activityObj.quizSettings,
-            quiz: require('../services/quizSecurity').withoutAnswers(activityObj.quizSettings.quiz) };
-        }
-
-        // 处理Python活动的隐藏测试用例
-        if (activityObj.type === 'python' && activityObj.pythonSettings?.testCases) {
-          activityObj.pythonSettings.testCases = activityObj.pythonSettings.testCases.map(testCase => {
-            if (testCase.isHidden) {
-              // 对隐藏测试用例的输入输出进行简单的Base64混淆
-              // 添加 ENC: 前缀以便前端识别
-              return {
-                ...testCase,
-                input: testCase.input ? `ENC:${Buffer.from(testCase.input).toString('base64')}` : '',
-                expectedOutput: testCase.expectedOutput ? `ENC:${Buffer.from(testCase.expectedOutput).toString('base64')}` : '',
-                // 确保isHidden标志保留
-                isHidden: true
-              };
-            }
-            return testCase;
-          });
-        }
-
-        // 学生端过滤参考答案和教师专用批阅配置
-        const { referenceAnswer, pptGradingSettings, excelGradingSettings, ...rest } = activityObj;
-        return rest;
+        return activityForStudent(activity);
       }
       return activity;
     }).filter(activity => activity !== null); // 过滤掉未发布的活动
@@ -515,9 +508,12 @@ exports.getUnitLessons = async (req, res) => {
       .populate('activities.quizSettings.quiz', 'status')
       .sort('order');
 
+    const isStudent = req.user?.role === 'student';
     res.json({
       success: true,
-      data: lessons
+      data: isStudent
+        ? lessons.map(lesson => ({ ...lesson.toObject(), activities: (lesson.activities || []).map(activityForStudent) }))
+        : lessons
     });
   } catch (error) {
     console.error('获取单元课时失败:', error);

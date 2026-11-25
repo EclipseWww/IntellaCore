@@ -22,10 +22,15 @@ const pythonSubmissionSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    // Python代码
+    // Python代码（已提交时为提交版本，教师批改的就是这一份）
     code: {
         type: String,
         default: ''
+    },
+    // 提交后学生继续编辑并保存的草稿（未提交）；为 null 表示没有未提交的修改
+    draftCode: {
+        type: String,
+        default: null
     },
     // 执行输出
     output: {
@@ -59,14 +64,34 @@ const pythonSubmissionSchema = new mongoose.Schema({
     testResults: {
         passedCount: { type: Number, default: 0 },
         totalCount: { type: Number, default: 0 },
+        // 由服务器判题生成；旧数据可能含 input / expectedOutput，返回给学生前会去掉隐藏测试点的这两项
         results: [{
+            index: Number,
             passed: Boolean,
+            status: String,          // AC / WA / RE / TLE / OLE
             input: String,
             expectedOutput: String,
             actualOutput: String,
             isHidden: Boolean,
-            error: String
-        }]
+            error: String,
+            errorType: String,
+            errorLine: Number,
+            timeMs: Number
+        }],
+        judgedAt: Date
+    },
+    // 历史提交（最近 30 次）
+    attempts: [{
+        code: String,
+        passedCount: Number,
+        totalCount: Number,
+        score: Number,
+        submittedAt: Date
+    }],
+    // 已计入学生积分的分值（score×10）；用于自动评分与教师改分时正确计算积分差额
+    awardedPoints: {
+        type: Number,
+        default: null
     },
     // 提交时间
     submittedAt: {

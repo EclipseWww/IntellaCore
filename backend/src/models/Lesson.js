@@ -278,6 +278,11 @@ const lessonSchema = new mongoose.Schema({
         type: String,
         default: '# 在这里编写你的Python代码\n'
       },
+      maxAttempts: {                  // 最多提交次数，0 表示不限
+        type: Number,
+        default: 0,
+        min: 0
+      },
       testCases: [{                   // OJ测试用例
         input: String,                // 输入数据
         expectedOutput: String,       // 预期输出
