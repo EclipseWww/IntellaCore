@@ -47,7 +47,8 @@ test('simultaneous submissions cannot claim the same attempt and answers are san
   assert.deepEqual(responses.map(res => res.statusCode).sort(), [201, 409]);
   assert.equal(f.awards(), 1);
   const result = responses.find(res => res.statusCode === 201).body.data;
-  assert.equal(result.answers[0].isCorrect, undefined);
+  // 默认显示分数：保留每题对错，只去掉正确选项与解析
+  assert.equal(result.answers[0].isCorrect, true);
   assert.equal(result.answers[0].questionSnapshot.options[0].isCorrect, undefined);
 });
 test('new attempt identity is uniquely indexed without imposing a new constraint on legacy rows', () => {

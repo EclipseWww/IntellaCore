@@ -9,6 +9,16 @@ function withoutAnswers(value) {
   if (value instanceof Map) return Object.fromEntries([...value].map(([k,v]) => [k, withoutAnswers(v)]));
   return Object.fromEntries(Object.entries(value).filter(([key]) => !secretFields.has(key)).map(([key, item]) => [key, withoutAnswers(item)]));
 }
+// 学生查看自己的提交：不显示答案时去掉正确选项与解析；显示分数时保留每题对错（结果页“答题情况”依赖它）
+function submissionForStudent(submission, { showAnswers = false, showScore = true } = {}) {
+  if (showAnswers) return submission;
+  const safe = withoutAnswers(submission);
+  if (showScore && Array.isArray(safe?.answers)) {
+    const source = submission.answers || [];
+    safe.answers = safe.answers.map((answer, i) => ({ ...answer, isCorrect: source[i]?.isCorrect }));
+  }
+  return safe;
+}
 const fail = (message, status = 403) => { throw Object.assign(new Error(message), { status }); };
 async function quizContext(user, quizId, lessonId, activityId, requireActivity = false) {
   if (!!lessonId !== !!activityId) fail('课时和活动必须同时提供', 400);
@@ -57,4 +67,4 @@ async function allocateAttemptSlot(query, maxAttempts, existingId = null) {
   for (let slot = 1; slot <= maxAttempts; slot++) if (!used.has(slot)) return slot;
   fail('已达到最大答题次数', 400);
 }
-module.exports = { withoutAnswers, quizContext, validateAnswers, allocateAttemptSlot };
+module.exports = { withoutAnswers, submissionForStudent, quizContext, validateAnswers, allocateAttemptSlot };

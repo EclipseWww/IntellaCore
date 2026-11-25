@@ -1,4 +1,4 @@
-const { withoutAnswers, quizContext, validateAnswers, allocateAttemptSlot } = require('../services/quizSecurity');
+const { withoutAnswers, submissionForStudent, quizContext, validateAnswers, allocateAttemptSlot } = require('../services/quizSecurity');
 const { settleQuizPoints } = require('../services/quizPointsService');
 const QuizSubmission = require('../models/QuizSubmission');
 const Quiz = require('../models/Quiz');
@@ -391,7 +391,9 @@ exports.submit = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: req.user.role === 'student' && !quizSettings.showAnswerAfterSubmit ? withoutAnswers(submission) : submission,
+      data: req.user.role === 'student'
+        ? submissionForStudent(submission, { showAnswers: quizSettings.showAnswerAfterSubmit, showScore: quizSettings.showScoreAfterSubmit })
+        : submission,
       meta: {
         attemptNumber: submission.attemptNumber,
         remainingAttempts,
@@ -451,6 +453,7 @@ exports.getSubmission = async (req, res) => {
 
     // 获取答案可见性设置
     let showAnswerAfterSubmit = false;
+    let showScoreAfterSubmit = true;
 
     // 优先从关联的课时活动中获取配置
     if (submission.lessonId && submission.activityId) {
@@ -460,6 +463,9 @@ exports.getSubmission = async (req, res) => {
           const activity = lesson.activities.id(submission.activityId);
           if (activity && activity.quizSettings && activity.quizSettings.showAnswerAfterSubmit !== undefined) {
             showAnswerAfterSubmit = activity.quizSettings.showAnswerAfterSubmit;
+          }
+          if (activity && activity.quizSettings && activity.quizSettings.showScoreAfterSubmit !== undefined) {
+            showScoreAfterSubmit = activity.quizSettings.showScoreAfterSubmit;
           }
         }
       } catch (err) {
@@ -517,7 +523,7 @@ exports.getSubmission = async (req, res) => {
       res.status(200).json({
         success: true,
         data: {
-          submission: withoutAnswers(submission),
+          submission: submissionForStudent(submission, { showScore: showScoreAfterSubmit }),
           accuracy,
           totalCount,
           correctCount

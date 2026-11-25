@@ -62,3 +62,17 @@ test('a stale count cannot allocate a slot beyond the maximum after another subm
   rows[0] = { _id: 'legacy' };
   await assert.rejects(service.allocateAttemptSlot({ quizId: 'quiz' }, 1), { status: 400 });
 });
+test('student submission view keeps per-question correctness only when the score is shown', () => {
+  const { submissionForStudent } = require('./quizSecurity');
+  const submission = { score: 50, answers: [
+    { questionId: 'q1', isCorrect: true, questionSnapshot: { explanation: 'why', options: [{ _id: 'a', isCorrect: true }] } },
+    { questionId: 'q2', isCorrect: false, questionSnapshot: { options: [{ _id: 'b', isCorrect: false }] } }
+  ] };
+  assert.equal(submissionForStudent(submission, { showAnswers: true }), submission);
+  const scored = submissionForStudent(submission, { showAnswers: false, showScore: true });
+  assert.deepEqual(scored.answers.map(a => a.isCorrect), [true, false]);
+  assert.equal(scored.answers[0].questionSnapshot.options[0].isCorrect, undefined);
+  assert.equal(scored.answers[0].questionSnapshot.explanation, undefined);
+  const hidden = submissionForStudent(submission, { showAnswers: false, showScore: false });
+  assert.deepEqual(hidden.answers.map(a => a.isCorrect), [undefined, undefined]);
+});
