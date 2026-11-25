@@ -718,11 +718,20 @@ const UserManual = () => {
                     >
                         <Title level={3}>更新日志 (Changelog)</Title>
                         <Paragraph>
-                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.7.0</Tag>
+                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.7.1</Tag>
                         </Paragraph>
 
                         <div style={{ marginTop: 24 }}>
                             <Timeline>
+                                <Timeline.Item color="green">
+                                    <strong>v1.7.1 (2026-11-25)</strong>
+                                    <ul>
+                                        <li>安全加固：登录接口新增失败次数限制（同一账号连续输错约 20 次后需等待 10 分钟，不影响教室内多名学生同时登录）；增加基础安全响应头；请求体大小上限由 500MB 调整为 100MB（文件上传不受影响，可用环境变量 JSON_BODY_LIMIT 调整）。</li>
+                                        <li>新增可选环境变量 CORS_STRICT=true，开启后严格按 ALLOWED_ORIGINS 校验跨域来源；默认行为保持不变。数据库查询调试日志改为需设置 MONGOOSE_DEBUG=true 才输出，避免学生数据写入日志。</li>
+                                        <li>清理调试脚本与重复依赖声明，数据迁移脚本移入 backend/src/scripts；新增 GitHub Actions 自动运行后端测试与前端构建。</li>
+                                    </ul>
+                                </Timeline.Item>
+
                                 <Timeline.Item color="green">
                                     <strong>v1.7.0 (2026-11-24)</strong>
                                     <ul>

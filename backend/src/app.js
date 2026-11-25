@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
 const config = require('./config');
 const dotenv = require('dotenv');
 const User = require('./models/User');
@@ -69,16 +70,31 @@ console.log('Configuration loaded:', {
   jwtSecret: config.jwtSecret ? 'Set' : 'Not set'
 });
 
-// 配置 CORS
-app.use(cors(config.cors));
+// 安全响应头。游戏/课件通过 iframe 与跨源资源加载，故关闭 CSP、frame、跨源策略相关项，仅保留其余默认头
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+  frameguard: false,
+  hsts: false,
+  noSniff: false,
+  referrerPolicy: false,
+  originAgentCluster: false
+}));
 
-// 添加额外的 CORS 头，确保所有响应都包含这些头
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-Real-IP, X-Setup-Request');
-  next();
-});
+// 配置 CORS
+// 默认保持宽松（与历史行为一致）；设置 CORS_STRICT=true 后按 ALLOWED_ORIGINS 白名单严格校验
+const corsStrict = process.env.CORS_STRICT === 'true';
+app.use(cors(config.cors));
+if (!corsStrict) {
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-Real-IP, X-Setup-Request');
+    next();
+  });
+}
 
 // 配置Express信任代理，以便正确获取客户端IP
 // 在Docker环境中，请求经过nginx代理，需要信任代理以正确解析X-Forwarded-For等头
@@ -86,11 +102,13 @@ app.use((req, res, next) => {
 app.set('trust proxy', true);
 
 // 添加预检请求的处理
-app.options('*', cors());
+app.options('*', cors(config.cors));
 
 // 中间件
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ extended: true, limit: '500mb' }));
+// 文件上传走 multer，不受此限制；JSON/表单体默认 100MB，可用 JSON_BODY_LIMIT 调整
+const bodyLimit = process.env.JSON_BODY_LIMIT || '100mb';
+app.use(express.json({ limit: bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
 // 静态文件目录 - 公开访问的媒体资源
 app.use('/public/media', express.static(path.join(__dirname, '../uploads/public/media')));
@@ -165,7 +183,7 @@ const startServer = async () => {
   try {
     // 连接数据库
     console.log('正在连接数据库...');
-    mongoose.set('debug', process.env.NODE_ENV !== 'production'); // 只在非生产环境启用调试模式
+    mongoose.set('debug', process.env.MONGOOSE_DEBUG === 'true'); // 查询日志含学生数据，需显式开启
 
     // 使用配置文件中的 mongoUri
     const mongoUri = config.mongoUri;
@@ -175,8 +193,6 @@ const startServer = async () => {
     while (retries) {
       try {
         await mongoose.connect(mongoUri, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
           serverSelectionTimeoutMS: 5000,
           socketTimeoutMS: 45000,
         });

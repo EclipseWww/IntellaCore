@@ -14,14 +14,14 @@
  */
 
 const mongoose = require('mongoose');
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
-const Lesson = require('./src/models/Lesson');
-const AssignmentSubmission = require('./src/models/AssignmentSubmission');
-const PythonSubmission = require('./src/models/PythonSubmission');
-const FlowchartSubmission = require('./src/models/FlowchartSubmission');
-const SpreadsheetSubmission = require('./src/models/SpreadsheetSubmission');
-const FillBlankSubmission = require('./src/models/FillBlankSubmission');
+const Lesson = require('../models/Lesson');
+const AssignmentSubmission = require('../models/AssignmentSubmission');
+const PythonSubmission = require('../models/PythonSubmission');
+const FlowchartSubmission = require('../models/FlowchartSubmission');
+const SpreadsheetSubmission = require('../models/SpreadsheetSubmission');
+const FillBlankSubmission = require('../models/FillBlankSubmission');
 
 async function fixDuplicateActivityIds() {
     try {

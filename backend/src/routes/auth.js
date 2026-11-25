@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const auth = require('../middleware/auth');
+const loginLimiter = require('../middleware/loginLimiter');
 const initializationController = require('../controllers/initializationController');
 
 router.get('/initialization', initializationController.status);
@@ -51,7 +52,7 @@ router.post('/register', (req, res) => res.status(403).json({ message: '不提�
  *       401:
  *         description: 用户名或密码错误
  */
-router.post('/login', authController.login);
+router.post('/login', loginLimiter, authController.login);
 
 /**
  * @swagger

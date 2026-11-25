@@ -95,7 +95,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.warn(`Origin ${origin} not allowed by CORS`);
-      callback(null, true); // 临时允许所有来源，方便调试
+      callback(null, process.env.CORS_STRICT !== 'true'); // 默认放行；CORS_STRICT=true 时拒绝白名单外来源
     }
   },
   credentials: true,
