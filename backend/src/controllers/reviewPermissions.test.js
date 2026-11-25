@@ -49,7 +49,8 @@ test('fixed email endpoints are matched before the email id route', () => {
   const router = load(require.resolve('../routes/emailRoutes'), {
     express, multer: Object.assign(() => ({ array: () => (_, __, next) => next() }), { diskStorage: () => ({}) }),
     path: require('node:path'), fs: { existsSync: () => true },
-    '../middleware/auth': (_, __, next) => next(), '../controllers/emailController': controller
+    '../middleware/auth': (_, __, next) => next(), '../controllers/emailController': controller,
+    '../utils/safeDownloadPath': require('../utils/safeDownloadPath')
   });
   for (const [url, expected] of [['/contacts', 'getContacts'], ['/templates', 'getTemplates'], ['/abc', 'getEmailById']]) {
     const layer = router.stack.find(layer => layer.route?.methods.get && layer.match(url));
