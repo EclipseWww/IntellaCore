@@ -5,6 +5,12 @@ services:
     image: mongo:latest
     container_name: mongodb
     restart: always
+    # 限制 Docker 保存的容器输出：每个容器最多 5 个 20MB 文件，超出自动删除最旧的
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD}
@@ -20,6 +26,12 @@ services:
     image: registry.example.com/your-namespace/ai-chat-edu-backend:latest
     container_name: backend
     restart: always
+    # 限制 Docker 保存的容器输出：每个容器最多 5 个 20MB 文件，超出自动删除最旧的
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     environment:
       PORT: 5003
       MONGODB_URI: ${MONGODB_URI:?Set MONGODB_URI}
@@ -46,6 +58,12 @@ services:
     image: registry.example.com/your-namespace/ai-chat-edu-frontend:latest
     container_name: frontend
     restart: always
+    # 限制 Docker 保存的容器输出：每个容器最多 5 个 20MB 文件，超出自动删除最旧的
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     ports:
       - "4000:80"
     environment:

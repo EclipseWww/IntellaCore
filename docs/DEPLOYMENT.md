@@ -262,6 +262,11 @@ docker compose start
 
 配置使用 restart: always，Docker 引擎运行后会恢复容器，但它不能让尚未启动的 Docker 引擎自行运行。Windows Docker Desktop 的登录启动不等于无人登录时的开机可用；有此需求时应验证目标系统的引擎启动方式，或选择前文 npm 的开机任务方案。Linux 则需配置 Docker 服务开机启动。上线前在维护窗口重启电脑，从学生电脑验证服务恢复。
 
+日志会自动清理，无需手动维护：
+
+- 后端日志文件（data/backend/logs 下的 combined-日期.log、error-日期.log）按天生成，单个文件超过 20MB 会另起新文件，保留最近 14 天，更早的自动删除。管理员后台“服务器日志”读取的就是这些文件。排查问题时可在 .env 中设置 LOG_LEVEL=debug 查看更详细的日志，排查完删除该行并重启后端。
+- Docker 另外保存一份各容器的屏幕输出（docker logs 看到的内容）。仓库中的 Compose 文件已为每个服务设置 logging（每个容器最多 5 个 20MB 文件）。早于该设置的 Compose 文件没有这个上限：后端、前端容器每次更新重建时会清空，MongoDB 容器很少重建，其输出会一直累积。已有服务器可把各服务下的 logging 段落复制到自己的 Compose 文件，再执行 docker compose up -d 使其生效（只会重建容器，不影响数据）。
+
 ### 6. 源码构建方式更新
 
 先备份数据库、上传文件及 .env，在原目录执行：

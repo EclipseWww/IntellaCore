@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-FROM node:16-alpine as build
+# 仅用于构建前端静态文件；与 CI 使用同一 Node 版本
+FROM node:22-alpine AS build
 
 # 设置 npm 使用淘宝镜像
 RUN npm config set registry https://registry.npmmirror.com
@@ -24,7 +25,7 @@ RUN echo "REACT_APP_API_URL=" > .env
 # 构建应用
 ENV GENERATE_SOURCEMAP=false
 # Keep Webpack, Babel, minimizer and ESLint caches across source changes.
-RUN --mount=type=cache,id=ai-chat-edu-frontend-compile-node16,target=/app/node_modules/.cache,sharing=locked \
+RUN --mount=type=cache,id=ai-chat-edu-frontend-compile-node22,target=/app/node_modules/.cache,sharing=locked \
     npm run build
 
 # 生产环境
