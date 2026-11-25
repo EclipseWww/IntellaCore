@@ -391,8 +391,13 @@ const Quiz = ({
             }
           }
         } else {
-          // 选择题（单选、多选、判断）
-          answerData.selectedOption = Array.isArray(answer) ? answer[0] : answer;
+          // 选择题（单选、判断）；多选题提交全部选中的选项
+          if (question.type === 'MULTIPLE_CHOICE') {
+            answerData.selectedOptions = Array.isArray(answer) ? answer : [answer];
+            answerData.selectedOption = answerData.selectedOptions[0];
+          } else {
+            answerData.selectedOption = Array.isArray(answer) ? answer[0] : answer;
+          }
         }
 
         return answerData;

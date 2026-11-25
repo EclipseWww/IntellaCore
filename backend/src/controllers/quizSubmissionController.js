@@ -8,6 +8,7 @@ const Lesson = require('../models/Lesson');
 const logger = require('../utils/logger'); // 导入 logger 模块
 const QuizAnalyticsService = require('../services/QuizAnalyticsService');
 const questionVersionService = require('../services/questionVersionService');
+const { gradeChoiceAnswer, getSelectedOptionIds } = require('../utils/choiceAnswer');
 const mongoose = require('mongoose');
 
 // 提交测验（包含所有答案）
@@ -236,18 +237,10 @@ exports.submit = async (req, res) => {
           });
         }
       } else {
-        // 非量表题目：按选项ID判断正误
-        if (answer.selectedOption) {
-          answerData.selectedOption = answer.selectedOption;
-          const correctOption = question.options.find(opt => opt.isCorrect);
-          answerData.isCorrect = answer.selectedOption === correctOption?._id?.toString();
-          console.log('答案判断:', {
-            questionType: question.type,
-            selectedOption: answer.selectedOption,
-            correctOption: correctOption?._id,
-            isCorrect: answerData.isCorrect
-          });
-        }
+        // 非量表题目：按选项ID判断正误（多选题需全部选对）
+        const graded = gradeChoiceAnswer(question, answer.selectedOptions ?? answer.selectedOption);
+        if (!graded) return null;
+        Object.assign(answerData, graded);
       }
 
       return answerData;
@@ -508,6 +501,7 @@ exports.getSubmission = async (req, res) => {
               questionId: question.questionId._id,
               content: question.questionId.content,
               selectedOption: answer.selectedOption,
+              selectedOptions: getSelectedOptionIds(answer),
               correctOption: correctOption ? correctOption._id : undefined,
               isCorrect: answer.isCorrect
             };
@@ -914,6 +908,30 @@ const shuffleArray = (array) => {
   return newArray;
 };
 
+// 把已保存的答案转换成前端答题页使用的格式（量表为0-based索引，多选为选项ID数组）
+const buildProgressAnswersMap = (answers = [], quiz = null) => {
+  const multipleIds = new Set(
+    (quiz?.questions || [])
+      .filter(q => q.questionId?.type === 'MULTIPLE_CHOICE')
+      .map(q => q.questionId._id.toString())
+  );
+  const answersMap = {};
+  answers.forEach(ans => {
+    if (!ans.questionId) return;
+    const key = ans.questionId.toString();
+    if (ans.matrixAnswers && ans.matrixAnswers.size > 0) {
+      answersMap[key] = Object.fromEntries(ans.matrixAnswers);
+    } else if (ans.scaleValue != null) {
+      answersMap[key] = ans.scaleValue - 1; // 转回0-based
+    } else if ((ans.selectedOptions && ans.selectedOptions.length > 0) || multipleIds.has(key)) {
+      answersMap[key] = getSelectedOptionIds(ans);
+    } else if (ans.selectedOption) {
+      answersMap[key] = ans.selectedOption.toString();
+    }
+  });
+  return answersMap;
+};
+
 // 开始答题（创建或恢复 IN_PROGRESS 记录）
 exports.start = async (req, res) => {
   try {
@@ -1035,13 +1053,7 @@ exports.start = async (req, res) => {
         submissionId: existingSubmission._id
       });
 
-      // 构建答案映射
-      const answersMap = {};
-      existingSubmission.answers.forEach(ans => {
-        if (ans.questionId) {
-          answersMap[ans.questionId.toString()] = ans.selectedOption || ans.scaleValue || ans.matrixAnswers;
-        }
-      });
+      const answersMap = buildProgressAnswersMap(existingSubmission.answers, quiz);
 
       return res.status(200).json({
         success: true,
@@ -1238,12 +1250,13 @@ exports.saveProgress = async (req, res) => {
           answerData.scaleValue = Number(answer) + 1; // 前端传0-based，存1-based
         }
       } else {
-        // 选择题
-        if (answer != null) {
-          answerData.selectedOption = Array.isArray(answer) ? answer[0] : answer;
-          const correctOption = question.options?.find(opt => opt.isCorrect);
-          answerData.isCorrect = answerData.selectedOption === correctOption?._id?.toString();
+        // 选择题（多选题保存全部选项；全部取消勾选则视为未作答）
+        const graded = gradeChoiceAnswer(question, answer);
+        if (!graded) {
+          answerMap.delete(questionId);
+          return;
         }
+        Object.assign(answerData, graded);
       }
 
       answerMap.set(questionId, answerData);
@@ -1303,19 +1316,7 @@ exports.getInProgress = async (req, res) => {
       });
     }
 
-    // 构建答案映射
-    const answersMap = {};
-    submission.answers.forEach(ans => {
-      if (ans.questionId) {
-        if (ans.matrixAnswers && ans.matrixAnswers.size > 0) {
-          answersMap[ans.questionId.toString()] = Object.fromEntries(ans.matrixAnswers);
-        } else if (ans.scaleValue != null) {
-          answersMap[ans.questionId.toString()] = ans.scaleValue - 1; // 转回0-based
-        } else if (ans.selectedOption) {
-          answersMap[ans.questionId.toString()] = ans.selectedOption;
-        }
-      }
-    });
+    const answersMap = buildProgressAnswersMap(submission.answers);
 
     res.status(200).json({
       success: true,

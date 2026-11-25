@@ -90,8 +90,10 @@ const PracticeReview = ({ sessionId, onBack }) => {
                             {/* 选项展示 */}
                             <div className="options-list" style={{ marginBottom: 16 }}>
                                 {q.options.map((opt) => {
-                                    const isSelected = q.userAnswer === opt._id;
-                                    const isCorrect = q.correctAnswer === opt._id; // 注意：多选可能需要改逻辑，这里假设单选/判断
+                                    const selectedIds = q.userAnswers?.length ? q.userAnswers : (q.userAnswer ? [String(q.userAnswer)] : []);
+                                    const correctIds = q.correctAnswers?.length ? q.correctAnswers : (q.correctAnswer ? [String(q.correctAnswer)] : []);
+                                    const isSelected = selectedIds.includes(String(opt._id));
+                                    const isCorrect = correctIds.includes(String(opt._id));
 
                                     let style = { padding: '8px 12px', borderRadius: 4, marginBottom: 8, border: '1px solid #d9d9d9' };
 

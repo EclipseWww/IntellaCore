@@ -13,6 +13,11 @@ const practiceSessionSchema = new mongoose.Schema({
         },
         isCorrect: Boolean,
         selectedOption: mongoose.Schema.Types.ObjectId,
+        // 多选题选中的全部选项ID
+        selectedOptions: {
+            type: [mongoose.Schema.Types.ObjectId],
+            default: undefined
+        },
         // 版本控制字段
         questionVersion: {
             type: Number,

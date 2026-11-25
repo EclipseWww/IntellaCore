@@ -114,10 +114,15 @@ const FreePractice = () => {
     // 处理答案变更
     const handleAnswerChange = (val) => {
         if (status !== 'practicing') return;
-        setAnswers(prev => ({
-            ...prev,
-            [questions[currentStep]._id]: val
-        }));
+        const questionId = questions[currentStep]._id;
+        setAnswers(prev => {
+            // 多选题全部取消勾选时视为未作答
+            if (Array.isArray(val) && val.length === 0) {
+                const { [questionId]: _removed, ...rest } = prev;
+                return rest;
+            }
+            return { ...prev, [questionId]: val };
+        });
     };
 
     // 退出练习检查

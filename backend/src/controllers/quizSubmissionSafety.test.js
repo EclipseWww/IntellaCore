@@ -25,7 +25,7 @@ function fixture({ failSave = false } = {}) {
     '../services/quizPointsService': { settleQuizPoints: async () => { awards++; } },
     '../models/QuizSubmission': Submission, '../models/Quiz': { findById: () => ({ populate: async () => quiz }) },
     '../models/Question': {}, '../models/User': {}, '../models/Lesson': { findById: async () => null },
-    '../utils/logger': logger, '../services/QuizAnalyticsService': {},
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), '../services/QuizAnalyticsService': {},
     '../services/questionVersionService': { createQuestionSnapshot: question => ({ options: question.options }) }, mongoose: { Types: { ObjectId: class {} } }
   });
   const request = answers => ({ user: { _id: 'student', role: 'student' }, body: { quizId: 'quiz', answers, activityId: 'activity', lessonId: 'lesson', duration: 0 } });
@@ -69,7 +69,7 @@ test('students cannot use in-progress result statistics to discover answers', as
     '../services/quizSecurity': security, '../services/quizPointsService': {},
     '../models/QuizSubmission': { findById: () => ({ populate: async () => ({ _id: 's', studentId: 'student', status: 'IN_PROGRESS' }) }) },
     '../models/Quiz': {}, '../models/Question': {}, '../models/User': {}, '../models/Lesson': {},
-    '../utils/logger': logger, '../services/QuizAnalyticsService': {}, '../services/questionVersionService': {}, mongoose: {}
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), '../services/QuizAnalyticsService': {}, '../services/questionVersionService': {}, mongoose: {}
   });
   const res = response();
   await controller.getSubmission({ user: { _id: 'student', role: 'student' }, params: { submissionId: 's' } }, res);

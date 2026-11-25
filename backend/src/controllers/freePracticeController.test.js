@@ -11,7 +11,7 @@ function fixture({ total = 10, correct = 5, earnedToday = 0 } = {}) {
     '../models/Setting': {}, '../models/User': {}, '../models/Class': {},
     '../models/Achievement': { findOne: async () => ({ pointTransactions: [{ type: 'free_practice', amount: earnedToday, timestamp: new Date() }] }) },
     '../utils/pointsManager': { addPoints: async (...args) => awards.push(args) },
-    '../utils/logger': logger, mongoose: {}
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}
   });
   const answers = Object.fromEntries(questions.slice(0, correct).map(q => [q._id, 'right']));
   return { controller, session, awards, req: { user: { id: 'student' }, body: { sessionId: 'session', answers } } };
@@ -67,7 +67,7 @@ test('starting practice stores the number actually drawn from the question bank'
     '../models/Question': { aggregate: async () => questions },
     '../models/User': { findById: () => ({ select: async () => ({ classId: 'class' }) }) },
     '../models/Class': { findById: () => ({ select: async () => ({}) }) },
-    '../models/Setting': {}, '../utils/pointsManager': {}, '../utils/logger': logger, mongoose: {}
+    '../models/Setting': {}, '../utils/pointsManager': {}, '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}
   });
   const res = response(); await controller.startPractice({ user: { id: 'student' } }, res);
   assert.equal(res.statusCode, 201); assert.equal(created.totalQuestions, 3);

@@ -57,6 +57,11 @@ const quizSubmissionSchema = new mongoose.Schema({
         return !this.scaleValue && (!this.matrixAnswers || this.matrixAnswers.size === 0);
       }
     },
+    // 多选题选中的全部选项ID（selectedOption 同时保存第一个，兼容旧统计）
+    selectedOptions: {
+      type: [mongoose.Schema.Types.ObjectId],
+      default: undefined
+    },
     scaleValue: {
       type: Number,  // 心理量表的分值（1-N）
       required: false  // 改为非必需，由业务逻辑控制

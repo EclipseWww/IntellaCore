@@ -3,6 +3,7 @@ const QuizSubmission = require('../models/QuizSubmission');
 const Quiz = require('../models/Quiz');
 const QuizAnalyticsService = require('../services/QuizAnalyticsService');
 const logger = require('../utils/logger');
+const { getSelectedOptionIds } = require('../utils/choiceAnswer');
 
 /**
  * 获取测验分析数据
@@ -105,8 +106,11 @@ exports.getQuizAnalytics = async (req, res) => {
             optionStatistics[questionId][key] = (optionStatistics[questionId][key] || 0) + 1;
           }
         } else {
-          const selectedOption = answer.selectedOption ? answer.selectedOption.toString() : 'none';
-          optionStatistics[questionId][selectedOption] = (optionStatistics[questionId][selectedOption] || 0) + 1;
+          // 多选题每个选中的选项各计一次
+          const selectedIds = getSelectedOptionIds(answer);
+          (selectedIds.length > 0 ? selectedIds : ['none']).forEach(optionKey => {
+            optionStatistics[questionId][optionKey] = (optionStatistics[questionId][optionKey] || 0) + 1;
+          });
         }
         
         // 更新尝试次数和正确次数

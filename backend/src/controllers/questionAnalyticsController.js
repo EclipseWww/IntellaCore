@@ -3,6 +3,7 @@ const Question = require('../models/Question');
 const QuizSubmission = require('../models/QuizSubmission');
 const QuizAnalytics = require('../models/QuizAnalytics');
 const logger = require('../utils/logger');
+const { getSelectedOptionIds } = require('../utils/choiceAnswer');
 
 /**
  * 获取题目的全局分析数据
@@ -90,8 +91,8 @@ exports.getQuestionAnalytics = async (req, res) => {
       // 选择题：按选项ID统计
       question.options.forEach((option, index) => {
         const optionId = option._id.toString();
-        const count = allAnswers.filter(answer => 
-          answer.selectedOption && answer.selectedOption.toString() === optionId
+        const count = allAnswers.filter(answer =>
+          getSelectedOptionIds(answer).includes(optionId)
         ).length;
         
         optionDistribution[optionId] = {

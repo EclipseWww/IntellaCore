@@ -139,6 +139,10 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
               const selectedOption = (question.options || []).find(opt =>
                 opt._id?.toString() === answer.selectedOption
               );
+              // 选中的全部选项ID（多选题有多个，旧记录只有 selectedOption）
+              const selectedIds = answer.selectedOptions?.length
+                ? answer.selectedOptions.map(String)
+                : (answer.selectedOption ? [String(answer.selectedOption)] : []);
 
               // 判断题特殊处理
               const userSelectedTrue = question.type === 'TRUE_FALSE' &&
@@ -301,7 +305,7 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
                         // 保持选项的原始顺序并添加字母标识
                         question.options.map((option, index) => {
                           const isCorrect = option.isCorrect;
-                          const isUserSelected = selectedOption && selectedOption._id === option._id;
+                          const isUserSelected = selectedIds.includes(String(option._id));
 
                           // 确定背景色和边框色
                           let bgColor = 'white';
@@ -399,6 +403,10 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
               const selectedOption = (question.options || []).find(opt =>
                 opt._id?.toString() === answer.selectedOption
               );
+              // 选中的全部选项ID（多选题有多个，旧记录只有 selectedOption）
+              const selectedIds = answer.selectedOptions?.length
+                ? answer.selectedOptions.map(String)
+                : (answer.selectedOption ? [String(answer.selectedOption)] : []);
 
               // 判断题特殊处理
               const userSelectedTrue = question.type === 'TRUE_FALSE' &&
@@ -511,7 +519,7 @@ const QuizResult = ({ submission, quiz, settings, mode, canAttemptAgain, attempt
                       ) : (
                         // 显示所有选项，但不标明正确答案
                         question.options.map((option, index) => {
-                          const isUserSelected = selectedOption && selectedOption._id === option._id;
+                          const isUserSelected = selectedIds.includes(String(option._id));
                           return (
                             <div key={option._id} style={{
                               padding: '8px',

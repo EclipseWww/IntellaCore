@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Class = require('../models/Class');
 const PointsManager = require('../utils/pointsManager');
 const logger = require('../utils/logger');
+const { gradeChoiceAnswer, getSelectedOptionIds } = require('../utils/choiceAnswer');
 const mongoose = require('mongoose');
 
 // 开始练习
@@ -175,15 +176,14 @@ exports.submitPractice = async (req, res) => {
             const submittedOption = answers[qId];
             const question = questionMap.get(qId);
 
-            if (question && submittedOption) {
-                sessionQ.selectedOption = submittedOption;
+            const graded = question ? gradeChoiceAnswer(question, submittedOption) : null;
 
-                // 检查是否正确
-                const correctOption = question.options.find(opt => opt.isCorrect);
-                const isCorrect = correctOption && correctOption._id.toString() === submittedOption;
-
-                sessionQ.isCorrect = isCorrect;
-                if (isCorrect) correctCount++;
+            if (graded) {
+                // 多选题保存全部选项，并要求全部选对
+                sessionQ.selectedOption = graded.selectedOption;
+                sessionQ.selectedOptions = graded.selectedOptions;
+                sessionQ.isCorrect = graded.isCorrect;
+                if (graded.isCorrect) correctCount++;
             } else {
                 sessionQ.isCorrect = false;
             }
@@ -331,7 +331,9 @@ exports.getDetails = async (req, res) => {
                 type: snapshot.type,
                 options: snapshot.options,
                 userAnswer: q.selectedOption,
+                userAnswers: getSelectedOptionIds(q),
                 correctAnswer: correctOption?._id,
+                correctAnswers: (snapshot.options || []).filter(opt => opt.isCorrect).map(opt => String(opt._id)),
                 isCorrect: q.isCorrect,
                 analysis: snapshot.analysis || '暂无解析',
                 difficulty: snapshot.difficulty,

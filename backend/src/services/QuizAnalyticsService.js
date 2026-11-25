@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const QuizSubmission = require('../models/QuizSubmission');
 const QuizAnalytics = require('../models/QuizAnalytics');
 const logger = require('../utils/logger');
+const { getSelectedOptionIds } = require('../utils/choiceAnswer');
 
 class QuizAnalyticsService {
   /**
@@ -21,7 +22,7 @@ class QuizAnalyticsService {
         quizId,
         status: 'SUBMITTED'
       })
-        .select('score attemptNumber answers.questionId answers.selectedOption answers.isCorrect answers.scaleValue answers.matrixAnswers')
+        .select('score attemptNumber answers.questionId answers.selectedOption answers.selectedOptions answers.isCorrect answers.scaleValue answers.matrixAnswers')
         .populate({ path: 'answers.questionId', select: 'type' })
         .lean();
       
@@ -217,11 +218,14 @@ class QuizAnalyticsService {
             }
           } else {
             // 普通题目处理
-            const optionKey = answer.selectedOption ? answer.selectedOption.toString() : 'none';
-            questionAnalytics.optionDistribution.set(
-              optionKey,
-              (questionAnalytics.optionDistribution.get(optionKey) || 0) + 1
-            );
+            // 多选题每个选中的选项各计一次
+            const selectedIds = getSelectedOptionIds(answer);
+            (selectedIds.length > 0 ? selectedIds : ['none']).forEach(optionKey => {
+              questionAnalytics.optionDistribution.set(
+                optionKey,
+                (questionAnalytics.optionDistribution.get(optionKey) || 0) + 1
+              );
+            });
           }
           
           // 记录更新的分布数据（用于调试）
