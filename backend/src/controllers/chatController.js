@@ -503,14 +503,14 @@ const chatController = {
   async getMessage(req, res) {
     try {
       const messageId = req.params.id;
-      const studentId = req.user.userId;
+      // JWT 中为 _id / id（没有 userId）；学生只能读取自己的消息，管理员不限
+      const studentId = req.user._id || req.user.id;
 
       logger.info('获取消息详情', { messageId, studentId });
 
-      const message = await Message.findOne({
-        _id: messageId,
-        student: studentId
-      });
+      const message = await Message.findOne(
+        req.user.role === 'admin' ? { _id: messageId } : { _id: messageId, student: studentId }
+      );
 
       if (!message) {
         logger.warn('消息不存在或无权访问', { messageId, studentId });
@@ -541,7 +541,7 @@ const chatController = {
         error: error.message,
         stack: error.stack,
         messageId: req.params.id,
-        studentId: req.user.userId 
+        studentId: req.user._id || req.user.id 
       });
       res.status(500).json({ message: '获取消息失败', error: error.message });
     }

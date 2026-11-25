@@ -166,7 +166,14 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  // 任何接口直接返回用户文档时都不带出密码哈希（备份导出使用 lean()，不受影响）
+  toJSON: {
+    transform(doc, ret) {
+      delete ret.password;
+      return ret;
+    }
+  }
 });
 
 // 密码加密中间件

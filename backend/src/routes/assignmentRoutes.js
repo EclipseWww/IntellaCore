@@ -355,7 +355,7 @@ router.post('/submissions/:submissionId/ppt-auto-grade',
  *         description: 提交不存在
  */
 router.get('/submissions/:submissionId/download',
-  // auth, // auth middleware is handled inside controller via token check in query param
+  auth, // 支持 ?token=，同时做学生单点登录会话校验
   assignmentController.downloadSubmissionFile
 );
 

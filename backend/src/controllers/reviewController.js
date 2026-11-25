@@ -7,7 +7,7 @@ const reviewController = {
     try {
       logger.info('获取待审核消息列表', { 
         query: req.query,
-        userId: req.user?.userId
+        userId: (req.user?._id || req.user?.id)
       });
       
       const page = parseInt(req.query.page) || 1;
@@ -56,12 +56,12 @@ const reviewController = {
   async bulkReviewMessages(req, res) {
     try {
       logger.info('批量审核消息请求', {
-        teacherId: req.user?.userId,
+        teacherId: (req.user?._id || req.user?.id),
         body: req.body
       });
 
       const { studentId, status, reviewComment, filters = {} } = req.body || {};
-      const teacherId = req.user.userId;
+      const teacherId = (req.user._id || req.user.id);
 
       if (!studentId) {
         logger.warn('缺少学生ID', { teacherId });
@@ -109,7 +109,7 @@ const reviewController = {
       logger.error('批量审核消息失败', {
         error: error.message,
         stack: error.stack,
-        teacherId: req.user?.userId
+        teacherId: (req.user?._id || req.user?.id)
       });
       res.status(500).json({ message: '批量审核失败', error: error.message });
     }
@@ -121,12 +121,12 @@ const reviewController = {
       logger.info('审核消息请求', { 
         messageId: req.params.messageId,
         status: req.body.status,
-        teacherId: req.user?.userId
+        teacherId: (req.user?._id || req.user?.id)
       });
 
       const { messageId } = req.params;
       const { status, reviewComment } = req.body;
-      const teacherId = req.user.userId;
+      const teacherId = (req.user._id || req.user.id);
 
       if (!['approved', 'rejected'].includes(status)) {
         logger.warn('无效的审核状态', { 
@@ -191,7 +191,7 @@ const reviewController = {
     try {
       logger.info('获取审核历史', { 
         query: req.query,
-        userId: req.user?.userId 
+        userId: (req.user?._id || req.user?.id) 
       });
       
       const page = parseInt(req.query.page) || 1;
@@ -244,7 +244,7 @@ const reviewController = {
   // 获取审核统计
   async getReviewStats(req, res) {
     try {
-      logger.info('获取审核统计数据', { userId: req.user?.userId });
+      logger.info('获取审核统计数据', { userId: (req.user?._id || req.user?.id) });
       
       const stats = await Message.aggregate([
         {

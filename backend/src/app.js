@@ -110,6 +110,9 @@ const bodyLimit = process.env.JSON_BODY_LIMIT || '100mb';
 app.use(express.json({ limit: bodyLimit }));
 app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
 
+// 5xx 响应默认不返回 error/stack 等内部细节
+app.use(require('./middleware/hideServerErrorDetails'));
+
 // 静态文件目录 - 公开访问的媒体资源
 app.use('/public/media', express.static(path.join(__dirname, '../uploads/public/media')));
 
