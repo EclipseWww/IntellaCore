@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const roleCheck = require('../middleware/roleCheck');
 const htmlProjectController = require('../controllers/htmlProjectController');
 
 // Public routes (no auth required)
@@ -44,7 +45,8 @@ router.put('/:id/link-assignment', htmlProjectController.linkAssignment);
 router.put('/:id/teacher-publish', htmlProjectController.teacherPublishProject);
 
 // Get projects for a specific assignment (Teacher view)
-router.get('/assignment/:lessonId/:activityId', htmlProjectController.getProjectsByLesson);
+// 返回该作业下所有学生的作品代码（含未发布），仅教师/管理员可查看
+router.get('/assignment/:lessonId/:activityId', roleCheck(['teacher', 'admin']), htmlProjectController.getProjectsByLesson);
 
 module.exports = router;
 

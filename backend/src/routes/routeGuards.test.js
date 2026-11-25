@@ -34,6 +34,7 @@ app.use('/api/flowchart', require('./flowchartRoutes'));
 app.use('/api/question-analytics', require('./questionAnalyticsRoutes'));
 app.use('/api/typing', require('./typingRoutes'));
 app.use('/api/classroom-layout', require('./classroomLayout'));
+app.use('/api/html-projects', require('./htmlProjectRoutes'));
 
 const ID = '665f1c2a9b1e8a0012345678';
 const writes = [
@@ -66,7 +67,8 @@ const writes = [
   ['DELETE', `/api/typing/teacher/records/${ID}`, 'teacher'],
   ['POST', '/api/classroom-layout', 'teacher'],
   ['PUT', `/api/classroom-layout/${ID}`, 'teacher'],
-  ['DELETE', `/api/classroom-layout/${ID}`, 'teacher']
+  ['DELETE', `/api/classroom-layout/${ID}`, 'teacher'],
+  ['GET', `/api/html-projects/assignment/${ID}/${ID}`, 'teacher']
 ];
 
 let base, server;
