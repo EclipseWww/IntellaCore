@@ -71,6 +71,16 @@ exports.updateSubmission = async (req, res) => {
             });
         }
 
+        // 与前端一致：已批改的作业只读；学生只能把状态设为草稿或已提交，不能自行标记为已批改
+        if (req.user.role === 'student') {
+            if (submission.status === 'graded') {
+                return res.status(409).json({ success: false, message: '作业已批改，不能再修改' });
+            }
+            if (status !== undefined && !['draft', 'submitted'].includes(status)) {
+                return res.status(400).json({ success: false, message: '无效的作业状态' });
+            }
+        }
+
         if (spreadsheetData !== undefined) {
             submission.spreadsheetData = spreadsheetData;
             // Mark as modified since it's a Mixed type
