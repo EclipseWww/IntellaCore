@@ -4,6 +4,7 @@ import { CopyOutlined, CheckOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsx from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
@@ -105,10 +106,22 @@ const CodeBlock = ({ language, value, hideCopyButton }) => {
   );
 };
 
-const MarkdownRenderer = ({ content, hideCopyButton = false, onVideoLinkClick, compact = false, smallImages = false }) => (
+// 学生输入或 AI 生成的内容（聊天、审核）需开启 sanitize：仍支持常见 HTML 排版，但去掉脚本、事件属性等，
+// 防止学生在消息里写 <img onerror=...> 在教师审核页面执行。教师编写的课程内容保持原样渲染。
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    span: [...(defaultSchema.attributes.span || []), ['className', 'cursor']]
+  }
+};
+const trustedPlugins = [rehypeRaw];
+const sanitizedPlugins = [rehypeRaw, [rehypeSanitize, sanitizeSchema]];
+
+const MarkdownRenderer = ({ content, hideCopyButton = false, onVideoLinkClick, compact = false, smallImages = false, sanitize = false }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
-    rehypePlugins={[rehypeRaw]}
+    rehypePlugins={sanitize ? sanitizedPlugins : trustedPlugins}
     components={{
       a({node, ...props}) {
         const href = props.href || '';

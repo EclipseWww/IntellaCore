@@ -32,6 +32,7 @@
     "cherry-markdown": "^0.8.58",
     "dayjs": "^1.11.13",
     "docx-preview": "^0.3.7",
+    "dompurify": "^3.5.0",
     "easymde": "^2.20.0",
     "face-api.js": "^0.22.2",
     "fast-xml-parser": "^5.0.2",
@@ -63,6 +64,7 @@
     "reactflow": "^11.11.4",
     "recharts": "^2.15.1",
     "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "xlsx": "^0.18.5"
   },

@@ -250,7 +250,7 @@ const MessageBubble = ({ message }) => {
             boxShadow: message.type === 'user' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
           }}
         >
-          <MarkdownRenderer
+          <MarkdownRenderer sanitize
             content={content + (message.isStreaming ? '▋' : '')}
             key={content}
           />
@@ -796,7 +796,7 @@ const CourseAIHelper = ({
                                       marginLeft: message.role === 'user' ? '0' : '16px',
                                       marginRight: message.role === 'user' ? '16px' : '0'
                                     }}>
-                                      <MarkdownRenderer content={message.content} />
+                                      <MarkdownRenderer sanitize content={message.content} />
                                     </div>
                                   </div>
                                 );

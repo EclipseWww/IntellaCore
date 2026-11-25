@@ -13,6 +13,7 @@ import {
     PlusOutlined, BookOutlined, HddOutlined, ArrowLeftOutlined
 } from '@ant-design/icons';
 import ReactQuill from 'react-quill';
+import DOMPurify from 'dompurify'; // 邮件正文为富文本 HTML，渲染前清除脚本与事件属性
 import 'react-quill/dist/quill.snow.css';
 import emailAPI from '../../services/emailAPI';
 import EmailAccountSetup from '../../components/Email/EmailAccountSetup';
@@ -805,7 +806,7 @@ const EmailClient = () => {
 
                                         <div
                                             style={{ minHeight: 200, lineHeight: 1.8 }}
-                                            dangerouslySetInnerHTML={{ __html: selectedEmail.content?.replace(/\n/g, '<br/>') || '' }}
+                                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedEmail.content?.replace(/\n/g, '<br/>') || '') }}
                                         />
                                     </div>
                                 ) : (

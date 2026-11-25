@@ -229,7 +229,7 @@ const MessageItem = ({ message = {}, currentResponse, onApprove, onReject, showA
           }}
         >
           <div style={{ padding: '4px 0' }}>
-            <MarkdownRenderer content={systemMessages[0].content} />
+            <MarkdownRenderer sanitize content={systemMessages[0].content} />
           </div>
         </Card>
       )}
@@ -264,7 +264,7 @@ const MessageItem = ({ message = {}, currentResponse, onApprove, onReject, showA
                       </Text>
                     </Space>
                     <div className="message-content">
-                      <MarkdownRenderer content={msg.content} />
+                      <MarkdownRenderer sanitize content={msg.content} />
                     </div>
                   </div>
                 </Space>
@@ -298,9 +298,9 @@ const MessageItem = ({ message = {}, currentResponse, onApprove, onReject, showA
                     </Space>
                     <div className="message-content">
                       {index === userAndAiMessages.length - 1 && currentResponse ? (
-                        <MarkdownRenderer content={currentResponse + '<span class="cursor"> </span>'} />
+                        <MarkdownRenderer sanitize content={currentResponse + '<span class="cursor"> </span>'} />
                       ) : (
-                        <MarkdownRenderer content={msg.content} />
+                        <MarkdownRenderer sanitize content={msg.content} />
                       )}
                     </div>
                     {Array.isArray(msg.suggestedQuestions) && msg.suggestedQuestions.length > 0 && (
