@@ -932,3 +932,59 @@ exports.getTextLeaderboard = async (req, res) => {
     });
   }
 };
+// 教师端导出打字成绩（xlsx）。复用 getTeacherRecords 的查询与筛选，保证与页面列表一致。
+exports.exportTeacherRecords = async (req, res) => {
+  try {
+    const { page, pageSize, ...filters } = req.query;
+    let payload;
+    let failed = null;
+    const capture = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { if (this.statusCode >= 400) failed = { code: this.statusCode, body }; else payload = body; return this; }
+    };
+    await exports.getTeacherRecords({ ...req, query: filters }, capture);
+    if (failed) return res.status(failed.code).json(failed.body);
+
+    const records = payload?.records || [];
+    const studentIds = [...new Set(records.map(r => r.studentId && String(r.studentId)).filter(Boolean))];
+    const students = studentIds.length
+      ? await User.find({ _id: { $in: studentIds } }).select('classId').populate('classId', 'grade name').lean()
+      : [];
+    const classOf = new Map(students.map(s => [String(s._id), s.classId ? `${s.classId.grade}年级${s.classId.name}班` : '']));
+
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('打字成绩');
+    sheet.columns = [
+      { header: '班级', key: 'className', width: 14 },
+      { header: '学生', key: 'name', width: 12 },
+      { header: '练习文本', key: 'text', width: 40 },
+      { header: '速度(字/分)', key: 'speed', width: 12 },
+      { header: '准确率(%)', key: 'accuracy', width: 12 },
+      { header: '达标状态', key: 'passed', width: 10 },
+      { header: '练习时间', key: 'time', width: 20 }
+    ];
+    sheet.getRow(1).font = { bold: true };
+    for (const r of records) {
+      const content = r.text?.content || '';
+      sheet.addRow({
+        className: classOf.get(String(r.studentId)) || '',
+        name: r.student?.name || '',
+        text: content.length > 50 ? `${content.slice(0, 50)}…` : content,
+        speed: r.speed,
+        accuracy: r.accuracy,
+        passed: r.isPassed ? '达标' : '未达标',
+        time: r.createdAt ? new Date(r.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : ''
+      });
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent('打字成绩.xlsx')}`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    logger.error('导出打字成绩失败', { error: error.message });
+    if (!res.headersSent) res.status(500).json({ message: '导出失败' });
+  }
+};

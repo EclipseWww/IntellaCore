@@ -596,6 +596,8 @@ router.get('/text-leaderboard/:textId', auth, typingController.getTextLeaderboar
  *       500:
  *         description: 服务器错误
  */
+// 导出须在 /teacher/records/:id 之类参数路由之前注册
+router.get('/teacher/records/export', auth, teacherOnly, typingController.exportTeacherRecords);
 router.get('/teacher/records', auth, teacherOnly, typingController.getTeacherRecords);
 
 /**

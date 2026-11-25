@@ -47,54 +47,6 @@ exports.getStudentStats = async (req, res) => {
   }
 };
 
-// 更新学习时长
-exports.updateStudyTime = async (req, res) => {
-  try {
-    const { courseId, duration } = req.body;
-    const result = await Achievement.findOneAndUpdate(
-      { studentId: req.user._id },
-      {
-        $inc: { studyHours: duration },
-        $push: {
-          studyLog: {
-            courseId,
-            duration,
-            timestamp: new Date()
-          }
-        }
-      },
-      { new: true, upsert: true }
-    );
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// 完成作业时更新成就
-exports.completeAssignment = async (req, res) => {
-  try {
-    const { courseId, assignmentId } = req.body;
-    const result = await Achievement.findOneAndUpdate(
-      { studentId: req.user._id },
-      {
-        $inc: { assignmentsCompleted: 1 },
-        $push: {
-          completedAssignments: {
-            courseId,
-            assignmentId,
-            completedAt: new Date()
-          }
-        }
-      },
-      { new: true, upsert: true }
-    );
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 // 获取学生的积分总额
 exports.getPointBalance = async (req, res) => {
   try {
