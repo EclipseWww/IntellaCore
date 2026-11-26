@@ -119,17 +119,14 @@ const PptReview = ({
         const handleMessage = (event) => {
             if (event.data?.type === 'pptx-ready') {
                 if (hasSentBlobUrl) {
-                    console.log('[PptReview] Ignoring duplicate pptx-ready message');
                     return;
                 }
                 hasSentBlobUrl = true;
-                console.log('[PptReview] Iframe ready, sending blob URL');
                 iframeRef.current?.contentWindow?.postMessage(
                     { type: 'load-pptx', blobUrl: docBlobUrl },
                     '*'
                 );
             } else if (event.data?.type === 'pptx-success') {
-                console.log('[PptReview] Iframe rendered successfully:', event.data.slideCount, 'slides');
                 setDebugInfo(prev => ({ ...prev, render: `OK (${event.data.slideCount} slides)` }));
             } else if (event.data?.type === 'pptx-error') {
                 console.error('[PptReview] Iframe error:', event.data.message);
@@ -145,17 +142,13 @@ const PptReview = ({
     // 初始化依赖库 (仅加载JSZip用于分析)
     useEffect(() => {
         const initLibs = async () => {
-            console.log('[PptReview] Starting library initialization...');
             setDebugInfo(prev => ({ ...prev, libs: 'loading...' }));
             try {
                 // 只加载 JSZip v2 用于 PPT 结构分析
                 if (!window.JSZip) {
-                    console.log('[PptReview] Loading JSZip v2...');
                     await loadScript('/libs/pptxjs/jszip.min.js');
-                    console.log('[PptReview] JSZip loaded. Version:', window.JSZip?.version || 'v2');
                 }
 
-                console.log('[PptReview] Libraries loaded successfully!');
                 setDebugInfo(prev => ({ ...prev, libs: 'OK (JSZip ready)' }));
                 setLibLoaded(true);
             } catch (err) {
@@ -201,7 +194,6 @@ const PptReview = ({
 
     // 加载PPT数据
     const loadPptData = async (submission) => {
-        console.log('[PptReview] loadPptData called. Submission:', submission._id);
 
         if (!submission?._id) return;
 
@@ -224,9 +216,7 @@ const PptReview = ({
         }
 
         try {
-            console.log('[PptReview] Fetching file from:', downloadUrl);
             const response = await fetch(downloadUrl);
-            console.log('[PptReview] Fetch response status:', response.status);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -234,12 +224,10 @@ const PptReview = ({
 
             const blob = await response.blob();
             if (selectedIdRef.current !== submission._id) return;
-            console.log('[PptReview] File downloaded. Blob size:', blob.size, 'Type:', blob.type);
             setDebugInfo(prev => ({ ...prev, fetch: 'OK (size: ' + blob.size + ')' }));
 
             // Create blob URL for DocViewer
             const blobUrl = URL.createObjectURL(blob);
-            console.log('[PptReview] Created blob URL for DocViewer:', blobUrl);
             setDocBlobUrl(blobUrl);
 
             // 2. 使用 JSZip 分析
@@ -338,8 +326,6 @@ const PptReview = ({
     // Note: pptxjs visual rendering is disabled due to property descriptor conflicts
     // with React's development mode. The analysis functionality still works.
     const renderPptx = (blob) => {
-        console.log('[PptReview] renderPptx called - visual preview disabled due to compatibility issues');
-        console.log('[PptReview] Use the download button to view the PPT in PowerPoint');
 
         // Only log for debugging, don't try to render with pptxjs
         // This avoids property descriptor conflicts that crash React

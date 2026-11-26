@@ -93,4 +93,7 @@ router.get('/records', auth, roleCheck(['teacher', 'admin']), freePracticeContro
 // Teacher: 获取排行榜
 router.get('/leaderboard', auth, roleCheck(['teacher', 'admin']), freePracticeController.getLeaderboard);
 
+// Teacher: 班级高频错题
+router.get('/class/:classId/wrong-questions', auth, roleCheck(['teacher', 'admin']), freePracticeController.getClassWrongQuestions);
+
 module.exports = router;

@@ -45,7 +45,7 @@ const PracticeReview = ({ sessionId, onBack }) => {
             <Card title={
                 <Space>
                     <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回</Button>
-                    <span>练习回顾</span>
+                    <span>{sessionInfo.mode === 'wrong_retry' ? '错题重练回顾' : '练习回顾'}</span>
                 </Space>
             } bordered={false}>
 
@@ -54,9 +54,15 @@ const PracticeReview = ({ sessionId, onBack }) => {
                     <Descriptions.Item label="答对题数">
                         <Text type="success" strong>{sessionInfo.score}</Text> / {sessionInfo.total}
                     </Descriptions.Item>
-                    <Descriptions.Item label="获得积分">
-                        <Text type="warning" strong>+{formatPoints(sessionInfo.points)}</Text>
-                    </Descriptions.Item>
+                    {sessionInfo.mode === 'wrong_retry' ? (
+                        <Descriptions.Item label="本次掌握">
+                            <Text type="success" strong>{sessionInfo.score}</Text> 题
+                        </Descriptions.Item>
+                    ) : (
+                        <Descriptions.Item label="获得积分">
+                            <Text type="warning" strong>+{formatPoints(sessionInfo.points)}</Text>
+                        </Descriptions.Item>
+                    )}
                     <Descriptions.Item label="开始时间">
                         {new Date(sessionInfo.startTime).toLocaleString()}
                     </Descriptions.Item>

@@ -91,12 +91,18 @@ function presentItem(item, currentQuestion) {
   };
 }
 
-async function collectEvents(studentId) {
+// 读取若干学生的作答事件。since：只看该时间之后的记录（教师统计按时间范围筛选）
+async function collectEvents(studentIds, { since } = {}) {
+  const ids = Array.isArray(studentIds) ? studentIds : [studentIds];
+  const practiceQuery = { studentId: { $in: ids }, status: 'COMPLETED' };
+  const quizQuery = { studentId: { $in: ids }, status: 'SUBMITTED' };
+  if (since) {
+    practiceQuery.endTime = { $gte: since };
+    quizQuery.submitTime = { $gte: since };
+  }
   const [sessions, submissions] = await Promise.all([
-    PracticeSession.find({ studentId, status: 'COMPLETED' })
-      .select('mode endTime startTime questions').lean(),
-    QuizSubmission.find({ studentId, status: 'SUBMITTED' })
-      .select('quizId lessonId activityId submitTime answers').lean()
+    PracticeSession.find(practiceQuery).select('studentId mode endTime startTime questions').lean(),
+    QuizSubmission.find(quizQuery).select('studentId quizId lessonId activityId submitTime answers').lean()
   ]);
 
   const lessonIds = [...new Set(submissions.map(s => s.lessonId).filter(Boolean).map(String))];
@@ -113,13 +119,16 @@ async function collectEvents(studentId) {
     const retry = session.mode === 'wrong_retry';
     for (const q of session.questions || []) {
       events.push({
+        studentId: String(session.studentId),
         questionId: idOf(q.questionId),
         time: session.endTime || session.startTime,
         isCorrect: q.isCorrect,
         snapshot: q.questionSnapshot,
         selectedIds: getSelectedOptionIds(q),
+        source: retry ? 'retry' : 'practice',
         sourceTitle: retry ? '错题重练' : '自由练习',
-        showAnswers: true
+        showAnswers: true,
+        showScore: true
       });
     }
   }
@@ -127,16 +136,18 @@ async function collectEvents(studentId) {
     const quiz = quizMap.get(String(submission.quizId));
     if (quiz?.isScaleTest) continue;
     const settings = activitySettings(lessonMap, submission.lessonId, submission.activityId);
-    if (!settings.showScore) continue;
     for (const answer of submission.answers || []) {
       events.push({
+        studentId: String(submission.studentId),
         questionId: idOf(answer.questionId),
         time: submission.submitTime,
         isCorrect: answer.isCorrect,
         snapshot: answer.questionSnapshot,
         selectedIds: getSelectedOptionIds(answer),
+        source: 'quiz',
         sourceTitle: `测验：${quiz?.title || settings.activityTitle || '课程测验'}`,
-        showAnswers: settings.showAnswers
+        showAnswers: settings.showAnswers,
+        showScore: settings.showScore
       });
     }
   }
@@ -152,7 +163,9 @@ async function loadCurrentQuestions(ids) {
 }
 
 async function getWrongBook(studentId) {
-  const items = buildWrongBook(await collectEvents(studentId))
+  // 学生看不到每题对错的测验（不显示分数）不计入错题本
+  const events = (await collectEvents(studentId)).filter(e => e.showScore);
+  const items = buildWrongBook(events)
     .filter(item => {
       const type = toPlain(item.lastWrong.snapshot)?.type;
       return !type || CHOICE_TYPES.has(type);
@@ -171,4 +184,82 @@ async function pickRetryQuestions(studentId, limit) {
   return ids.map(id => current.get(id)).filter(Boolean);
 }
 
-module.exports = { buildWrongBook, getWrongBook, pickRetryQuestions };
+/** 学生未掌握错题中出现最多的知识点标签（自由练习按此加强抽题），最多 limit 个 */
+async function getWeakTags(studentId, limit = 5) {
+  const book = await getWrongBook(studentId);
+  const counts = new Map();
+  for (const item of book) {
+    if (item.mastered) continue;
+    for (const tag of item.tags || []) counts.set(tag, (counts.get(tag) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([tag]) => tag);
+}
+
+/**
+ * 班级高频错题统计（纯函数，便于测试）
+ * - 错误率只统计自由练习与测验（错题重练只出错题，会让错误率失真）；source 可限定 'quiz' / 'practice'
+ * - “仍未掌握”按每个学生最近一次作答判断，包括错题重练
+ */
+function buildClassStats(events, { source = 'all' } = {}) {
+  const byQuestion = new Map();
+  const sorted = [...events].sort((a, b) => new Date(a.time) - new Date(b.time));
+  for (const e of sorted) {
+    if (!e.questionId || typeof e.isCorrect !== 'boolean') continue;
+    if (!byQuestion.has(e.questionId)) {
+      byQuestion.set(e.questionId, { attempts: 0, wrong: 0, students: new Set(), wrongStudents: new Set(), latest: new Map(), optionCounts: new Map(), unanswered: 0, sources: new Set(), snapshot: null });
+    }
+    const q = byQuestion.get(e.questionId);
+    q.latest.set(e.studentId, e.isCorrect);
+    if (e.snapshot) q.snapshot = e.snapshot;
+    const counted = e.source !== 'retry' && (source === 'all' || e.source === source);
+    if (!counted) continue;
+    q.attempts++;
+    q.students.add(e.studentId);
+    if (!e.isCorrect) {
+      q.wrong++;
+      q.wrongStudents.add(e.studentId);
+      if (e.sourceTitle) q.sources.add(e.sourceTitle);
+      if (!e.selectedIds || e.selectedIds.length === 0) q.unanswered++;
+      for (const id of e.selectedIds || []) q.optionCounts.set(String(id), (q.optionCounts.get(String(id)) || 0) + 1);
+    }
+  }
+  const items = [];
+  for (const [questionId, q] of byQuestion) {
+    if (q.wrong === 0) continue;
+    const snapshot = toPlain(q.snapshot) || {};
+    const options = (snapshot.options || []).map(toPlain);
+    const correctIds = new Set(options.filter(o => o.isCorrect).map(o => String(o._id)));
+    items.push({
+      questionId,
+      title: snapshot.title,
+      content: snapshot.content,
+      type: snapshot.type,
+      tags: snapshot.tags || [],
+      explanation: snapshot.explanation || '',
+      options: options.map(o => ({ _id: String(o._id), content: o.content, isCorrect: !!o.isCorrect, wrongCount: q.optionCounts.get(String(o._id)) || 0 })),
+      // 学生选中的错误选项，按人次从多到少
+      wrongOptions: [...q.optionCounts.entries()]
+        .filter(([id]) => !correctIds.has(id))
+        .sort((a, b) => b[1] - a[1])
+        .map(([id, count]) => ({ optionId: id, content: options.find(o => String(o._id) === id)?.content || '（已删除的选项）', count })),
+      attempts: q.attempts,
+      wrongAttempts: q.wrong,
+      errorRate: q.attempts ? Math.round((q.wrong / q.attempts) * 1000) / 10 : 0,
+      studentCount: q.students.size,
+      wrongStudentCount: q.wrongStudents.size,
+      unansweredCount: q.unanswered,
+      unmasteredStudentIds: [...q.latest.entries()].filter(([sid, ok]) => !ok && q.wrongStudents.has(sid)).map(([sid]) => sid),
+      sources: [...q.sources]
+    });
+  }
+  items.sort((a, b) => b.errorRate - a.errorRate || b.wrongStudentCount - a.wrongStudentCount);
+  return items;
+}
+
+async function getClassWrongStats(studentIds, { since, source } = {}) {
+  if (!studentIds.length) return [];
+  const items = buildClassStats(await collectEvents(studentIds, { since }), { source });
+  return items.filter(item => item.content && (!item.type || CHOICE_TYPES.has(item.type)));
+}
+
+module.exports = { buildWrongBook, buildClassStats, getWrongBook, getWeakTags, getClassWrongStats, pickRetryQuestions };

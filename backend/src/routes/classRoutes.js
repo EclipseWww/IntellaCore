@@ -416,6 +416,9 @@ router.delete('/:classId/students/:studentId', classController.removeStudentFrom
  */
 router.put('/students/:studentId', classController.updateStudent);
 
+// 修改班级年级与班号（班主任本人或管理员；注册在 /students/:studentId 之后，避免与其冲突）
+router.put('/:classId', classController.updateClassInfo);
+
 /**
  * @swagger
  * /classes/template/students/download:

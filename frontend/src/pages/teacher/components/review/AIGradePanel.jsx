@@ -35,12 +35,6 @@ const AIGradePanel = ({ aiGrade, handleRequestAIGrade, loadingSubmissions, selec
     (aiGrade.analysis && Object.keys(aiGrade.analysis).length > 0)
   );
 
-  console.log('渲染AI评阅面板:', {
-    submissionId: selectedSubmission._id,
-    hasAiGrade: !!aiGrade,
-    isValidAiGrade: isValidAIGrade,
-    aiGrade
-  });
 
   if (!isValidAIGrade) {
     return (

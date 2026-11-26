@@ -967,6 +967,12 @@ export const classAPI = {
     return response.data;
   },
 
+  // 修改班级年级与班号
+  async updateClass(classId, classData) {
+    const response = await api.put(`/classes/${classId}`, classData);
+    return response.data;
+  },
+
   // 删除班级
   async deleteClass(classId) {
     const response = await api.delete(`/classes/${classId}`);

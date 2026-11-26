@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Progress, message, Modal, Row, Col, Typography, Space, Spin, Statistic } from 'antd';
+import { Card, Button, Progress, message, Modal, Row, Col, Typography, Space, Spin, Statistic, Tag } from 'antd';
 import PracticeReview from './PracticeReview';
 import { ClockCircleOutlined, TrophyOutlined, PlayCircleOutlined, ReloadOutlined, ArrowLeftOutlined, LogoutOutlined, EyeOutlined } from '@ant-design/icons';
 import { quizAPI } from '../../../services/quizAPI';
@@ -25,6 +25,7 @@ const FreePractice = ({ mode = 'free', onExit }) => {
     const [result, setResult] = useState(null);
     const timerRef = useRef(null);
     const autoStartedRef = useRef(false);
+    const [focusTags, setFocusTags] = useState([]); // 本次按错题本加强的知识点
     const [showReview, setShowReview] = useState(false);
 
     // 开始练习
@@ -37,6 +38,7 @@ const FreePractice = ({ mode = 'free', onExit }) => {
             if (res.success) {
                 setQuestions(res.data.questions);
                 setSessionId(res.data.sessionId);
+                setFocusTags(res.data.focusTags || []);
                 setInitialTimeLimit(res.data.timeLimit || 300);
                 setTimeRemaining(res.data.timeLimit || 300);
                 setAnswers({});
@@ -240,11 +242,15 @@ const FreePractice = ({ mode = 'free', onExit }) => {
                                 strokeColor="#faad14"
                             />
                         </div>
-                        {result.rewardMessage && <Text type="warning" style={{ display: 'block' }}>{result.rewardMessage}</Text>}
+                        {isWrongRetry
+                            ? <Text type="secondary" style={{ display: 'block' }}>答对的题已从错题本的“未掌握”移到“已掌握”，错题重练不计积分。</Text>
+                            : result.rewardMessage && <Text type="warning" style={{ display: 'block' }}>{result.rewardMessage}</Text>}
                         {result.limitMessage && <Text type="secondary" style={{ display: 'block' }}>{result.limitMessage}</Text>}
                         <Row gutter={16} justify="center" style={{ marginTop: 32 }}>
                             <Col span={8}>
-                                <Statistic title="答对题目" value={result.correctCount} suffix={`/ ${result.totalQuestions}`} valueStyle={{ color: '#52c41a' }} />
+                                {isWrongRetry
+                                    ? <Statistic title="本次掌握" value={result.correctCount} suffix={`/ ${result.totalQuestions} 题`} valueStyle={{ color: '#52c41a' }} />
+                                    : <Statistic title="答对题目" value={result.correctCount} suffix={`/ ${result.totalQuestions}`} valueStyle={{ color: '#52c41a' }} />}
                             </Col>
                             <Col span={8}>
                                 <Statistic title="正确率" value={percentage} suffix="%" />
@@ -317,6 +323,15 @@ const FreePractice = ({ mode = 'free', onExit }) => {
                             </div>
 
                             <div style={{ margin: '20px 0', borderTop: '1px solid #f0f0f0' }} />
+
+                            {!isWrongRetry && focusTags.length > 0 && (
+                                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>本次加强（来自错题本）</Text>
+                                    <div style={{ marginTop: 4 }}>
+                                        {focusTags.map(tag => <Tag key={tag} color="orange" style={{ marginBottom: 4 }}>{tag}</Tag>)}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Progress Info */}
                             <div style={{ textAlign: 'center', marginBottom: 16 }}>

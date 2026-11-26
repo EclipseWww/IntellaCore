@@ -15,7 +15,39 @@ const WRONG_RETRY_SECONDS_PER_QUESTION = 60;
 const FREE_MODE = { mode: { $ne: 'wrong_retry' } };
 
 // 创建练习会话并返回去掉答案的题目
-async function createSession(res, { studentId, questions, pointsPerQuestion, timeLimit, mode = 'free' }) {
+// 学生的薄弱知识点；老师限定了标签时只取其中允许的。出错不影响开始练习
+async function weakTagsFor(studentId, allowedTags = []) {
+    try {
+        const tags = await wrongQuestionService.getWeakTags(studentId);
+        return allowedTags.length ? tags.filter(tag => allowedTags.includes(tag)) : tags;
+    } catch (error) {
+        logger.warn('获取薄弱知识点失败，改为随机抽题', { studentId, error: error.message });
+        return [];
+    }
+}
+
+// 有薄弱知识点时，先从这些标签中抽约一半，再从其余题目中随机补足，最后打乱顺序
+async function drawQuestions(matchCondition, count, focusTags = []) {
+    if (!focusTags.length) {
+        return Question.aggregate([{ $match: matchCondition }, { $sample: { size: count } }]);
+    }
+    const focused = await Question.aggregate([
+        { $match: { ...matchCondition, tags: { $in: focusTags } } },
+        { $sample: { size: Math.ceil(count / 2) } }
+    ]);
+    const rest = await Question.aggregate([
+        { $match: { ...matchCondition, _id: { $nin: focused.map(q => q._id) } } },
+        { $sample: { size: count - focused.length } }
+    ]);
+    const all = [...focused, ...rest];
+    for (let i = all.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [all[i], all[j]] = [all[j], all[i]];
+    }
+    return all;
+}
+
+async function createSession(res, { studentId, questions, pointsPerQuestion, timeLimit, mode = 'free', focusTags = [] }) {
     const session = await PracticeSession.create({
         studentId,
         questions: questions.map(q => ({
@@ -49,7 +81,8 @@ async function createSession(res, { studentId, questions, pointsPerQuestion, tim
             questions: questionsForFrontend,
             timeLimit: session.timeLimit,
             totalQuestions: questions.length,
-            mode
+            mode,
+            focusTags
         }
     });
 }
@@ -115,11 +148,9 @@ exports.startPractice = async (req, res) => {
         // 调试日志
         logger.info('自由练习题目查询条件:', { studentId, matchCondition, config: practiceConfig });
 
-        // 3. 随机抽取题目
-        const questions = await Question.aggregate([
-            { $match: matchCondition },
-            { $sample: { size: practiceConfig.questionCount } }
-        ]);
+        // 3. 抽取题目：约一半来自学生错题本中未掌握的知识点（须在老师允许的标签内），其余随机
+        const focusTags = await weakTagsFor(studentId, practiceConfig.allowedTags);
+        const questions = await drawQuestions(matchCondition, practiceConfig.questionCount, focusTags);
 
         if (questions.length === 0) {
             // 尝试更宽泛的搜索来诊断问题
@@ -138,7 +169,8 @@ exports.startPractice = async (req, res) => {
             studentId,
             questions,
             pointsPerQuestion: practiceConfig.pointsPerQuestion,
-            timeLimit: practiceConfig.timeLimit
+            timeLimit: practiceConfig.timeLimit,
+            focusTags
         });
 
     } catch (error) {
@@ -716,5 +748,42 @@ exports.startWrongRetry = async (req, res) => {
     } catch (error) {
         logger.error('开始错题重练失败', { error: error.message, studentId: req.user.id });
         res.status(500).json({ success: false, message: '开始错题重练失败' });
+    }
+};
+
+// 班级高频错题 (Teacher)：?days=7|30（默认全部）&source=all|quiz|practice
+exports.getClassWrongQuestions = async (req, res) => {
+    try {
+        const { classId } = req.params;
+        if (!mongoose.isValidObjectId(classId)) {
+            return res.status(400).json({ success: false, message: '班级编号无效' });
+        }
+        const classQuery = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user.id };
+        const classObj = await Class.findOne(classQuery).select('_id');
+        if (!classObj) {
+            return res.status(404).json({ success: false, message: '未找到该班级或无权查看' });
+        }
+
+        const days = parseInt(req.query.days, 10);
+        const since = days > 0 ? new Date(Date.now() - days * 24 * 3600 * 1000) : undefined;
+        const source = ['quiz', 'practice'].includes(req.query.source) ? req.query.source : 'all';
+
+        const students = await User.find({ classId, role: 'student' }).select('_id name username').lean();
+        const nameMap = new Map(students.map(s => [String(s._id), s.name || s.username]));
+        const items = await wrongQuestionService.getClassWrongStats(students.map(s => s._id), { since, source });
+
+        res.json({
+            success: true,
+            data: {
+                studentCount: students.length,
+                list: items.slice(0, 100).map(({ unmasteredStudentIds, ...item }) => ({
+                    ...item,
+                    unmasteredStudents: unmasteredStudentIds.map(id => nameMap.get(id)).filter(Boolean)
+                }))
+            }
+        });
+    } catch (error) {
+        logger.error('获取班级高频错题失败', { error: error.message, classId: req.params.classId });
+        res.status(500).json({ success: false, message: '获取班级高频错题失败' });
     }
 };

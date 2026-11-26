@@ -32,6 +32,7 @@ import {
 import ExcelGradingSettings from './components/ExcelGradingSettings';
 import OfficeGradingSettings from './components/OfficeGradingSettings';
 import { courseManagementAPI, API_BASE_URL, typingAPI, quizAPI, lessonAPI, mediaAPI } from '../../services/api';
+import { ACTIVITY_TYPES, getActivityTypeColor, getActivityTypeShortLabel } from '../../utils/activityTypes';
 import LessonSidebar from './components/lessonEdit/LessonSidebar';
 import ActivityTypeSettings from './components/lessonEdit/ActivityTypeSettings';
 import PracticeSubmissionSettings from './components/lessonEdit/PracticeSubmissionSettings';
@@ -1366,28 +1367,8 @@ const LessonEdit = () => {
                   className="activity-details-card"
                   title={
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <Tag color={
-                        activities[selectedActivityIndex]?.type === 'reading' ? 'blue' :
-                          activities[selectedActivityIndex]?.type === 'quiz' ? 'green' :
-                            activities[selectedActivityIndex]?.type === 'discussion' ? 'orange' :
-                              activities[selectedActivityIndex]?.type === 'practice' ? 'purple' :
-                                activities[selectedActivityIndex]?.type === 'typing' ? 'cyan' :
-                                  activities[selectedActivityIndex]?.type === 'flowchart' ? 'magenta' :
-                                    activities[selectedActivityIndex]?.type === 'spreadsheet' ? 'lime' :
-                                      activities[selectedActivityIndex]?.type === 'html' ? 'volcano' :
-                                        activities[selectedActivityIndex]?.type === 'fillblank' ? 'geekblue' :
-                                          activities[selectedActivityIndex]?.type === 'python' ? 'gold' : 'default'
-                      } style={{ marginRight: 8 }}>
-                        {activities[selectedActivityIndex]?.type === 'reading' ? '阅读' :
-                          activities[selectedActivityIndex]?.type === 'quiz' ? '测验' :
-                            activities[selectedActivityIndex]?.type === 'discussion' ? '讨论' :
-                              activities[selectedActivityIndex]?.type === 'practice' ? '练习' :
-                                activities[selectedActivityIndex]?.type === 'typing' ? '打字' :
-                                  activities[selectedActivityIndex]?.type === 'flowchart' ? '流程图' :
-                                    activities[selectedActivityIndex]?.type === 'spreadsheet' ? '表格' :
-                                      activities[selectedActivityIndex]?.type === 'html' ? 'HTML' :
-                                        activities[selectedActivityIndex]?.type === 'fillblank' ? '填空' :
-                                          activities[selectedActivityIndex]?.type === 'python' ? 'Python' : '活动'}
+                      <Tag color={getActivityTypeColor(activities[selectedActivityIndex]?.type)} style={{ marginRight: 8 }}>
+                        {getActivityTypeShortLabel(activities[selectedActivityIndex]?.type)}
                       </Tag>
                       <span style={{ fontWeight: 'bold' }}>{activities[selectedActivityIndex]?.title || '活动详情'}</span>
                     </div>
@@ -1463,89 +1444,17 @@ const LessonEdit = () => {
                                 }}
                                 optionLabelProp="label"
                               >
-                                {/* 常用活动类型：阅读、打字、练习、Python编程 */}
-                                <Select.Option value="reading" label="阅读">
-                                  <Tooltip title="学生阅读教师提供的文本内容，支持Markdown格式，可嵌入图片、视频等多媒体资源。适合理论知识学习和预习材料。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="blue">阅读</Tag>
-                                      <span>文本阅读材料</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="typing" label="打字练习">
-                                  <Tooltip title="学生进行打字速度和准确率训练，可设置目标速度、准确率和时间限制。系统自动统计打字成绩，适合信息技术课程的打字基础训练。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="cyan">打字练习</Tag>
-                                      <span>打字速度训练</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="practice" label="练习">
-                                  <Tooltip title="学生根据要求完成实践任务并提交作业文件（如Word、PPT、Excel等）。教师可设置允许的文件格式，适合需要学生动手操作的作业。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="purple">练习</Tag>
-                                      <span>实践练习任务</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="python" label="Python编程">
-                                  <Tooltip title="学生在在线编程环境中编写Python代码，支持代码运行和测试用例验证。教师可设置初始代码模板和测试用例，系统自动评分。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="gold">Python编程</Tag>
-                                      <span>Python代码编写</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-
-                                {/* 其他活动类型 */}
-                                <Select.Option value="quiz" label="测验">
-                                  <Tooltip title="在线选择题测验，支持单选题和多选题。可设置时间限制、随机题目顺序、是否显示答案等。系统自动批改计分。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="green">测验</Tag>
-                                      <span>选择题测验</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="fillblank" label="填空">
-                                  <Tooltip title="学生根据题目要求填写答案，支持多个填空位置和标准答案设置。系统可自动批改，也可教师手动评分。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="geekblue">填空</Tag>
-                                      <span>填空问答</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="flowchart" label="流程图">
-                                  <Tooltip title="学生使用在线流程图工具绘制逻辑流程图，适合算法设计、程序流程分析等。教师可设置参考答案进行对比评分。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="magenta">流程图</Tag>
-                                      <span>逻辑流程设计</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="spreadsheet" label="在线表格">
-                                  <Tooltip title="学生使用在线表格编辑器完成Excel相关任务，支持公式、格式设置等功能。适合电子表格操作练习和数据处理。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="green">在线表格</Tag>
-                                      <span>Excel表格编辑</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="html" label="HTML网页">
-                                  <Tooltip title="学生在在线代码编辑器中编写HTML/CSS/JavaScript代码，实时预览网页效果。适合Web前端开发入门和网页设计学习。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="volcano">HTML网页</Tag>
-                                      <span>网页代码编写</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
-                                <Select.Option value="discussion" label="讨论">
-                                  <Tooltip title="创建讨论话题，学生可以发表观点和互相回复。适合课堂互动、思考题讨论和课后交流。" placement="right">
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                      <Tag color="orange">讨论</Tag>
-                                      <span>互动讨论话题</span>
-                                    </div>
-                                  </Tooltip>
-                                </Select.Option>
+                                {/* 选项来自 utils/activityTypes.js：常用类型在前 */}
+                                {[...ACTIVITY_TYPES.filter(t => t.common), ...ACTIVITY_TYPES.filter(t => !t.common)].map(type => (
+                                  <Select.Option key={type.value} value={type.value} label={type.label}>
+                                    <Tooltip title={type.description} placement="right">
+                                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                        <Tag color={type.color}>{type.label}</Tag>
+                                        <span>{type.summary}</span>
+                                      </div>
+                                    </Tooltip>
+                                  </Select.Option>
+                                ))}
                               </Select>
                             </Form.Item>
                           </Col>

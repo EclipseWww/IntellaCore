@@ -1,21 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Typography, List, Collapse, message, Modal, Tabs, Steps, Tag, Space, Button, Row, Col, Layout, Table, Empty, Spin, Menu, Image, Alert, Divider } from 'antd';
+import { Card, Typography, List, message, Modal, Tag, Space, Button, Row, Col, Layout, Empty, Spin, Menu, Image, Alert, Divider } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import usePageTitle from '../../../hooks/usePageTitle';
 import {
-  PlayCircleOutlined,
   BookOutlined,
   FileTextOutlined,
   CodeOutlined,
   CheckCircleOutlined,
   CheckCircleFilled,
-  ClockCircleOutlined,
-  RightOutlined,
   FormOutlined,
   ReadOutlined,
   VideoCameraOutlined,
   CommentOutlined,
-  RobotOutlined,
   ArrowLeftOutlined,
   DownloadOutlined,
   HistoryOutlined,
@@ -30,12 +26,9 @@ import {
   FileZipOutlined,
   FileImageOutlined,
   FileUnknownOutlined,
-  HtmlOutlined,
-  ExportOutlined,
-  GlobalOutlined
+  ExportOutlined
 } from '@ant-design/icons';
 import { courseManagementAPI, API_BASE_URL, typingAPI, quizAPI, classAPI, flowchartAPI, spreadsheetActivityAPI, fillBlankAPI, pythonAPI } from '../../../services/api';
-import AssignmentSubmission from './AssignmentSubmission';
 import AutoGradeFeedback from './AutoGradeFeedback';
 import { isManualGrade, getAutoGrade } from '../../../utils/submissionGrading';
 import TypingPractice from '../../Typing/TypingPractice';
@@ -52,13 +45,12 @@ import Quiz from '../../Quiz/student/Quiz';
 import MarkdownRenderer from '../../../components/shared/MarkdownRenderer';
 import FillBlankActivity from './FillBlankActivity';
 import PythonActivity from './PythonActivity';
+import { getActivityTypeLabel } from '../../../utils/activityTypes';
 
 // 注册 Python 语言支持
 SyntaxHighlighter.registerLanguage('python', python);
 
 const { Title, Text, Paragraph } = Typography;
-const { Panel } = Collapse;
-const { TabPane } = Tabs;
 const { Content, Sider } = Layout;
 
 // 修改活动类型图标映射
@@ -76,20 +68,6 @@ const activityIcons = {
   python: <CodeOutlined style={{ color: '#3776ab', fontSize: '16px' }} />
 };
 
-// 修改活动类型的中文映射
-const activityTypeLabels = {
-  video: '视频',
-  reading: '阅读',
-  quiz: '测验',
-  practice: '练习',
-  discussion: '讨论',
-  typing: '打字练习',
-  flowchart: '流程图',
-  spreadsheet: '在线表格',
-  html: 'HTML网页',
-  fillblank: '填空',
-  python: 'Python编程'
-};
 
 // 添加自定义AI图标组件
 const AIIcon = ({ style }) => (
@@ -439,7 +417,7 @@ const LessonDetail = ({ lessonId, courseId, unitId, initialActivityId = null }) 
                   flexShrink: 0
                 }}
               >
-                {activityTypeLabels[activity.type] || '活动'}
+                {getActivityTypeLabel(activity.type)}
               </Tag>
               <span style={{
                 overflow: 'hidden',

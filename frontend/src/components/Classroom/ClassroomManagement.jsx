@@ -202,13 +202,12 @@ const ClassroomManagement = () => {
         if (submissionActivities.length > 0) {
           const allSubmissions = [];
 
-          for (const activity of submissionActivities) {
-            const response = await courseManagementAPI.getTeacherSubmissions(
-              courseId,
-              unitId,
-              lessonId,
-              activity._id
-            );
+          // 各活动的请求同时发出，再按原顺序合并结果
+          const submissionActivitiesResponses = await Promise.all(submissionActivities.map(activity =>
+            courseManagementAPI.getTeacherSubmissions(courseId, unitId, lessonId, activity._id)
+          ));
+          for (const [index, activity] of submissionActivities.entries()) {
+            const response = submissionActivitiesResponses[index];
 
             if (response && response.length > 0) {
               // 过滤当前班级的提交
@@ -248,7 +247,6 @@ const ClassroomManagement = () => {
 
     const hasTypingActivity = activities.some(activity => activity.type === 'typing');
     if (!hasTypingActivity) {
-      console.log('当前课时没有打字活动，跳过获取打字记录');
       return;
     }
 
@@ -260,14 +258,16 @@ const ClassroomManagement = () => {
       // 获取所有打字活动
       const typingActivities = activities.filter(activity => activity.type === 'typing');
 
-      for (const activity of typingActivities) {
+      // 各活动的请求同时发出，再按原顺序合并结果
+      // 使用教师端API，可以获取整个班级的记录
+      const typingActivitiesResponses = await Promise.all(typingActivities.map(activity =>
+        typingAPI.getTypingRecords({ classId: selectedClass, lessonId: lessonId, activityId: activity._id })
+          .catch(error => ({ __error: error }))
+      ));
+      for (const [index, activity] of typingActivities.entries()) {
         try {
-          // 获取该活动的所有打字记录（使用教师端API，可以获取整个班级的记录）
-          const response = await typingAPI.getTypingRecords({
-            classId: selectedClass,
-            lessonId: lessonId,
-            activityId: activity._id
-          });
+          const response = typingActivitiesResponses[index];
+          if (response && response.__error) throw response.__error;
 
           if (response && response.records) {
             // 按学生ID分组
@@ -308,7 +308,6 @@ const ClassroomManagement = () => {
         }
       }
 
-      console.log('处理后的打字记录(按活动分组):', recordsByStudent);
       setTypingRecords(recordsByStudent);
     } catch (error) {
       console.error('获取班级打字记录失败:', error);
@@ -327,7 +326,6 @@ const ClassroomManagement = () => {
 
     // 如果没有quiz活动，不需要获取提交记录
     if (!hasQuizActivity) {
-      console.log('当前课时没有quiz活动，跳过获取提交记录');
       return;
     }
 
@@ -347,16 +345,16 @@ const ClassroomManagement = () => {
         }
       });
 
-      console.log('准备获取的quiz IDs:', quizIds);
 
       // 合并所有班级学生的测验提交记录
       const submissionsByStudent = {};
 
       // 如果找到了具体的quizId，逐个获取对应的提交记录
       if (quizIds.length > 0) {
-        for (const quizId of quizIds) {
-          console.log(`获取特定测验(${quizId})的提交记录`);
-          const response = await quizAPI.submissions.getClassSubmissions(selectedClass, quizId);
+        // 各活动的请求同时发出，再按原顺序合并结果
+        const quizIdsResponses = await Promise.all(quizIds.map(quizId => quizAPI.submissions.getClassSubmissions(selectedClass, quizId)));
+        for (const index of quizIds.keys()) {
+          const response = quizIdsResponses[index];
 
           if (response.success && response.students) {
             // 处理当前测验的提交记录，合并到总记录中
@@ -377,10 +375,8 @@ const ClassroomManagement = () => {
             });
           }
         }
-        console.log('合并后的提交记录:', submissionsByStudent);
       } else {
         // 如果没有找到任何quizId，获取所有的提交记录
-        console.log('未找到具体的quiz ID，获取班级所有测验提交记录');
         const response = await quizAPI.submissions.getClassSubmissions(selectedClass);
 
         if (response.success && response.students) {
@@ -407,7 +403,6 @@ const ClassroomManagement = () => {
 
     const hasSpreadsheetActivity = activities.some(activity => activity.type === 'spreadsheet');
     if (!hasSpreadsheetActivity) {
-      console.log('当前课时没有spreadsheet活动，跳过获取提交记录');
       return;
     }
 
@@ -418,10 +413,13 @@ const ClassroomManagement = () => {
       // 获取所有spreadsheet活动
       const spreadsheetActivities = activities.filter(activity => activity.type === 'spreadsheet');
 
-      for (const activity of spreadsheetActivities) {
+      // 各活动的请求同时发出，再按原顺序合并结果
+      const spreadsheetActivitiesResponses = await Promise.all(spreadsheetActivities.map(activity => spreadsheetActivityAPI.getActivitySubmissions(lessonId, activity._id).catch(error => ({ __error: error }))));
+      for (const [index, activity] of spreadsheetActivities.entries()) {
         try {
           // 使用批量获取所有提交的API
-          const response = await spreadsheetActivityAPI.getActivitySubmissions(lessonId, activity._id);
+          const response = spreadsheetActivitiesResponses[index];
+          if (response && response.__error) throw response.__error;
           if (response.success && response.data) {
             // 按学生ID分组
             response.data.forEach(submission => {
@@ -458,7 +456,6 @@ const ClassroomManagement = () => {
 
     const hasFillBlankActivity = activities.some(activity => activity.type === 'fillblank');
     if (!hasFillBlankActivity) {
-      console.log('当前课时没有fillblank活动，跳过获取提交记录');
       return;
     }
 
@@ -469,10 +466,13 @@ const ClassroomManagement = () => {
       // 获取所有fillblank活动
       const fillBlankActivities = activities.filter(activity => activity.type === 'fillblank');
 
-      for (const activity of fillBlankActivities) {
+      // 各活动的请求同时发出，再按原顺序合并结果
+      const fillBlankActivitiesResponses = await Promise.all(fillBlankActivities.map(activity => fillBlankAPI.getActivitySubmissions(lessonId, activity._id).catch(error => ({ __error: error }))));
+      for (const [index, activity] of fillBlankActivities.entries()) {
         try {
           // 使用批量获取所有提交的API
-          const response = await fillBlankAPI.getActivitySubmissions(lessonId, activity._id);
+          const response = fillBlankActivitiesResponses[index];
+          if (response && response.__error) throw response.__error;
           if (response.success && response.data) {
             // 按学生ID分组
             response.data.forEach(submission => {
@@ -509,7 +509,6 @@ const ClassroomManagement = () => {
 
     const hasPythonActivity = activities.some(activity => activity.type === 'python');
     if (!hasPythonActivity) {
-      console.log('当前课时没有python活动，跳过获取提交记录');
       return;
     }
 
@@ -520,10 +519,13 @@ const ClassroomManagement = () => {
       // 获取所有python活动
       const pythonActivities = activities.filter(activity => activity.type === 'python');
 
-      for (const activity of pythonActivities) {
+      // 各活动的请求同时发出，再按原顺序合并结果
+      const pythonActivitiesResponses = await Promise.all(pythonActivities.map(activity => pythonAPI.getActivitySubmissions(lessonId, activity._id, selectedClass).catch(error => ({ __error: error }))));
+      for (const [index, activity] of pythonActivities.entries()) {
         try {
           // 使用批量获取所有提交的API
-          const response = await pythonAPI.getActivitySubmissions(lessonId, activity._id, selectedClass);
+          const response = pythonActivitiesResponses[index];
+          if (response && response.__error) throw response.__error;
           if (response.success && response.data) {
             // 按学生ID分组
             response.data.forEach(submission => {
@@ -560,7 +562,6 @@ const ClassroomManagement = () => {
 
     const hasFlowchartActivity = activities.some(activity => activity.type === 'flowchart');
     if (!hasFlowchartActivity) {
-      console.log('当前课时没有flowchart活动，跳过获取提交记录');
       return;
     }
 
@@ -571,10 +572,13 @@ const ClassroomManagement = () => {
       // 获取所有flowchart活动
       const flowchartActivities = activities.filter(activity => activity.type === 'flowchart');
 
-      for (const activity of flowchartActivities) {
+      // 各活动的请求同时发出，再按原顺序合并结果
+      const flowchartActivitiesResponses = await Promise.all(flowchartActivities.map(activity => flowchartAPI.getActivitySubmissions(lessonId, activity._id, selectedClass).catch(error => ({ __error: error }))));
+      for (const [index, activity] of flowchartActivities.entries()) {
         try {
           // 使用flowchartAPI获取活动的所有提交
-          const response = await flowchartAPI.getActivitySubmissions(lessonId, activity._id, selectedClass);
+          const response = flowchartActivitiesResponses[index];
+          if (response && response.__error) throw response.__error;
           if (response.success && response.submissions) {
             // 按学生ID分组
             response.submissions.forEach(submission => {
@@ -862,7 +866,6 @@ const ClassroomManagement = () => {
         setOptions(cascaderOptions);
         // 在设置完选项后，获取班级设置
         await fetchClassSettings();
-        console.log(cascaderOptions);
         if (selectedKeys && selectedKeys.length === 3) {
           const [courseId, unitId, lessonId] = selectedKeys;
           const course = cascaderOptions.find(c => c.value === courseId);
@@ -987,13 +990,8 @@ const ClassroomManagement = () => {
           ...student,
           ip: student.ip
         }));
-        console.log('获取到的学生数据:', onlineStudents);
         setStudents(onlineStudents);
 
-        // 保存学生统计信息（在线人数、缺席人数等）
-        if (response.stats) {
-          console.log('学生统计信息:', response.stats);
-        }
       } catch (error) {
         console.error('获取学生信息失败:', error);
       }
@@ -1095,7 +1093,6 @@ const ClassroomManagement = () => {
             // 检查是否有quiz活动，如果有则设置标志以触发获取提交记录
             const hasQuiz = newActivities.some(activity => activity.type === 'quiz');
             if (hasQuiz && selectedClass) {
-              console.log('检测到quiz活动，设置标志以获取提交记录');
               setShouldFetchQuizSubmissions(true);
             }
 
@@ -1144,7 +1141,6 @@ const ClassroomManagement = () => {
         // 检查是否有quiz活动，如果有则设置标志以触发获取提交记录
         const hasQuiz = newActivities.some(activity => activity.type === 'quiz');
         if (hasQuiz && selectedClass) {
-          console.log('检测到quiz活动，设置标志以获取提交记录');
           setShouldFetchQuizSubmissions(true);
         }
 

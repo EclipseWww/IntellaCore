@@ -73,10 +73,12 @@ const PracticeHistory = () => {
             )
         },
         {
-            title: '获得积分',
+            title: '获得积分 / 掌握',
             dataIndex: 'pointsEarned',
             key: 'pointsEarned',
-            render: (points) => <Tag color="gold">+{formatPoints(points)} 积分</Tag>
+            render: (points, record) => (record.mode === 'wrong_retry'
+                ? <Tag color="green">掌握 {record.correctCount} 题</Tag>
+                : <Tag color="gold">+{formatPoints(points)} 积分</Tag>)
         },
         {
             title: '用时',

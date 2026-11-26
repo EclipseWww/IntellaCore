@@ -19,12 +19,10 @@ const AdminDashboard = () => {
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState({});
-  const [users, setUsers] = useState([]);
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [usersLoading, setUsersLoading] = useState(false);
 
   // 筛选相关状态
   const [selectedGrade, setSelectedGrade] = useState(null);
@@ -36,6 +34,7 @@ const AdminDashboard = () => {
     pageSize: 10,
     total: 0
   });
+  const [teacherSearch, setTeacherSearch] = useState(''); // 教师列表按工号/姓名筛选（前端过滤）
   const [filters, setFilters] = useState({
     role: 'all',
     search: ''
@@ -142,39 +141,11 @@ const AdminDashboard = () => {
     }
   };
 
-  // 获取用户列表
-  const fetchUsers = async (page = 1, pageSize = 10, role = 'all', search = '') => {
-    try {
-      setUsersLoading(true);
-      const params = {
-        page,
-        limit: pageSize,
-        role: role !== 'all' ? role : undefined,
-        search: search || undefined
-      };
-
-      const response = await api.get('/admin/users', { params });
-      const allUsers = response.data.users;
-
-      // 分离学生和教师
-      const studentsData = allUsers.filter(user => user.role === 'student');
-      const teachersData = allUsers.filter(user => user.role === 'teacher');
-
-      setUsers(allUsers);
-      setStudents(studentsData);
-      setTeachers(teachersData);
-
-      setPagination({
-        current: response.data.page,
-        pageSize: pageSize,
-        total: response.data.total
-      });
-
-    } catch (error) {
-      message.error('获取用户列表失败');
-    } finally {
-      setUsersLoading(false);
-    }
+  // 刷新学生表、教师表与年级筛选（新建/编辑/删除用户、导入学生或备份后调用）
+  const refreshUserTables = (page = pagination.current) => {
+    fetchStudents(page, pagination.pageSize);
+    fetchTeachersData();
+    fetchAllStudentsForGrades();
   };
 
   // 获取所有学生数据（用于年级筛选选项）
@@ -300,17 +271,22 @@ const AdminDashboard = () => {
       // 显示所有班级
       setAvailableClassesForFilter(classes);
     }
-
-    // 重新获取学生数据
-    fetchStudents(1, pagination.pageSize);
   };
 
   // 处理班级筛选变化
   const handleClassChange = (classId) => {
     setSelectedClass(classId);
-    // 重新获取学生数据
-    fetchStudents(1, pagination.pageSize);
   };
+
+  // 年级、班级、搜索词变化后重新获取学生（放在副作用里，保证用的是更新后的筛选条件）
+  const studentFiltersMountedRef = useRef(false);
+  useEffect(() => {
+    if (!studentFiltersMountedRef.current) {
+      studentFiltersMountedRef.current = true; // 首次加载由初始化流程获取
+      return;
+    }
+    fetchStudents(1, pagination.pageSize);
+  }, [selectedGrade, selectedClass, filters.search]);
 
   // 获取教师数据
   const fetchTeachersData = async () => {
@@ -366,11 +342,6 @@ const AdminDashboard = () => {
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
-
-    // 重新获取学生数据（搜索功能）
-    if (key === 'search') {
-      fetchStudents(1, pagination.pageSize);
-    }
   };
 
   // 创建/编辑用户
@@ -389,7 +360,8 @@ const AdminDashboard = () => {
       setUserModalVisible(false);
       setEditingUser(null);
       form.resetFields();
-      fetchUsers(pagination.current, pagination.pageSize, filters.role, filters.search);
+      refreshUserTables();
+      fetchOverview();
     } catch (error) {
       message.error(error.response?.data?.message || '操作失败');
     }
@@ -401,8 +373,7 @@ const AdminDashboard = () => {
       await api.delete(`/admin/users/${userId}`);
       message.success('用户删除成功');
       // 学生/教师列表与顶部统计都要刷新
-      fetchStudents(pagination.current, pagination.pageSize);
-      fetchTeachersData();
+      refreshUserTables();
       fetchOverview();
     } catch (error) {
       message.error('删除用户失败');
@@ -506,7 +477,7 @@ const AdminDashboard = () => {
 
           // 刷新数据
           fetchOverview();
-          fetchUsers();
+          refreshUserTables(1);
           fetchClasses();
           fetchCourses();
           fetchBackupList(); // 刷新备份列表
@@ -794,7 +765,7 @@ const AdminDashboard = () => {
 
       // 刷新相关数据
       fetchClasses();
-      fetchUsers();
+      refreshUserTables(1);
       fetchOverview();
     } catch (error) {
       console.error('导入学生失败:', error);
@@ -857,7 +828,8 @@ const AdminDashboard = () => {
               icon={<ReloadOutlined />}
               onClick={() => {
                 fetchOverview();
-                fetchUsers(pagination.current, pagination.pageSize, filters.role, filters.search);
+                refreshUserTables();
+                fetchClasses();
               }}
             >
               刷新数据
@@ -1112,7 +1084,7 @@ const AdminDashboard = () => {
                 <Input.Search
                   placeholder="搜索工号或姓名"
                   style={{ width: 300 }}
-                  onSearch={(value) => handleFilterChange('search', value)}
+                  onSearch={(value) => setTeacherSearch(value.trim())}
                   allowClear
                 />
                 <Button
@@ -1128,12 +1100,13 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               <Table
-                dataSource={teachers}
+                dataSource={teacherSearch
+                  ? teachers.filter(t => (t.username || '').includes(teacherSearch) || (t.name || '').includes(teacherSearch))
+                  : teachers}
                 loading={loading}
                 rowKey="_id"
                 pagination={{
-                  ...pagination,
-                  total: teachers.length,
+                  defaultPageSize: 10,
                   showSizeChanger: true,
                   showQuickJumper: true,
                   showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`

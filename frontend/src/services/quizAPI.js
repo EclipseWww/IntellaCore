@@ -368,6 +368,11 @@ export const quizAPI = {
             const response = await api.get('/quiz/free-practice/records', { params });
             return response.data;
         },
+        // 教师端：班级高频错题（params: days, source）
+        getClassWrongQuestions: async (classId, params = {}) => {
+            const response = await api.get(`/quiz/free-practice/class/${classId}/wrong-questions`, { params });
+            return response.data;
+        },
         // 教师端：获取排行榜
         getLeaderboard: async (params = {}) => {
             const response = await api.get('/quiz/free-practice/leaderboard', { params });

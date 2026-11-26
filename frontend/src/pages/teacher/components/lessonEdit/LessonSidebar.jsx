@@ -15,6 +15,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined
 } from '@ant-design/icons';
+import { getActivityTypeColor, getActivityTypeShortLabel } from '../../../../utils/activityTypes';
 
 const { TextArea } = Input;
 
@@ -118,28 +119,8 @@ const LessonSidebar = ({ activities, form, handleActivitySelect, handleAddActivi
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'
                     }}>
-                      <Tag color={
-                        activity.type === 'reading' ? 'blue' :
-                          activity.type === 'quiz' ? 'green' :
-                            activity.type === 'discussion' ? 'orange' :
-                              activity.type === 'practice' ? 'purple' :
-                                activity.type === 'typing' ? 'cyan' :
-                                  activity.type === 'flowchart' ? 'magenta' :
-                                    activity.type === 'spreadsheet' ? 'lime' :
-                                      activity.type === 'html' ? 'volcano' :
-                                        activity.type === 'fillblank' ? 'geekblue' :
-                                          activity.type === 'python' ? 'gold' : 'default'
-                      }>
-                        {activity.type === 'reading' ? '阅读' :
-                          activity.type === 'quiz' ? '测验' :
-                            activity.type === 'discussion' ? '讨论' :
-                              activity.type === 'practice' ? '练习' :
-                                activity.type === 'typing' ? '打字' :
-                                  activity.type === 'flowchart' ? '流程图' :
-                                    activity.type === 'spreadsheet' ? '表格' :
-                                      activity.type === 'html' ? 'HTML' :
-                                        activity.type === 'fillblank' ? '填空' :
-                                          activity.type === 'python' ? 'Python' : '活动'}
+                      <Tag color={getActivityTypeColor(activity.type)}>
+                        {getActivityTypeShortLabel(activity.type)}
                       </Tag>
                       <span style={{ marginLeft: 8 }}>{activity.title}</span>
                     </div>

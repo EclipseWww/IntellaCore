@@ -743,7 +743,6 @@ const AssignmentReview = () => {
 
   // 处理预览
   const handlePreview = async (submission, index) => {
-    console.log('开始预览文件:', submission);
 
     if (!submission?.content?.file) {
       message.error('提交内容不完整');

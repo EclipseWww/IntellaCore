@@ -109,3 +109,38 @@ test('wrong-question retry follows the class free-practice switch and reports an
   await empty.controller.startWrongRetry({ user: { id: 'student' } }, r2);
   assert.equal(r2.statusCode, 404);
 });
+test('free practice draws about half of the questions from the student weak tags', async () => {
+  const matches = [];
+  const pool = n => Array.from({ length: n }, (_, i) => ({ _id: 'q' + matches.length + '-' + i, options: [] }));
+  let created;
+  const controller = load(require.resolve('./freePracticeController'), {
+    '../models/PracticeSession': { create: async data => { created = data; return { _id: 'session', ...data }; } },
+    '../models/Question': { aggregate: async pipeline => { matches.push(pipeline); return pool(pipeline[1].$sample.size); } },
+    '../models/User': { findById: () => ({ select: async () => ({ classId: 'class' }) }) },
+    '../models/Class': { findById: () => ({ select: async () => ({ freePracticeSettings: { questionCount: 10, allowedTags: ['循环', '变量'] } }) }) },
+    '../models/Setting': {}, '../utils/pointsManager': {}, '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {},
+    '../services/wrongQuestionService': { getWeakTags: async () => ['循环', '列表'] }
+  });
+  const res = response(); await controller.startPractice({ user: { id: 'student' } }, res);
+  assert.equal(res.statusCode, 201);
+  assert.deepEqual(JSON.parse(JSON.stringify(res.body.data.focusTags)), ['循环']); // “列表”不在老师允许的标签内
+  assert.deepEqual(JSON.parse(JSON.stringify(matches[0][0].$match.tags)), { $in: ['循环'] });
+  assert.equal(matches[0][1].$sample.size, 5);
+  assert.equal(matches[1][1].$sample.size, 5);
+  assert.equal(created.totalQuestions, 10);
+});
+test('class wrong-question stats are limited to the teacher own class', async () => {
+  const controller = load(require.resolve('./freePracticeController'), {
+    '../models/PracticeSession': {}, '../models/Question': {}, '../models/Setting': {}, '../utils/pointsManager': {},
+    '../models/Class': { findOne: query => ({ select: async () => (query.teacher === 'owner' || !query.teacher ? { _id: query._id } : null) }) },
+    '../models/User': { find: () => ({ select: () => ({ lean: async () => [{ _id: 's1', name: '张三' }] }) }) },
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: require('mongoose'),
+    '../services/wrongQuestionService': { getClassWrongStats: async () => [{ questionId: 'q1', unmasteredStudentIds: ['s1'] }] }
+  });
+  const classId = '507f1f77bcf86cd799439011';
+  const other = response(); await controller.getClassWrongQuestions({ params: { classId }, query: {}, user: { id: 'someone', role: 'teacher' } }, other);
+  assert.equal(other.statusCode, 404);
+  const own = response(); await controller.getClassWrongQuestions({ params: { classId }, query: { days: '7' }, user: { id: 'owner', role: 'teacher' } }, own);
+  assert.equal(own.statusCode, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(own.body.data.list[0].unmasteredStudents)), ['张三']);
+});

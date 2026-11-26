@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, message, Space, Popconfirm, InputNumber, Menu, Layout, List, Tag, Radio, Upload, Select } from 'antd';
+import { Card, Table, Button, Modal, Form, Input, message, Space, Popconfirm, InputNumber, Menu, Layout, List, Tag, Radio, Upload, Select, Alert } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserAddOutlined, GroupOutlined, HistoryOutlined, UploadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { classAPI } from '../../services/api';
 import moment from 'moment';
@@ -104,8 +104,9 @@ const ClassManagement = () => {
       };
 
       if (editingClass) {
-        // TODO: 实现编辑班级功能
+        await classAPI.updateClass(editingClass._id, classData);
         message.success('班级更新成功');
+        setEditingClass(null);
       } else {
         await classAPI.createClass(classData);
         message.success('班级创建成功');
@@ -481,22 +482,32 @@ const ClassManagement = () => {
             label: (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{formatClassName(cls.grade, cls.name)}</span>
-                <Popconfirm
-                  title="确定要删除该班级吗？"
-                  onConfirm={() => handleRemoveClass(cls._id)}
-                  okText="确定删除"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    size="small"
-                    onClick={(e) => e.stopPropagation()} // 阻止事件冒泡
-                    style={{ marginLeft: '5px' }}
-                  />
-                </Popconfirm>
+                <span>
+                <Button
+                  type="text"
+                  icon={<EditOutlined />}
+                  size="small"
+                  title="修改年级与班号"
+                  onClick={(e) => {
+                    e.stopPropagation(); // 不切换选中的班级
+                    setEditingClass(cls);
+                    form.setFieldsValue({ grade: cls.grade, name: cls.name });
+                    setModalVisible(true);
+                  }}
+                />
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  size="small"
+                  title="删除班级"
+                  onClick={(e) => {
+                    e.stopPropagation(); // 阻止事件冒泡（不切换选中的班级）
+                    handleDelete(cls._id); // 弹出“输入‘删除’确认”的对话框
+                  }}
+                  style={{ marginLeft: '5px' }}
+                />
+                </span>
               </div>
             ),
           }))}
@@ -594,10 +605,19 @@ const ClassManagement = () => {
         open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
+          setEditingClass(null);
           form.resetFields();
         }}
         onOk={() => form.submit()}
       >
+        {editingClass && (
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="只修改班级的年级与班号，学生、作业、成绩等数据保持不变。"
+          />
+        )}
         <Form
           form={form}
           onFinish={handleSubmit}

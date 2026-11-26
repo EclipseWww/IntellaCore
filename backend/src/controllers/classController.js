@@ -15,6 +15,54 @@ const authController = require('./authController');
 // 在文件顶部添加计时器映射
 const classTimers = new Map();
 
+// 修改班级的年级与班号（班主任本人或管理员）
+exports.updateClassInfo = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    if (!mongoose.isValidObjectId(classId)) {
+      return res.status(400).json({ success: false, message: '班级编号无效' });
+    }
+    if (!['teacher', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: '只有教师或管理员可以修改班级' });
+    }
+
+    const grade = Number(req.body.grade);
+    const name = Number(req.body.name);
+    if (!/^20\d{2}$/.test(String(req.body.grade))) {
+      return res.status(400).json({ success: false, message: '年级必须是四位数年份（如2023、2024）' });
+    }
+    if (!Number.isInteger(name) || name < 1 || name > 99) {
+      return res.status(400).json({ success: false, message: '班级号必须是 1 到 99 之间的整数' });
+    }
+
+    const query = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user._id };
+    const classObj = await Class.findOne(query);
+    if (!classObj) {
+      return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
+    }
+
+    const duplicate = await Class.findOne({ grade, name, _id: { $ne: classObj._id } }).select('_id');
+    if (duplicate) {
+      return res.status(400).json({ success: false, message: '该年级已存在相同班号的班级' });
+    }
+
+    const before = { grade: classObj.grade, name: classObj.name };
+    classObj.grade = grade;
+    classObj.name = name;
+    classObj.updatedAt = new Date();
+    await classObj.save();
+
+    logger.info('班级信息已修改', { classId, before, after: { grade, name }, operator: req.user._id });
+    res.json({ success: true, message: '班级更新成功', data: classObj });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: '该年级已存在相同班号的班级' });
+    }
+    logger.error('修改班级失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '修改班级失败' });
+  }
+};
+
 // 创建新班级
 exports.createClass = async (req, res) => {
   try {

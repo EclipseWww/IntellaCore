@@ -24,6 +24,7 @@ import QuizAnalysis from '../../components/Quiz/teacher/QuizAnalysis';
 import QuestionAnalysis from '../../components/Quiz/teacher/QuestionAnalysis';
 import FreePracticeManagement from '../../components/Quiz/teacher/FreePracticeManagement';
 import FreePracticeRecords from '../../components/Quiz/teacher/FreePracticeRecords';
+import ClassWrongQuestions from '../../components/Quiz/teacher/ClassWrongQuestions';
 import AiTeachingAssistant from '../../components/AiRag/AiTeachingAssistant';
 import LearningStatsManagement from '../../components/Stats/LearningStatsManagement';
 import PointShopManagement from './PointShopManagement';
@@ -111,6 +112,7 @@ const TeacherDashboard = () => {
         { key: 'quiz-analysis', label: '试卷分析' },
         { key: 'free-practice', label: '自由练习设置' },
         { key: 'free-practice-records', label: '练习记录' },
+        { key: 'class-wrong-questions', label: '班级错题' },
       ],
     },
     {
@@ -204,6 +206,8 @@ const TeacherDashboard = () => {
         return <FreePracticeManagement />;
       case 'free-practice-records':
         return <FreePracticeRecords />;
+      case 'class-wrong-questions':
+        return <ClassWrongQuestions />;
       case 'quiz-analysis':
         return <QuizAnalysis />;
       case 'question-analysis':
