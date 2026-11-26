@@ -189,11 +189,25 @@
 
         .cell.wrong {
             background: #ffd6d6;
-            font-size: calc(var(--cell) * 0.5);
         }
 
-        .cell.flag {
-            font-size: calc(var(--cell) * 0.55);
+        .cell svg {
+            width: 82%;
+            height: 82%;
+            display: block;
+        }
+
+        .face-btn svg {
+            width: 32px;
+            height: 32px;
+            display: block;
+        }
+
+        .btn svg {
+            width: 14px;
+            height: 14px;
+            vertical-align: -2px;
+            margin-right: 3px;
         }
 
         .cell.hint {
@@ -255,12 +269,12 @@
             <button class="btn diff-btn active" data-diff="easy">初级</button>
             <button class="btn diff-btn" data-diff="medium">中级</button>
             <button class="btn diff-btn" data-diff="hard">高级</button>
-            <button class="btn" id="mode-btn" title="切换点按的作用：翻开 / 插旗（触屏时方便）">⛏ 翻开模式</button>
+            <button class="btn" id="mode-btn" title="切换点按的作用：翻开 / 插旗（触屏时方便）">翻开模式</button>
         </div>
 
         <div class="header">
             <div class="digital-display" id="mine-count">010</div>
-            <div class="face-btn" id="face-btn" title="重新开始">😊</div>
+            <div class="face-btn" id="face-btn" title="重新开始"></div>
             <div class="digital-display" id="timer">000</div>
         </div>
 
@@ -279,7 +293,7 @@
                 <li><b>右键</b>：插旗 / 拔旗，标记你认为是雷的格子。</li>
                 <li><b>快速翻开</b>：在已翻开的数字上<b>单击、双击、左右键同时按</b>或<b>按中键</b>。如果它周围插的旗数正好等于这个数字，其余格子一次全部翻开；旗数不对时，周围格子会闪一下提醒你。注意：旗插错了会直接踩雷！</li>
                 <li>按住鼠标不放，可以看到松手后会翻开哪些格子；移到别处再松手就取消。</li>
-                <li><b>触屏</b>：点一下翻开，长按插旗；也可以点上方按钮切换到“🚩 插旗模式”。</li>
+                <li><b>触屏</b>：点一下翻开，长按插旗；也可以点上方按钮切换到“插旗模式”。</li>
             </ul>
         </details>
     </div>
@@ -413,6 +427,22 @@
                 hard: { rows: 16, cols: 30, mines: 99, label: '高级' }
             };
             var RECORD_KEY = 'minesweeper_best_';
+            // 图标用 SVG 绘制，不用 emoji（Win7 下 emoji 显示效果差）
+            var MINE = '<g stroke="#000" stroke-width="1.4"><path d="M8 1.5v13M1.5 8h13M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2"/></g>'
+                + '<circle cx="8" cy="8" r="4.6" fill="#000"/><rect x="5.6" y="5.6" width="1.8" height="1.8" fill="#fff"/>';
+            var ICON = {
+                F: '<svg viewBox="0 0 16 16"><path d="M2.5 13h11v2h-11zM5 11.5h6V13H5z" fill="#000"/><rect x="8.2" y="1" width="1.8" height="11" fill="#000"/><path d="M10 1 1.5 5.2 10 9.4z" fill="#e00"/></svg>',
+                M: '<svg viewBox="0 0 16 16">' + MINE + '</svg>',
+                X: '<svg viewBox="0 0 16 16">' + MINE + '<path d="M2 2l12 12M14 2 2 14" stroke="#e00" stroke-width="1.8"/></svg>'
+            };
+            var HEAD = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#ffd400" stroke="#000" stroke-width="1.2"/><g stroke="#000" stroke-width="1.4" fill="none" stroke-linecap="round">';
+            var EYES = '<circle cx="8.5" cy="9.5" r="1.4" fill="#000" stroke="none"/><circle cx="15.5" cy="9.5" r="1.4" fill="#000" stroke="none"/>';
+            var FACE = {
+                smile: HEAD + EYES + '<path d="M7.5 14.5q4.5 4 9 0"/></g></svg>',
+                oh: HEAD + EYES + '<circle cx="12" cy="16" r="2.2"/></g></svg>',
+                dead: HEAD + '<path d="M7 8l3 3M10 8l-3 3M14 8l3 3M17 8l-3 3M8 17.5q4-3.5 8 0"/></g></svg>',
+                cool: HEAD + '<path d="M4.5 9h15M7.5 15q4.5 3.5 9 0"/><rect x="5.5" y="9" width="5.5" height="3.2" rx="1" fill="#000"/><rect x="13" y="9" width="5.5" height="3.2" rx="1" fill="#000"/></g></svg>'
+            };
             var TIP = window.matchMedia && window.matchMedia('(pointer: coarse)').matches
                 ? '点按翻开，长按插旗；点已翻开的数字，可一次翻开周围的格子'
                 : '左键翻开，右键插旗；在数字上单击、双击或左右键一起按，可一次翻开周围的格子';
@@ -462,11 +492,11 @@
                     cls += ' open';
                     if (c.n) { cls += ' n' + c.n; txt = String(c.n); }
                 } else if (c.flag) {
-                    if (st === 'lost' && !c.mine) { cls += ' open wrong'; txt = '❌'; }
-                    else { cls += ' flag'; txt = '🚩'; }
+                    if (st === 'lost' && !c.mine) { cls += ' open wrong'; txt = 'X'; }
+                    else { cls += ' flag'; txt = 'F'; }
                 } else if (st === 'lost' && c.mine) {
                     cls += ' open mine' + (board.boom.indexOf(i) >= 0 ? ' boom' : '');
-                    txt = '💣';
+                    txt = 'M';
                 } else if (pressed[i]) {
                     cls += ' pressed';
                 }
@@ -481,11 +511,17 @@
                     views[i] = v;
                     var bar = v.indexOf('|');
                     cellEls[i].className = v.slice(0, bar);
-                    cellEls[i].textContent = v.slice(bar + 1);
+                    var t = v.slice(bar + 1);
+                    if (ICON[t]) cellEls[i].innerHTML = ICON[t];
+                    else cellEls[i].textContent = t;
                 }
                 var left = board.total - board.flags;
                 mineCountEl.textContent = left < 0 ? '-' + String(Math.min(99, -left)).padStart(2, '0') : String(Math.min(999, left)).padStart(3, '0');
-                faceBtn.textContent = board.state === 'won' ? '😎' : board.state === 'lost' ? '😵' : isPressing() ? '😮' : '😊';
+                var face = board.state === 'won' ? 'cool' : board.state === 'lost' ? 'dead' : isPressing() ? 'oh' : 'smile';
+                if (faceBtn.dataset.face !== face) {
+                    faceBtn.dataset.face = face;
+                    faceBtn.innerHTML = FACE[face];
+                }
             }
 
             // 根据窗口大小调整格子尺寸，高级难度也能完整显示
@@ -583,10 +619,10 @@
                     var old = readRecord(diff);
                     var best = !old || secs < old;
                     if (best) { try { localStorage.setItem(RECORD_KEY + diff, String(secs)); } catch (e) { /* 浏览器禁用存储 */ } }
-                    setStatus('🎉 恭喜过关！用时 ' + secs + ' 秒' + (best ? '，新纪录！' : '（纪录 ' + old + ' 秒）') + ' 点 😎 再来一局', 'win');
+                    setStatus('恭喜过关！用时 ' + secs + ' 秒' + (best ? '，新纪录！' : '（纪录 ' + old + ' 秒）') + ' 点笑脸再来一局', 'win');
                     showRecords();
                 } else {
-                    setStatus('💥 踩到地雷了！红色是踩中的雷，❌ 是插错的旗。点 😵 再来一局', 'lose');
+                    setStatus('踩到地雷了！红底的是踩中的雷，打叉的是插错的旗。点笑脸再来一局', 'lose');
                 }
             }
 
@@ -723,7 +759,7 @@
 
             modeBtn.addEventListener('click', function () {
                 flagMode = !flagMode;
-                modeBtn.textContent = flagMode ? '🚩 插旗模式' : '⛏ 翻开模式';
+                modeBtn.innerHTML = flagMode ? ICON.F + '插旗模式' : '翻开模式';
                 modeBtn.classList.toggle('active', flagMode);
             });
 
