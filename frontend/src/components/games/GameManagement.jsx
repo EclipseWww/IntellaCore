@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Table, Switch, Typography, Statistic, Row, Col, message, Tag, Space, Alert } from 'antd';
+import { Card, Table, Switch, Typography, Statistic, Row, Col, message, Tag, Space, Alert, Button } from 'antd';
 import { FireOutlined, TeamOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import gameService from '../../services/gameService';
+import { getTeacherClasses, updateClassSettings } from '../../services/classService';
 import { LOCAL_GAMES, formatPlayTime } from './gameCatalog';
 
 const { Text } = Typography;
@@ -14,6 +15,10 @@ const GameManagement = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [classesLoading, setClassesLoading] = useState(true);
+  const [updatingClassId, setUpdatingClassId] = useState(null);
+  const [batchUpdating, setBatchUpdating] = useState(false);
 
   useEffect(() => {
     gameService.getStats()
@@ -24,7 +29,32 @@ const GameManagement = () => {
       })
       .catch(() => message.error('加载游戏数据失败'))
       .finally(() => setLoading(false));
+    getTeacherClasses()
+      .then(res => setClasses(res.success ? res.data || [] : []))
+      .catch(() => message.error('加载班级列表失败'))
+      .finally(() => setClassesLoading(false));
   }, []);
+
+  const setClassAllowed = async (cls, allow) => {
+    setUpdatingClassId(cls._id);
+    try {
+      await updateClassSettings(cls._id, { allowGameCenter: allow });
+      setClasses(prev => prev.map(c => c._id === cls._id ? { ...c, allowGameCenter: allow } : c));
+      message.success(`已${allow ? '开启' : '关闭'} ${cls.grade}年级${cls.name}班 的游戏中心`);
+    } catch (e) {
+      message.error('操作失败');
+    } finally { setUpdatingClassId(null); }
+  };
+
+  const setAllClassesAllowed = async (allow) => {
+    setBatchUpdating(true);
+    const results = await Promise.allSettled(classes.map(c => updateClassSettings(c._id, { allowGameCenter: allow })));
+    const okIds = new Set(classes.filter((_, i) => results[i].status === 'fulfilled').map(c => c._id));
+    setClasses(prev => prev.map(c => okIds.has(c._id) ? { ...c, allowGameCenter: allow } : c));
+    if (okIds.size === classes.length) message.success(`已全部${allow ? '开启' : '关闭'}`);
+    else message.error(`有 ${classes.length - okIds.size} 个班级未能更新，请重试`);
+    setBatchUpdating(false);
+  };
 
   const rows = useMemo(() => LOCAL_GAMES
     .map(g => ({ ...g, ...(stats[g._id] || {}), totalSeconds: stats[g._id]?.totalSeconds || 0 }))
@@ -51,6 +81,34 @@ const GameManagement = () => {
         <Col span={8}><Card><Statistic title="累计游戏次数" value={players} prefix={<PlayCircleOutlined />} /></Card></Col>
         <Col span={8}><Card><Statistic title="对我的班级开放" value={`${LOCAL_GAMES.length - disabled.length} / ${LOCAL_GAMES.length}`} prefix={<TeamOutlined />} /></Card></Col>
       </Row>
+      <Card
+        title="班级游戏中心开关"
+        extra={(
+          <Space>
+            <Button size="small" loading={batchUpdating} disabled={!classes.length} onClick={() => setAllClassesAllowed(true)}>全部开启</Button>
+            <Button size="small" danger loading={batchUpdating} disabled={!classes.length} onClick={() => setAllClassesAllowed(false)}>全部关闭</Button>
+          </Space>
+        )}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
+          关闭后，该班学生看不到游戏中心，也看不到、不能兑换你在积分商店发布的游戏商品。
+        </Text>
+        <Table size="small" rowKey="_id" loading={classesLoading} dataSource={classes} pagination={{ pageSize: 10, hideOnSinglePage: true }} columns={[
+          { title: '年级', dataIndex: 'grade', sorter: (a, b) => a.grade - b.grade, render: g => `${g}年级` },
+          { title: '班级', dataIndex: 'name', render: n => `${n}班` },
+          {
+            title: '状态', render: (_, c) => (
+              <Tag color={c.allowGameCenter !== false ? 'success' : 'default'}>{c.allowGameCenter !== false ? '允许访问' : '禁止访问'}</Tag>
+            )
+          },
+          {
+            title: '游戏中心', width: 110, render: (_, c) => (
+              <Switch checked={c.allowGameCenter !== false} loading={updatingClassId === c._id || batchUpdating}
+                checkedChildren="开启" unCheckedChildren="关闭" onChange={v => setClassAllowed(c, v)} />
+            )
+          }
+        ]} />
+      </Card>
       <Alert type="info" showIcon message="关闭的游戏不会出现在你所教班级学生的游戏中心里，学生也无法打开。累计时长按学生实际游玩时间统计（教师试玩不计入），游戏中心默认按热度排序。" />
       <Card>
         <Table rowKey="_id" loading={loading} pagination={false} dataSource={rows} columns={[

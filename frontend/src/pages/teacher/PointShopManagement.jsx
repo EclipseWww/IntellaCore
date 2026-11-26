@@ -9,7 +9,7 @@ import {
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
-  TeamOutlined, PlayCircleOutlined, CheckCircleOutlined,
+  TeamOutlined, CheckCircleOutlined,
   StopOutlined, CopyOutlined, WalletOutlined, UserOutlined,
   ShoppingOutlined, HistoryOutlined, PlusCircleOutlined,
   MinusCircleOutlined, MessageOutlined, WarningOutlined,
@@ -34,7 +34,7 @@ import {
   getCrowdfundingContributions,
   deleteCrowdfundingContribution
 } from '../../services/crowdfundingService';
-import { getTeacherClasses, updateClassSettings } from '../../services/classService';
+import { getTeacherClasses } from '../../services/classService';
 import { getStudentPointTransactions, addStudentPoints } from '../../services/achievementService';
 import dayjs from 'dayjs';
 
@@ -73,11 +73,6 @@ const PointShopManagement = () => {
   const [selectedClassIds, setSelectedClassIds] = useState([]);
   const [classFilter, setClassFilter] = useState(null);
   
-  // 游戏中心设置状态
-  const [gameCenterSettingsVisible, setGameCenterSettingsVisible] = useState(false);
-  const [updatingGameCenter, setUpdatingGameCenter] = useState(false);
-  const [updatingClassId, setUpdatingClassId] = useState(null);
-
   // 学生积分和兑换情况相关状态
   const [studentRedemptions, setStudentRedemptions] = useState([]);
   const [studentPoints, setStudentPoints] = useState([]);
@@ -112,28 +107,10 @@ const PointShopManagement = () => {
   const [contributions, setContributions] = useState([]);
   const [selectedCrowdfundingForContributions, setSelectedCrowdfundingForContributions] = useState(null);
 
-  const handleBatchUpdateGameCenter = async (checked) => {
-    try {
-      setUpdatingGameCenter(true);
-      const updatePromises = classes.map(cls => updateClassSettings(cls._id, { allowGameCenter: checked }));
-      await Promise.all(updatePromises);
-      message.success(`已全部${checked ? '开启' : '关闭'}`);
-      setClasses(prev => prev.map(c => ({ ...c, allowGameCenter: checked })));
-    } catch (err) {
-      message.error('批量操作失败，部分班级可能未更新');
-    } finally {
-      setUpdatingGameCenter(false);
-    }
-  };
-
   // 加载商品列表
   useEffect(() => {
     if (activeTab === '1') {
       fetchItems();
-      // 提前加载班级列表以供游戏中心设置使用
-      if (classes.length === 0) {
-        fetchTeacherClasses();
-      }
     }
   }, [activeTab]);
   
@@ -1274,12 +1251,6 @@ const PointShopManagement = () => {
             <Title level={3}>积分商店管理</Title>
             <Space>
               <Button
-                icon={<PlayCircleOutlined />}
-                onClick={() => setGameCenterSettingsVisible(true)}
-              >
-                游戏中心设置
-              </Button>
-              <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleOpenCreateDialog}
@@ -1462,98 +1433,6 @@ const PointShopManagement = () => {
           </Card>
         </TabPane>
       </Tabs>
-
-      {/* 游戏中心设置对话框 */}
-      <Modal
-        title="游戏中心可见性设置"
-        open={gameCenterSettingsVisible}
-        onCancel={() => setGameCenterSettingsVisible(false)}
-        width={600}
-        footer={[
-          <Button key="close" onClick={() => setGameCenterSettingsVisible(false)}>
-            关闭
-          </Button>
-        ]}
-      >
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text type="secondary">在此设置各个班级是否允许访问游戏中心</Text>
-          <Space>
-            <Button 
-              size="small" 
-              onClick={() => handleBatchUpdateGameCenter(true)}
-              loading={updatingGameCenter}
-            >
-              全部开启
-            </Button>
-            <Button 
-              size="small" 
-              danger
-              onClick={() => handleBatchUpdateGameCenter(false)}
-              loading={updatingGameCenter}
-            >
-              全部关闭
-            </Button>
-          </Space>
-        </div>
-        <Table
-          size="small"
-          loading={classesLoading}
-          dataSource={classes}
-          rowKey="_id"
-          pagination={{ pageSize: 10 }}
-          columns={[
-            {
-              title: '年级',
-              dataIndex: 'grade',
-              key: 'grade',
-              sorter: (a, b) => a.grade - b.grade,
-              render: (grade) => `${grade}年级`
-            },
-            {
-              title: '班级',
-              dataIndex: 'name',
-              key: 'name',
-              sorter: (a, b) => a.name - b.name,
-              render: (name) => `${name}班`
-            },
-            {
-              title: '状态',
-              key: 'status',
-              render: (_, cls) => (
-                <Tag color={cls.allowGameCenter !== false ? 'success' : 'default'}>
-                  {cls.allowGameCenter !== false ? '允许访问' : '禁止访问'}
-                </Tag>
-              )
-            },
-            {
-              title: '操作',
-              key: 'action',
-              render: (_, cls) => (
-                <Switch
-                  checked={cls.allowGameCenter !== false}
-                  onChange={async (checked) => {
-                    try {
-                      setUpdatingClassId(cls._id);
-                      await updateClassSettings(cls._id, { allowGameCenter: checked });
-                      message.success(`已${checked ? '开启' : '关闭'} ${cls.grade}年级${cls.name}班 的游戏中心`);
-                      setClasses(prev => prev.map(c => 
-                        c._id === cls._id ? { ...c, allowGameCenter: checked } : c
-                      ));
-                    } catch (err) {
-                      message.error('操作失败');
-                    } finally {
-                      setUpdatingClassId(null);
-                    }
-                  }}
-                  loading={updatingClassId === cls._id || updatingGameCenter}
-                  checkedChildren="开启"
-                  unCheckedChildren="关闭"
-                />
-              )
-            }
-          ]}
-        />
-      </Modal>
 
       {/* 添加/编辑商品对话框 */}
       <Modal

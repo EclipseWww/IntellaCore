@@ -24,6 +24,8 @@ exports.getAllItems = async (req, res) => {
         if (classInfo && classInfo.teacher) {
           allowGameCenter = classInfo.allowGameCenter !== false;
           query.createdBy = classInfo.teacher;
+          // 班级关闭了游戏中心：游戏商品对学生不可见
+          if (!allowGameCenter) query.type = { $ne: 'game' };
           logger.info('学生查看商品，过滤班级老师', {
             studentId: req.user._id,
             classId: student.classId,
@@ -54,9 +56,7 @@ exports.getAllItems = async (req, res) => {
       .sort({ pointCost: 1 });
 
     // 检查是否有游戏类型的商品
-    let hasGameItems = items.some(item => item.type === 'game');
-
-    if (!allowGameCenter) hasGameItems = false;
+    const hasGameItems = allowGameCenter && items.some(item => item.type === 'game');
 
     res.status(200).json({
       success: true,
@@ -87,6 +87,16 @@ exports.getItemById = async (req, res) => {
         success: false,
         message: '商品不存在'
       });
+    }
+
+    // 学生只能查看本班老师发布的商品；班级关闭游戏中心时看不到游戏商品
+    if (req.user.role === 'student') {
+      const student = await User.findById(req.user._id).select('classId');
+      const classInfo = student?.classId && await Class.findById(student.classId).select('teacher allowGameCenter');
+      if (!classInfo?.teacher || String(classInfo.teacher) !== String(item.createdBy) ||
+          (item.type === 'game' && classInfo.allowGameCenter === false)) {
+        return res.status(404).json({ success: false, message: '商品不存在' });
+      }
     }
 
     res.status(200).json({
