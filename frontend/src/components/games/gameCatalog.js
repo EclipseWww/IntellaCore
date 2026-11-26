@@ -65,7 +65,7 @@ export const LOCAL_GAMES = [
   {
     _id: 'minesweeper',
     itemName: '扫雷',
-    description: '经典逻辑游戏，根据数字推断雷的位置并标记，避开所有地雷',
+    description: '经典逻辑游戏，根据数字推断雷的位置并标记，避开所有地雷。支持快速翻开（双击数字）与最快纪录',
     image: gameService.coverUrl('minesweeper')
   },
   {

@@ -113,7 +113,8 @@ const GAME_STORAGE = {
   binary: ['binary_best'],
   linkup: ['linkup_best'],
   klotski: ['klotski_best_'],
-  robot: ['robot_']
+  robot: ['robot_'],
+  minesweeper: ['minesweeper_']
 };
 
 const guardScript = (gameId) => `<script>(function(){

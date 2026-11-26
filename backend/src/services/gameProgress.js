@@ -54,6 +54,17 @@ Object.assign(summarizers, {
     try { done = JSON.parse(lsOf(data).robot_done || '[]'); } catch { /* 忽略 */ }
     const cleared = Array.isArray(done) ? new Set(done).size : 0;
     return cleared ? { text: `已完成 ${cleared}/${total} 关`, percent: Math.min(100, Math.round(cleared / total * 100)) } : null;
+  },
+  // 扫雷：minesweeper_best_<难度> 为该难度最快用时（秒）
+  minesweeper(data) {
+    const ls = lsOf(data);
+    const parts = [['easy', '初级'], ['medium', '中级'], ['hard', '高级']]
+      .map(([key, label]) => {
+        const n = num(ls[`minesweeper_best_${key}`]);
+        return n > 0 ? `${label} ${n} 秒` : null;
+      })
+      .filter(Boolean);
+    return parts.length ? { text: `最快 ${parts.join('，')}`, percent: null } : null;
   }
 });
 
