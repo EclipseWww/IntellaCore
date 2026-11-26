@@ -262,6 +262,8 @@ docker compose start
 
 配置使用 restart: always，Docker 引擎运行后会恢复容器，但它不能让尚未启动的 Docker 引擎自行运行。Windows Docker Desktop 的登录启动不等于无人登录时的开机可用；有此需求时应验证目标系统的引擎启动方式，或选择前文 npm 的开机任务方案。Linux 则需配置 Docker 服务开机启动。上线前在维护窗口重启电脑，从学生电脑验证服务恢复。
 
+后端镜像默认使用北京时间（TZ=Asia/Shanghai）：日志时间、按天切分日志、“今天”的统计、导出表格中的时间以及每天凌晨 3 点的自动备份都按北京时间。其他时区的学校可在 Compose 的 backend.environment 中加入 TZ 与 SCHEDULE_TIMEZONE（如 Asia/Urumqi）。
+
 日志会自动清理，无需手动维护：
 
 - 后端日志文件（data/backend/logs 下的 combined-日期.log、error-日期.log）按天生成，单个文件超过 20MB 会另起新文件，保留最近 14 天，更早的自动删除。管理员后台“服务器日志”读取的就是这些文件。排查问题时可在 .env 中设置 LOG_LEVEL=debug 查看更详细的日志，排查完删除该行并重启后端。

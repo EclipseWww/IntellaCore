@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const config = require('./config');
-const dotenv = require('dotenv');
 const User = require('./models/User');
 const { startClassScheduler, initClassEndTimes, startBackupScheduler, initAllSchedulers } = require('./services/scheduler');
 const swaggerUi = require('swagger-ui-express');
@@ -60,10 +59,7 @@ const logger = require('./utils/logger');
 
 const app = express();
 
-// 确保在连接数据库之前加载.env文件
-dotenv.config();
-
-// 检查MONGODB_URI是否加载成功
+// .env 已在 ./config 中加载（不覆盖已有环境变量）
 
 // 打印配置信息（不包含敏感信息）
 logger.info('Configuration loaded:', {
@@ -211,8 +207,7 @@ const startServer = async () => {
       } catch (err) {
         if (retries === 1) throw err;
         retries -= 1;
-        logger.info(`数据库连接失败，剩余重试次数: ${retries}`);
-        logger.info(`错误信息: ${err.message}`);
+        logger.warn(`数据库连接失败，剩余重试次数: ${retries}`, err.message);
         // 等待 5 秒后重试
         await new Promise(resolve => setTimeout(resolve, 5000));
       }

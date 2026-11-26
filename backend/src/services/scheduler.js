@@ -6,6 +6,7 @@ const path = require('path');
 const archiver = require('archiver');
 const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Types;
+const { getTimezone } = require('./scheduleLogic');
 
 // 备份目录
 const BACKUP_DIR = path.join(__dirname, '../../backups');
@@ -77,7 +78,7 @@ function startBackupScheduler() {
     logger.info(`创建备份目录: ${BACKUP_DIR}`);
   }
 
-  // 每天凌晨3点执行自动备份
+  // 每天凌晨3点（学校所在时区，默认北京时间）执行自动备份
   cron.schedule('0 3 * * *', async () => {
     try {
       logger.info('开始执行自动备份任务');
@@ -87,7 +88,7 @@ function startBackupScheduler() {
     } catch (error) {
       logger.error('自动备份任务出错', { error: error.message, stack: error.stack });
     }
-  });
+  }, { timezone: getTimezone() });
 }
 
 // 创建备份文件

@@ -103,7 +103,8 @@ const logController = {
     try {
       const { limit = 100 } = req.query;
       const logDir = path.join(__dirname, '../../logs');
-      const today = new Date().toISOString().split('T')[0];
+      // 与日志文件切分一致，使用本地日期（镜像内为北京时间），而不是 UTC 日期
+      const today = new Date().toLocaleDateString('sv-SE');
       const combinedLogFile = path.join(logDir, `combined-${today}.log`);
       const errorLogFile = path.join(logDir, `error-${today}.log`);
 

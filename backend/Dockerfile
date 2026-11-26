@@ -7,6 +7,10 @@ RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.li
 
 WORKDIR /app
 
+# 容器默认是 UTC。设为北京时间：日志时间、按天切分日志、“今天”的统计范围、导出表格中的时间均按北京时间；
+# 其他时区的学校可在 Compose 的 environment 中覆盖 TZ
+ENV TZ=Asia/Shanghai
+
 
 
 

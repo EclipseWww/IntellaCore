@@ -877,7 +877,7 @@ exports.exportSubmissions = async (req, res) => {
     });
 
     // 设置响应头
-    const fileName = `${quiz.title}-测验记录-${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `${quiz.title}-测验记录-${new Date().toLocaleDateString('sv-SE')}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
 

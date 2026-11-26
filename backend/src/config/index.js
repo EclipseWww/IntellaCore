@@ -33,7 +33,10 @@ try {
       }
     });
   } else {
-    logger.info('No .env file found, using environment variables');
+    // Docker 部署时镜像里不含 .env（避免密钥进入镜像），配置由 Docker Compose 读取宿主机的 .env 后以环境变量传入
+    logger.info(isDocker
+      ? '使用 Docker Compose 传入的环境变量（来自宿主机项目目录下的 .env）'
+      : '未找到 backend/.env，使用系统环境变量');
   }
 } catch (error) {
   logger.info('Error loading .env file, using environment variables:', error.message);
