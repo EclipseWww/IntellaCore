@@ -742,7 +742,6 @@ exports.forceLogoutAllStudents = async (req, res) => {
 
 // 下载学生导入模板
 exports.downloadStudentTemplate = async (req, res) => {
-  logger.info('下载模板请求到达:', req.originalUrl); // 调试信息
   try {
     const templatePath = path.join(__dirname, '../templates/student_template.xlsx');
     res.download(templatePath, '学生导入模板.xlsx', (err) => {

@@ -45,13 +45,14 @@ async function verify(token) {
 }
 
 module.exports = async (req, res, next) => {
-  // 令牌来自 Authorization 头，或网址参数 ?token=（视频、文件下载、SSE 等无法设置请求头的场景）
+  // 令牌来自 Authorization 头，或网址参数 ?token=（视频、文件下载、SSE 等无法设置请求头的场景）；
+  // 因此日志只记 req.path，不记带参数的完整网址
   const header = req.header('Authorization');
   const token = header ? header.replace('Bearer ', '') : req.query.token;
 
   if (!token) {
     // 未携带令牌（如未登录时的请求）非常常见，仅在 LOG_LEVEL=debug 时记录
-    logger.debug('请求未携带令牌', { path: req.originalUrl });
+    logger.debug('请求未携带令牌', { path: req.path });
     return reject(req, res, isSSERequest(req) ? '认证失败，请重新登录' : '请先登录');
   }
 
@@ -60,7 +61,7 @@ module.exports = async (req, res, next) => {
     decoded = await verify(token);
   } catch (error) {
     // 令牌过期、在其他设备登录等属于正常情况：只记一行原因，不输出堆栈
-    logger.warn('令牌校验未通过', { reason: error.message, path: req.originalUrl });
+    logger.warn('令牌校验未通过', { reason: error.message, path: req.path });
     return reject(req, res, 'Token已过期或无效，请重新登录');
   }
 

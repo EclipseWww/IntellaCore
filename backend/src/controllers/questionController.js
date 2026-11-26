@@ -11,6 +11,7 @@ const fsMkdir = promisify(fs.mkdir);
 
 // 版本控制服务
 const questionVersionService = require('../services/questionVersionService');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 // 媒体文件根目录
 const MEDIA_ROOT = path.join(__dirname, '../../uploads/public/media');
@@ -104,15 +105,15 @@ const updateMediaUrlsInMarkdown = (text, type, draftId, questionId) => {
   // 图片和视频的URL模式
   const urlPatterns = [
     // Markdown图片: ![alt](url)
-    new RegExp(`!\\[([^\\]]*)\\]\\(([^)]*question-bank/${type}/${draftId}[^)]*)\\)`, 'g'),
+    new RegExp(`!\\[([^\\]]*)\\]\\(([^)]*question-bank/${escapeRegex(type)}/${escapeRegex(draftId)}[^)]*)\\)`, 'g'),
     // Markdown链接: [text](url)
-    new RegExp(`\\[([^\\]]*)\\]\\(([^)]*question-bank/${type}/${draftId}[^)]*)\\)`, 'g'),
+    new RegExp(`\\[([^\\]]*)\\]\\(([^)]*question-bank/${escapeRegex(type)}/${escapeRegex(draftId)}[^)]*)\\)`, 'g'),
     // HTML图片: <img src="url">
-    new RegExp(`<img[^>]*src=["']([^"']*question-bank/${type}/${draftId}[^"']*)["'][^>]*>`, 'g'),
+    new RegExp(`<img[^>]*src=["']([^"']*question-bank/${escapeRegex(type)}/${escapeRegex(draftId)}[^"']*)["'][^>]*>`, 'g'),
     // HTML视频: <video src="url">
-    new RegExp(`<video[^>]*src=["']([^"']*question-bank/${type}/${draftId}[^"']*)["'][^>]*>`, 'g'),
+    new RegExp(`<video[^>]*src=["']([^"']*question-bank/${escapeRegex(type)}/${escapeRegex(draftId)}[^"']*)["'][^>]*>`, 'g'),
     // 直接URL引用
-    new RegExp(`([\s"':=])(/[^"'<>\\s]*question-bank/${type}/${draftId}[^"'<>\\s]*)`, 'g')
+    new RegExp(`([\s"':=])(/[^"'<>\\s]*question-bank/${escapeRegex(type)}/${escapeRegex(draftId)}[^"'<>\\s]*)`, 'g')
   ];
 
   let updatedText = text;

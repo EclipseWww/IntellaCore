@@ -67,6 +67,13 @@ if (missingEnvVars.length > 0) {
   throw new Error(`Missing required environment variables: [ ${missingEnvVars.join(', ')} ]`);
 }
 
+// JWT_SECRET 用于签发登录令牌：若仍是示例值或过短，别人可能猜出并伪造令牌。只提醒，不阻止启动
+const PLACEHOLDER_SECRETS = ['replace-with-random-secret', 'replace-with-your-own-random-secret', 'your-secret-key', 'secret', 'changeme'];
+if (PLACEHOLDER_SECRETS.includes(process.env.JWT_SECRET) || process.env.JWT_SECRET.length < 32) {
+  logger.warn('JWT_SECRET 过于简单（示例值或少于 32 个字符），请在 .env 中改为随机长字符串，例如运行 '
+    + 'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" 生成；修改后所有人需重新登录一次');
+}
+
 // 如果没有 MongoDB URI，使用默认值
 if (!mongoUri) {
   mongoUri = isDocker 

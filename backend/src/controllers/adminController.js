@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Class = require('../models/Class');
 const Course = require('../models/Course');
 const logger = require('../utils/logger');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const adminController = {
   // 获取系统概览统计
@@ -64,8 +65,8 @@ const adminController = {
       }
       if (search) {
         query.$or = [
-          { username: { $regex: search, $options: 'i' } },
-          { name: { $regex: search, $options: 'i' } }
+          { username: { $regex: escapeRegex(search), $options: 'i' } },
+          { name: { $regex: escapeRegex(search), $options: 'i' } }
         ];
       }
 

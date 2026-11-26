@@ -13,3 +13,18 @@ test('query strings with Mongo operators are rejected, normal ones pass', async 
       assert.equal((await fetch(base + q)).status, 200, q);
   } finally { server.close(); }
 });
+
+test('JSON 请求体中的 Mongo 操作符被拒绝，正常数据与游戏存档不受影响', async () => {
+  const app = express(); app.use(express.json()); app.use(reject);
+  app.all('*', (req, res) => res.json({ ok: true }));
+  const server = app.listen(0); const base = `http://127.0.0.1:${server.address().port}`;
+  const send = (path, body) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  try {
+    for (const body of [{ studentId: { $ne: null }, username: 'a' }, { filters: { status: { $ne: 'x' } } }, { $where: '1' }, { list: [{ $gt: 1 }] }])
+      assert.equal((await send('/api/login-requests/request', body)).status, 400, JSON.stringify(body));
+    for (const body of [{ username: 'stu1', note: '$100 元' }, { price: '$5' }, { a: { b: { c: { $deep: 1 } } } },
+      { spreadsheetData: [{ name: 'Sheet1', celldata: [{ r: 0, c: 0, v: { v: '=SUM($A$1:$A$3)' } }] }] }])
+      assert.equal((await send('/api/x', body)).status, 200, JSON.stringify(body));
+    assert.equal((await fetch(base + '/api/games/play/_save', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { $engineKey: 1 } }) })).status, 200);
+  } finally { server.close(); }
+});

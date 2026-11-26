@@ -9,6 +9,8 @@ WORKDIR /app
 
 # 使用 package.json 和 package-lock.json 来利用 Docker 缓存
 COPY package*.json ./
+# 内置的离线依赖包（如 SheetJS），安装依赖时需要
+COPY vendor ./vendor
 
 # 安装依赖
 RUN --mount=type=cache,id=ai-chat-edu-frontend-npm,target=/root/.npm,sharing=locked \

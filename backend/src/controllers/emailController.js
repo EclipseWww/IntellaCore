@@ -8,6 +8,7 @@ const EmailTemplate = require('../models/EmailTemplate');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 // 邮件系统开关设置键
 const EMAIL_SYSTEM_KEY = 'emailSystemEnabled';
@@ -481,11 +482,11 @@ exports.searchEmails = async (req, res) => {
 
         const { q, page = 1, limit = 20 } = req.query;
 
-        if (!q || q.trim().length < 1) {
+        if (!q || String(q).trim().length < 1) {
             return res.json({ emails: [], total: 0 });
         }
 
-        const searchRegex = new RegExp(q.trim(), 'i');
+        const searchRegex = new RegExp(escapeRegex(String(q).trim()), 'i');
 
         const query = {
             ownerEmail: account.emailAddress,
@@ -682,8 +683,8 @@ exports.searchAccounts = async (req, res) => {
 
         let query = {
             $or: [
-                { emailAddress: { $regex: q, $options: 'i' } },
-                { emailUsername: { $regex: q, $options: 'i' } }
+                { emailAddress: { $regex: escapeRegex(q), $options: 'i' } },
+                { emailUsername: { $regex: escapeRegex(q), $options: 'i' } }
             ]
         };
 
@@ -702,8 +703,8 @@ exports.searchAccounts = async (req, res) => {
             const classmateAccounts = await EmailAccount.find({
                 userId: { $in: classmateUserIds },
                 $or: [
-                    { emailAddress: { $regex: q, $options: 'i' } },
-                    { emailUsername: { $regex: q, $options: 'i' } }
+                    { emailAddress: { $regex: escapeRegex(q), $options: 'i' } },
+                    { emailUsername: { $regex: escapeRegex(q), $options: 'i' } }
                 ]
             }).limit(10).select('emailAddress emailUsername userId');
 
@@ -724,7 +725,7 @@ exports.searchAccounts = async (req, res) => {
             const otherAccounts = await EmailAccount.find({
                 emailAddress: {
                     $nin: excludeIds,
-                    $regex: q,
+                    $regex: escapeRegex(q),
                     $options: 'i'
                 }
             }).limit(10 - classmates.length).select('emailAddress emailUsername userId');

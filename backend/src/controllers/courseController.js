@@ -7,6 +7,7 @@ const Lesson = require('../models/Lesson');
 const Progress = require('../models/Progress');
 const Achievement = require('../models/Achievement');
 const logger = require('../utils/logger');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 // 获取所有课程
 exports.getAllCourses = async (req, res) => {
@@ -18,8 +19,8 @@ exports.getAllCourses = async (req, res) => {
     if (tags) query.tags = { $in: tags.split(',') };
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { title: { $regex: escapeRegex(search), $options: 'i' } },
+        { description: { $regex: escapeRegex(search), $options: 'i' } }
       ];
     }
 

@@ -3,6 +3,7 @@ const Question = require('../models/Question');
 const QuizSubmission = require('../models/QuizSubmission');
 const QuizAnalytics = require('../models/QuizAnalytics');
 const logger = require('../utils/logger');
+const { escapeRegex } = require('../utils/escapeRegex');
 const { getSelectedOptionIds } = require('../utils/choiceAnswer');
 
 /**
@@ -239,8 +240,8 @@ exports.getAllQuestionsAnalytics = async (req, res) => {
     
     if (search) {
       matchQuery.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { content: { $regex: search, $options: 'i' } }
+        { title: { $regex: escapeRegex(search), $options: 'i' } },
+        { content: { $regex: escapeRegex(search), $options: 'i' } }
       ];
     }
     
