@@ -44,10 +44,14 @@ const renderArg = (arg) => {
 };
 
 // 创建格式化器
-const format = winston.format.combine(
-  winston.format.errors({ stack: true }),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.printf((info) => {
+// 级别名先转大写再上色：若对已上色的文本整体转大写，颜色代码结尾的 m 会变成 M，
+// 终端会把 ESC[32M 当作“删除 32 行”，导致 docker logs 中时间、级别被吞掉
+const upperLevel = winston.format((info) => {
+  info.level = String(info.level).toUpperCase();
+  return info;
+});
+
+const line = winston.format.printf((info) => {
     const { timestamp, level, message, stack, ...meta } = info;
     const args = info[SPLAT];
     let rest;
@@ -64,9 +68,14 @@ const format = winston.format.combine(
       rest = Object.keys(meta).length ? renderArg(meta) : '';
       if (stack) rest = rest ? `${rest} ${stack}` : stack; // logger.error(err) 直接传错误对象时
     }
-    return `${timestamp} [${level.toUpperCase()}]: ${text}${rest ? ` ${rest}` : ''}`;
-  })
-);
+    return `${timestamp} [${level}]: ${text}${rest ? ` ${rest}` : ''}`;
+});
+
+const baseFormats = [winston.format.errors({ stack: true }), winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), upperLevel()];
+// 日志文件：不带颜色
+const format = winston.format.combine(...baseFormats, line);
+// 控制台（docker logs）：带颜色
+const consoleFormat = winston.format.combine(...baseFormats, winston.format.colorize(), line);
 
 // 创建日志文件路径
 const logDir = path.join(__dirname, '../../logs');
@@ -95,10 +104,7 @@ const logger = winston.createLogger({
     }),
     // 控制台输出
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        format
-      ),
+      format: consoleFormat,
     }),
   ],
 });
