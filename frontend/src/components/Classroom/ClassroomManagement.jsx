@@ -6,6 +6,7 @@ import SeatingChart from './SeatingChart';
 import SubmissionStatusDrawer from './SubmissionStatusDrawer';
 import { RocketOutlined, DesktopOutlined, EyeOutlined, EyeInvisibleOutlined, UserSwitchOutlined, SwapOutlined, LaptopOutlined } from '@ant-design/icons';
 import { typingAPI, quizAPI, spreadsheetActivityAPI, fillBlankAPI, pythonAPI, flowchartAPI } from '../../services/api';
+import { formatClassName } from '../../utils/className';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -88,7 +89,7 @@ const ClassroomManagement = () => {
       sessionStorage.setItem(seenKey, key);
       if (firstTime && String(selectedClassRef.current) !== String(cur.classId)) {
         handleClassChangeRef.current && handleClassChangeRef.current(String(cur.classId));
-        message.info(`已切换到正在上课的班级：${cur.class.grade}级${cur.class.name}班（${cur.periodName}）`);
+        message.info(`已切换到正在上课的班级：${formatClassName(cur.class)}（${cur.periodName}）`);
       } else if (String(selectedClassRef.current) === String(cur.classId)) {
         fetchClassSettingsRef.current && fetchClassSettingsRef.current();
       }
@@ -210,9 +211,10 @@ const ClassroomManagement = () => {
             const response = submissionActivitiesResponses[index];
 
             if (response && response.length > 0) {
-              // 过滤当前班级的提交
+              // 过滤当前班级的提交（社团/选修的学生来自各行政班，按本班名单判断）
+              const rosterIds = new Set(students.map(s => s._id));
               const classSubmissions = response.filter(submission =>
-                submission.student && submission.student.classId === selectedClass
+                submission.student && (submission.student.classId === selectedClass || rosterIds.has(submission.student._id))
               );
 
               // 为每个提交添加活动信息
@@ -711,12 +713,13 @@ const ClassroomManagement = () => {
     const fetchClasses = async () => {
       try {
         const response = await classAPI.getTeacherClasses();
-        // 将班级按年级分组
+        // 将班级按年级分组；社团/选修单独一组（键为 elective）
         const groupedClasses = response.data.reduce((acc, cls) => {
-          if (!acc[cls.grade]) {
-            acc[cls.grade] = [];
+          const key = cls.type === 'elective' ? 'elective' : cls.grade;
+          if (!acc[key]) {
+            acc[key] = [];
           }
-          acc[cls.grade].push(cls);
+          acc[key].push(cls);
           return acc;
         }, {});
         setClasses(groupedClasses);
@@ -1327,24 +1330,27 @@ const ClassroomManagement = () => {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Text strong style={{ marginRight: '8px', whiteSpace: 'nowrap' }}>班级：</Text>
           <Select
-            style={{ width: 140 }}
+            style={{ width: 160 }}
             value={selectedClass}
             onChange={handleClassChange}
             placeholder="请选择班级"
             size="middle"
+            popupMatchSelectWidth={false}
           >
             {Object.entries(classes)
-              .sort(([gradeA], [gradeB]) => Number(gradeB) - Number(gradeA))
+              // 行政班按年级从新到旧，社团/选修排在最后
+              .sort(([gradeA], [gradeB]) => (gradeA === 'elective') - (gradeB === 'elective') || Number(gradeB) - Number(gradeA))
               .map(([grade, gradeClasses]) => (
-              <Select.OptGroup key={grade} label={`${grade}级`}>
+              <Select.OptGroup key={grade} label={grade === 'elective' ? '社团 / 选修' : `${grade}级`}>
                 {[...gradeClasses].sort((a, b) => {
+                  if (grade === 'elective') return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN');
                   const numA = Number(a.name);
                   const numB = Number(b.name);
                   if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
                   return String(a.name).localeCompare(String(b.name));
                 }).map(cls => (
                   <Option key={cls._id} value={cls._id}>
-                    {cls.grade}级{cls.name}班
+                    {formatClassName(cls)}
                   </Option>
                 ))}
               </Select.OptGroup>

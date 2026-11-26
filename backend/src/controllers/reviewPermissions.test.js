@@ -9,6 +9,7 @@ test('login approvals reject students and other teachers before mutating session
     '../models/LoginRequest': { findById: async () => request, getPendingByClass: async () => [request], updateMany: async () => { writes++; return { modifiedCount: 1 }; } },
     '../models/User': { findByIdAndUpdate: async () => writes++ },
     '../models/Class': { exists: async query => query.teacher === 'owner' },
+    '../models/ClassMembership': {}, '../services/classRoster': { setBoundIp: async () => writes++ },
     '../utils/getClientIp': { getClientIp: () => '127.0.0.1' }, '../utils/logger': logger
   });
   for (const user of [{ role: 'student', id: 'student' }, { role: 'teacher', id: 'other' }]) {

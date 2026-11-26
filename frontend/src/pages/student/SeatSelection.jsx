@@ -116,7 +116,8 @@ const SeatSelection = () => {
         setLayoutList(layouts || []);
 
         // 解析班级ID
-        let classId = user?.classId;
+        // 本次登录所在的班级（社团/选修的座位与行政班分开）
+        let classId = user?.currentClass?._id || user?.classId;
         if (!classId && user?.id) {
           try {
             const classSettings = await classAPI.getUserClassSettings(user.id);

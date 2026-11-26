@@ -6,6 +6,7 @@ const Course = require('../models/Course');
 const QuizSubmission = require('../models/QuizSubmission');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 
 // 创建测验
 exports.createQuiz = async (req, res) => {
@@ -463,7 +464,7 @@ exports.getPendingQuizzes = async (req, res) => {
     }
 
     // 1. 查找班级可访问的所有课程
-    const courses = await Course.find({ accessibleClasses: student.classId }).select('_id title');
+    const courses = await Course.find({ accessibleClasses: { $in: await roster.classIdsOfStudent(student) } }).select('_id title');
     const courseIds = courses.map(c => c._id);
 
     if (courseIds.length === 0) {

@@ -7,6 +7,7 @@ import ScheduleSettings from '../../components/Schedule/ScheduleSettings';
 import ScriptsTab from './components/ScriptsTab';
 import ArchiveTab from './components/ArchiveTab';
 import FileCleanupModal from './components/FileCleanupModal';
+import { formatClassName, classGroupKey, classGroupLabel, compareClassGroupKeys } from '../../utils/className';
 
 const { Header, Content } = Layout;
 const { Option } = Select;
@@ -999,7 +1000,7 @@ const AdminDashboard = () => {
                     key: 'class',
                     width: 100,
                     render: (_, record) => record.classId ?
-                      `${record.classId.grade}级${record.classId.name}班` : '-'
+                      formatClassName(record.classId) : '-'
                   },
                   {
                     title: '座位号',
@@ -1121,7 +1122,7 @@ const AdminDashboard = () => {
                     render: (_, record) => {
                       const teacherClasses = classes.filter(cls => cls.teacher?._id === record._id);
                       return teacherClasses.length > 0 ?
-                        teacherClasses.map(cls => `${cls.grade}级${cls.name}班`).join(', ') :
+                        teacherClasses.map(cls => formatClassName(cls)).join(', ') :
                         <Text type="secondary">未分配班级</Text>;
                     }
                   },
@@ -1217,7 +1218,7 @@ const AdminDashboard = () => {
                     title: '班级名称',
                     dataIndex: 'name',
                     key: 'name',
-                    render: (name, record) => `${record.grade}级${name}班`
+                    render: (name, record) => formatClassName(record)
                   },
                   {
                     title: '任课教师',
@@ -1828,7 +1829,7 @@ const AdminDashboard = () => {
                     {(() => {
                       // 按年级分组
                       const groupedClasses = availableClasses.reduce((groups, classItem) => {
-                        const grade = classItem.grade;
+                        const grade = classGroupKey(classItem); // 社团/选修单独一组
                         if (!groups[grade]) {
                           groups[grade] = [];
                         }
@@ -1837,7 +1838,7 @@ const AdminDashboard = () => {
                       }, {});
 
                       // 按年级排序（降序）
-                      const sortedGrades = Object.keys(groupedClasses).sort((a, b) => b - a);
+                      const sortedGrades = Object.keys(groupedClasses).sort(compareClassGroupKeys);
 
                       return sortedGrades.map(grade => (
                         <div key={grade} style={{ marginBottom: 24 }}>
@@ -1849,7 +1850,7 @@ const AdminDashboard = () => {
                             borderBottom: '1px solid #f0f0f0',
                             paddingBottom: 8
                           }}>
-                            {grade} 级
+                            {classGroupLabel(grade)}
                           </div>
                           <Row gutter={[16, 12]}>
                             {groupedClasses[grade].map(classItem => {
@@ -1876,7 +1877,7 @@ const AdminDashboard = () => {
                                           fontWeight: '500',
                                           color: isAssignedToOther ? '#999' : '#333'
                                         }}>
-                                          {classItem.name}班
+                                          {classItem.type === 'elective' ? formatClassName(classItem) : `${classItem.name}班`}
                                         </div>
                                         <div style={{
                                           fontSize: '12px',
@@ -2073,8 +2074,9 @@ const AdminDashboard = () => {
             label="班级"
           >
             <Select placeholder="请选择班级" allowClear>
-              {classes.map(cls => (
-                <Option key={cls._id} value={cls._id}>{cls.name}</Option>
+              {/* 学生账号只能归属行政班；社团/选修在教学班中添加成员 */}
+              {classes.filter(cls => cls.type !== 'elective').map(cls => (
+                <Option key={cls._id} value={cls._id}>{formatClassName(cls)}</Option>
               ))}
             </Select>
           </Form.Item>

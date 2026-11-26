@@ -9,7 +9,7 @@ const isSSERequest = (req) => req.headers.accept === 'text/event-stream';
 
 // 鉴权失败的响应：不向浏览器返回内部原因（原因只写入服务器日志）。
 // SSE 的 error 固定为 'auth_failed'，前端据此（含 'auth'）清除登录状态并回到登录页。
-function reject(req, res, message) {
+function reject(req, res, message, extra = {}) {
   if (isSSERequest(req)) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -19,7 +19,7 @@ function reject(req, res, message) {
     res.write(`data: ${JSON.stringify({ type: 'error', content: { message, error: 'auth_failed' } })}\n\n`);
     res.end();
   } else {
-    res.status(401).json({ message });
+    res.status(401).json({ message, ...extra });
   }
 }
 
@@ -36,9 +36,15 @@ async function verify(token) {
 
   // 学生单点登录校验：令牌中的 sessionId 需与数据库一致且未过期
   if (decoded.role === 'student') {
-    const user = await User.findById(userId).select('sessionId sessionExpiresAt');
+    const user = await User.findById(userId).select('sessionId sessionExpiresAt loginHandoff');
     if (!decoded.sessionId || !user || !user.sessionId || user.sessionId !== decoded.sessionId || !user.sessionExpiresAt || user.sessionExpiresAt <= new Date()) {
-      throw new Error('会话已失效或在其他设备登录');
+      const error = new Error('会话已失效或在其他设备登录');
+      // 另一个班级（如社团课）开始上课，学生被要求重新登录到那个班：告诉前端去登录页并选好该班
+      const handoff = user && !user.sessionId && user.loginHandoff;
+      if (handoff && handoff.classId && handoff.expiresAt && new Date(handoff.expiresAt) > new Date()) {
+        error.switchClassId = String(handoff.classId);
+      }
+      throw error;
     }
   }
   return decoded;
@@ -62,6 +68,9 @@ module.exports = async (req, res, next) => {
   } catch (error) {
     // 令牌过期、在其他设备登录等属于正常情况：只记一行原因，不输出堆栈
     logger.warn('令牌校验未通过', { reason: error.message, path: req.path });
+    if (error.switchClassId) {
+      return reject(req, res, '新的一节课已开始，请重新登录', { code: 'CLASS_SWITCH', classId: error.switchClassId });
+    }
     return reject(req, res, 'Token已过期或无效，请重新登录');
   }
 

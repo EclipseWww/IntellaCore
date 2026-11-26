@@ -11,6 +11,26 @@ const fsPromises = require('fs').promises;
 const logger = require('../utils/logger');
 const semesterUtils = require('../utils/semesterUtils');
 const authController = require('./authController');
+const ClassMembership = require('../models/ClassMembership');
+const roster = require('../services/classRoster');
+const { formatClassName } = require('../utils/className');
+const { escapeRegex } = require('../utils/escapeRegex');
+
+// 教学班（社团、选修）的名称、学期、年级、人数上限
+function electiveFields(body) {
+  const title = typeof body.title === 'string' ? body.title.trim() : '';
+  if (!title) return { error: '请填写教学班名称' };
+  if (title.length > 40) return { error: '教学班名称不能超过 40 个字' };
+  const term = typeof body.term === 'string' ? body.term.trim().slice(0, 40) : '';
+  const grades = Array.isArray(body.grades)
+    ? [...new Set(body.grades.map(Number).filter(g => /^20\d{2}$/.test(String(g))))].sort()
+    : [];
+  const capacity = body.capacity == null || body.capacity === '' ? 0 : Number(body.capacity);
+  if (!Number.isInteger(capacity) || capacity < 0 || capacity > 500) return { error: '人数上限必须是 0 到 500 之间的整数（0 表示不限）' };
+  return { value: { title, term, grades, capacity } };
+}
+
+const ELECTIVE_ACCOUNT_OP = '教学班只管理成员，不能在这里新建、修改或删除学生账号；请到学生所在的行政班操作';
 
 // 在文件顶部添加计时器映射
 const classTimers = new Map();
@@ -26,6 +46,19 @@ exports.updateClassInfo = async (req, res) => {
       return res.status(403).json({ success: false, message: '只有教师或管理员可以修改班级' });
     }
 
+    const owned = await Class.findOne(req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user._id });
+    if (!owned) {
+      return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
+    }
+    if (roster.isElective(owned)) {
+      const { value, error } = electiveFields(req.body);
+      if (error) return res.status(400).json({ success: false, message: error });
+      Object.assign(owned, value, { updatedAt: new Date() });
+      await owned.save();
+      logger.info('教学班信息已修改', { classId, title: value.title, operator: req.user._id });
+      return res.json({ success: true, message: '教学班更新成功', data: owned });
+    }
+
     const grade = Number(req.body.grade);
     const name = Number(req.body.name);
     if (!/^20\d{2}$/.test(String(req.body.grade))) {
@@ -35,13 +68,9 @@ exports.updateClassInfo = async (req, res) => {
       return res.status(400).json({ success: false, message: '班级号必须是 1 到 99 之间的整数' });
     }
 
-    const query = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user._id };
-    const classObj = await Class.findOne(query);
-    if (!classObj) {
-      return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
-    }
+    const classObj = owned;
 
-    const duplicate = await Class.findOne({ grade, name, _id: { $ne: classObj._id } }).select('_id');
+    const duplicate = await Class.findOne({ grade, name, type: { $ne: 'elective' }, _id: { $ne: classObj._id } }).select('_id');
     if (duplicate) {
       return res.status(400).json({ success: false, message: '该年级已存在相同班号的班级' });
     }
@@ -78,6 +107,17 @@ exports.createClass = async (req, res) => {
       });
     }
 
+    // 教学班（社团课、选修课）：没有年级和班号，学生从各行政班加入
+    if (req.body.type === 'elective') {
+      const { value, error } = electiveFields(req.body);
+      if (error) return res.status(400).json({ success: false, message: error });
+      const duplicate = await Class.exists({ type: 'elective', teacher: req.user._id, title: value.title, status: { $ne: 'archived' } });
+      if (duplicate) return res.status(400).json({ success: false, message: '你已经有同名的教学班' });
+      const elective = await Class.create({ ...value, type: 'elective', teacher: req.user._id });
+      logger.info('教学班创建成功', { classId: elective._id, title: value.title });
+      return res.status(201).json({ success: true, data: elective });
+    }
+
     // 验证年级格式（确保是四位数年份）
     if (!grade || !/^20\d{2}$/.test(String(grade))) {
       logger.warn('年级格式无效', { grade });
@@ -89,6 +129,7 @@ exports.createClass = async (req, res) => {
 
     // 创建新班级
     const newClass = await Class.create({
+      type: 'admin',
       name,
       grade,
       teacher: req.user._id
@@ -133,18 +174,21 @@ exports.getTeacherClasses = async (req, res) => {
     if (req.query.includeArchived !== 'true') {
       query.status = { $ne: 'archived' }; // 排除已归档班级
     }
-    // 按年级（新到旧）、班号（小到大）排序
-    const classes = (await Class.find(query)).sort((a, b) => (b.grade - a.grade) || (Number(a.name) - Number(b.name)));
+    // 行政班在前，按年级（新到旧）、班号（小到大）排序；教学班在后，按名称排序
+    const classes = (await Class.find(query)).sort((a, b) => {
+      const ea = roster.isElective(a), eb = roster.isElective(b);
+      if (ea !== eb) return ea ? 1 : -1;
+      if (ea) return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN');
+      return (b.grade - a.grade) || (Number(a.name) - Number(b.name));
+    });
 
     // 获取每个班级的学生
     const classesWithStudents = await Promise.all(classes.map(async (classObj) => {
-      const students = await User.find({
-        classId: classObj._id,
-        role: 'student'
-      }).select('name username');
-
+      const students = await roster.findRoster(classObj, { select: 'name username' });
       return {
         ...classObj.toObject(),
+        type: classObj.type || 'admin',
+        displayName: formatClassName(classObj),
         students
       };
     }));
@@ -195,6 +239,9 @@ exports.addStudentToClass = async (req, res) => {
         success: false,
         message: '未找到该班级或无权操作'
       });
+    }
+    if (roster.isElective(classObj)) {
+      return res.status(400).json({ success: false, message: ELECTIVE_ACCOUNT_OP });
     }
 
     // 创建新学生用户，并设置班级ID
@@ -250,6 +297,9 @@ exports.removeStudentFromClass = async (req, res) => {
         success: false,
         message: '未找到该班级或无权操作'
       });
+    }
+    if (roster.isElective(classObj)) {
+      return res.status(400).json({ success: false, message: ELECTIVE_ACCOUNT_OP });
     }
 
     // 检查学生是否存在且属于该班级
@@ -330,8 +380,9 @@ exports.removeStudentFromClass = async (req, res) => {
       deletedCount: typingDeleteResult.deletedCount
     });
 
-    // 删除用户记录
+    // 删除用户记录及其教学班成员记录
     await User.findByIdAndDelete(studentId);
+    await roster.removeStudentsEverywhere([studentId]);
     logger.info('学生删除成功', {
       studentId,
       classId
@@ -379,10 +430,7 @@ exports.getClassDetails = async (req, res) => {
     }
 
     // 获取班级的学生
-    const students = await User.find({
-      classId: classObj._id,
-      role: 'student'
-    }).select('name username');
+    const students = await roster.findRoster(classObj, { select: 'name username' });
 
     // 检查权限（只有班级的教师和班级的学生可以查看）
     if (
@@ -398,6 +446,8 @@ exports.getClassDetails = async (req, res) => {
 
     const classData = {
       ...classObj.toObject(),
+      type: classObj.type || 'admin',
+      displayName: formatClassName(classObj),
       students
     };
 
@@ -463,11 +513,12 @@ exports.updateStudent = async (req, res) => {
       });
     }
 
-    // 如果要更新班级，检查新班级是否存在且属于当前教师
-    if (classId && classId !== student.classId.toString()) {
+    // 如果要更新班级，检查新班级是否存在且属于当前教师（只能转入行政班）
+    if (classId && classId !== String(student.classId)) {
       const newClass = await Class.findOne({
         _id: classId,
-        teacher: req.user._id
+        teacher: req.user._id,
+        type: { $ne: 'elective' }
       });
 
       if (!newClass) {
@@ -544,11 +595,16 @@ exports.getAvailableClasses = async (req, res) => {
 
     logger.info('当前有效年级', { validGrades });
 
-    // 只查询有效年级的班级，且排除已归档班级
-    const classes = await Class.find({ grade: { $in: validGrades }, status: { $ne: 'archived' } })
-      .select('name grade teacher')
+    // 只查询有效年级的行政班和未归档的教学班
+    const classes = await Class.find({
+      status: { $ne: 'archived' },
+      $or: [{ type: 'elective' }, { grade: { $in: validGrades } }]
+    })
+      .select('name grade teacher type title isInClass')
       .populate('teacher', 'name')
-      .sort('grade name');
+      .sort('grade name')
+      .lean();
+    for (const c of classes) { c.type = c.type || 'admin'; c.displayName = formatClassName(c); }
 
     logger.info('查询到的班级数量', { count: classes.length });
 
@@ -587,10 +643,10 @@ exports.getStudentLoginHistory = async (req, res) => {
       });
     }
 
-    // 检查该学生是否在教师的任何班级中
+    // 检查该学生是否在教师的任何班级中（含教学班）
     const hasStudent = await Class.exists({
       teacher: req.user._id,
-      _id: student.classId
+      _id: { $in: await roster.classIdsOfStudent(student) }
     });
 
     if (!hasStudent) {
@@ -648,11 +704,10 @@ exports.getClassOnlineStudents = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 获取班级的所有学生（不论是否有登录历史）
-    const allStudents = await User.find({
-      classId: classObj._id,
-      role: 'student'
-    }).select('name username seatNumber loginHistory sessionId sessionExpiresAt');
+    // 获取班级的所有学生（不论是否有登录历史）；教学班的座位号取成员记录
+    const allStudents = await roster.findRoster(classObj, {
+      select: 'name username seatNumber loginHistory sessionId sessionExpiresAt classId sessionClassId'
+    });
 
     // 处理并返回学生信息，包括在线状态、座位状态等
     const now = new Date();
@@ -666,8 +721,9 @@ exports.getClassOnlineStudents = async (req, res) => {
       const hasLoginToday = latestLogin
         ? new Date(latestLogin.timestamp) >= today
         : false;
-      // 根据会话字段判断当前是否在线（会话有效期内）
-      const isOnlineNow = !!student.sessionId && student.sessionExpiresAt && new Date(student.sessionExpiresAt) > now;
+      // 根据会话字段判断当前是否在线（会话有效期内）；从别的班级登录的不算在本班在线
+      const sessionAlive = !!student.sessionId && student.sessionExpiresAt && new Date(student.sessionExpiresAt) > now;
+      const isOnlineNow = !!sessionAlive && roster.sameId(roster.contextClassId(student), classObj._id);
 
       return {
         _id: student._id,
@@ -679,6 +735,7 @@ exports.getClassOnlineStudents = async (req, res) => {
         lastLoginTime: latestLogin ? latestLogin.timestamp : null,
         isOnlineToday: hasLoginToday,   // 今天是否上线
         isOnlineNow,
+        onlineElsewhere: !!sessionAlive && !isOnlineNow,
         status: isOnlineNow ? 'online' : 'absent',
       };
     });
@@ -734,8 +791,8 @@ exports.forceLogoutStudent = async (req, res) => {
     }
 
     // 学生归属校验
-    const student = await User.findOne({ _id: studentId, classId: classId, role: 'student' });
-    if (!student) {
+    const student = await User.findOne({ _id: studentId, role: 'student' });
+    if (!student || !await roster.isStudentInClass(student, classObj)) {
       logger.warn('未找到学生或不属于该班级', { studentId, classId });
       return res.status(404).json({ success: false, message: '未找到该学生或不属于该班级' });
     }
@@ -769,10 +826,10 @@ exports.forceLogoutAllStudents = async (req, res) => {
       return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
     }
 
-    // 批量清理所有在线学生的会话（只清理会话未过期的学生）
+    // 批量清理所有在线学生的会话（只清理会话未过期的学生）；教学班只清理名单内的学生
     const now = new Date();
     const result = await User.updateMany(
-      { classId: classId, role: 'student', sessionId: { $exists: true }, sessionExpiresAt: { $gt: now } },
+      { ...await roster.rosterFilter([classObj._id]), role: 'student', sessionId: { $exists: true }, sessionExpiresAt: { $gt: now } },
       { $unset: { sessionId: 1, sessionExpiresAt: 1 } }
     );
 
@@ -902,12 +959,14 @@ exports.importStudents = async (req, res) => {
       let classObj = await Class.findOne({
         grade: Number(grade),
         name: Number(className),
-        teacher: req.user._id
+        teacher: req.user._id,
+        type: { $ne: 'elective' }
       });
 
       if (!classObj) {
         logger.info('创建新班级', { grade, className, teacherId: req.user._id });
         classObj = await Class.create({
+          type: 'admin',
           grade: Number(grade),
           name: Number(className),
           teacher: req.user._id
@@ -981,11 +1040,8 @@ exports.getClassStudents = async (req, res) => {
       });
     }
 
-    // 获取该班级的所有学生
-    const students = await User.find({
-      classId: classObj._id,
-      role: 'student'
-    }).select('name username seatNumber'); // 添加 seatNumber 字段
+    // 获取该班级的所有学生（教学班为成员名单，座位号为该教学班的座位）
+    const students = await roster.findRoster(classObj, { select: 'name username seatNumber', sort: { username: 1 } });
 
     logger.info('查询到班级学生', { classId, count: students.length });
 
@@ -993,6 +1049,8 @@ exports.getClassStudents = async (req, res) => {
       success: true,
       data: {
         students,
+        type: classObj.type || 'admin',
+        displayName: formatClassName(classObj),
         isInClass: classObj.isInClass, // 返回班级是否正在上课中
         selectedClassroomLayout: classObj.selectedClassroomLayout || null
       }
@@ -1033,11 +1091,13 @@ exports.clearClassSeats = async (req, res) => {
       });
     }
 
-    // 批量清空座位号
-    const result = await User.updateMany(
-      { classId: classObj._id, role: 'student', seatNumber: { $exists: true } },
-      { $unset: { seatNumber: 1 } }
-    );
+    // 批量清空座位号（教学班清空的是成员记录里的座位，不影响行政班座位）
+    const result = roster.isElective(classObj)
+      ? await ClassMembership.updateMany({ class: classObj._id, seatNumber: { $nin: [null, ''] } }, { $set: { seatNumber: null } })
+      : await User.updateMany(
+        { classId: classObj._id, role: 'student', seatNumber: { $exists: true } },
+        { $unset: { seatNumber: 1 } }
+      );
 
     logger.info('清空班级学生座位号成功', { classId, modifiedCount: result.modifiedCount });
     return res.status(200).json({
@@ -1141,6 +1201,12 @@ exports.updateClassSettings = async (req, res) => {
     } catch (e) {
       logger.warn('同步课表课节状态失败', { classId, error: e.message });
     }
+    // 开始上课：名单里正从别的班级登录着的学生需要重新登录到本班
+    if (isInClass === true && !classObj.isInClass) {
+      try { await roster.signOutFromOtherClasses(classId); } catch (e) {
+        logger.warn('上课时让学生重新登录失败', { classId, error: e.message });
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -1181,6 +1247,21 @@ exports.deleteClass = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: '未找到该班级或无权操作'
+      });
+    }
+
+    // 教学班：只删除班级和成员记录，学生账号及其作业、测验等数据都保留在行政班
+    if (roster.isElective(classObj)) {
+      const members = await ClassMembership.deleteMany({ class: classObj._id });
+      await User.updateMany({ sessionClassId: classObj._id }, { $set: { sessionClassId: null } });
+      await require('../models/Course').updateMany({ accessibleClasses: classObj._id }, { $pull: { accessibleClasses: classObj._id } });
+      await require('../models/ScheduleSlot').deleteMany({ class: classObj._id });
+      await Class.findByIdAndDelete(classObj._id);
+      logger.info('教学班删除成功', { classId, removedMembers: members.deletedCount });
+      return res.status(200).json({
+        success: true,
+        message: '教学班已删除，学生账号和学习记录均保留',
+        data: { removedMembers: members.deletedCount }
       });
     }
 
@@ -1242,8 +1323,9 @@ exports.deleteClass = async (req, res) => {
       totalTypingRecordsDeleted += typingDeleteResult.deletedCount;
     }
 
-    // 删除所有学生账号
+    // 删除所有学生账号及其教学班成员记录
     const deleteStudentsResult = await User.deleteMany({ classId, role: 'student' });
+    await roster.removeStudentsEverywhere(studentIds);
 
     // 最后删除班级
     await Class.findByIdAndDelete(classId);
@@ -1315,6 +1397,9 @@ exports.batchDeleteStudents = async (req, res) => {
         success: false,
         message: '未找到该班级或无权操作'
       });
+    }
+    if (roster.isElective(classObj)) {
+      return res.status(400).json({ success: false, message: ELECTIVE_ACCOUNT_OP });
     }
 
     // 验证所有学生是否属于该班级
@@ -1405,8 +1490,9 @@ exports.batchDeleteStudents = async (req, res) => {
       });
     }
 
-    // 批量删除所有用户记录
+    // 批量删除所有用户记录及其教学班成员记录
     await User.deleteMany({ _id: { $in: studentIds } });
+    await roster.removeStudentsEverywhere(studentIds);
 
     logger.info('批量删除学生成功', {
       classId,
@@ -1534,8 +1620,10 @@ exports.getArchivedClasses = async (req, res) => {
 
     // 获取每个归档班级的学生数
     const classesWithCount = await Promise.all(classes.map(async (classObj) => {
-      const studentCount = await User.countDocuments({ classId: classObj._id, role: 'student' });
-      return { ...classObj.toObject(), studentCount };
+      const studentCount = roster.isElective(classObj)
+        ? await ClassMembership.countDocuments({ class: classObj._id })
+        : await User.countDocuments({ classId: classObj._id, role: 'student' });
+      return { ...classObj.toObject(), type: classObj.type || 'admin', displayName: formatClassName(classObj), studentCount };
     }));
 
     res.status(200).json({ success: true, data: classesWithCount });
@@ -1561,6 +1649,9 @@ exports.deleteArchivedClassFiles = async (req, res) => {
     }
     if (classObj.status !== 'archived') {
       return res.status(400).json({ success: false, message: '只能清理已归档班级的文件' });
+    }
+    if (roster.isElective(classObj)) {
+      return res.status(400).json({ success: false, message: '教学班的学生作业属于各自的行政班，请在行政班归档后清理' });
     }
 
     // 获取该班级所有学生
@@ -1609,6 +1700,287 @@ exports.deleteArchivedClassFiles = async (req, res) => {
   } catch (error) {
     logger.error('清理归档文件失败', { error: error.message, stack: error.stack });
     res.status(500).json({ success: false, message: error.message || '文件清理失败' });
+  }
+};
+
+// ============================================================
+// 教学班（社团课、选修课）成员管理
+// ============================================================
+
+async function ownedElective(req, res) {
+  const { classId } = req.params;
+  if (!mongoose.isValidObjectId(classId)) {
+    res.status(400).json({ success: false, message: '班级编号无效' });
+    return null;
+  }
+  if (!['teacher', 'admin'].includes(req.user.role)) {
+    res.status(403).json({ success: false, message: '只有教师或管理员可以管理教学班成员' });
+    return null;
+  }
+  const query = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user._id };
+  const cls = await Class.findOne(query);
+  if (!cls) {
+    res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
+    return null;
+  }
+  if (!roster.isElective(cls)) {
+    res.status(400).json({ success: false, message: '只有教学班（社团、选修）可以管理成员；行政班学生请在学生管理中调整' });
+    return null;
+  }
+  return cls;
+}
+
+const studentLabel = (u, classMap) => ({
+  _id: u._id,
+  name: u.name,
+  username: u.username,
+  gender: u.gender,
+  adminClassId: u.classId || null,
+  adminClassName: u.classId ? formatClassName(classMap.get(String(u.classId))) : '未分配班级'
+});
+
+async function adminClassMap(students) {
+  const ids = [...new Set(students.map(s => s.classId && String(s.classId)).filter(Boolean))];
+  const classes = ids.length ? await Class.find({ _id: { $in: ids } }).select('grade name type title').lean() : [];
+  return new Map(classes.map(c => [String(c._id), c]));
+}
+
+// 教学班成员列表（含行政班、座位号、绑定 IP）
+exports.getElectiveMembers = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    const memberships = await ClassMembership.find({ class: cls._id }).select('student seatNumber boundIp createdAt').lean();
+    const students = await User.find({ _id: { $in: memberships.map(m => m.student) }, role: 'student' })
+      .select('name username gender classId').lean();
+    const classMap = await adminClassMap(students);
+    const byId = new Map(students.map(s => [String(s._id), s]));
+    const data = memberships
+      .filter(m => byId.has(String(m.student)))
+      .map(m => ({
+        ...studentLabel(byId.get(String(m.student)), classMap),
+        seatNumber: m.seatNumber || null,
+        boundIp: m.boundIp || null,
+        joinedAt: m.createdAt
+      }))
+      .sort((a, b) => a.adminClassName.localeCompare(b.adminClassName, 'zh-CN') || String(a.username).localeCompare(String(b.username)));
+    res.json({ success: true, data, capacity: cls.capacity || 0 });
+  } catch (error) {
+    logger.error('获取教学班成员失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '获取教学班成员失败' });
+  }
+};
+
+// 添加成员：按学生 ID（从行政班勾选）或学号（粘贴名单）
+exports.addElectiveMembers = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds.filter(id => mongoose.isValidObjectId(id)).map(String) : [];
+    const usernames = Array.isArray(req.body.usernames)
+      ? [...new Set(req.body.usernames.filter(u => typeof u === 'string').map(u => u.trim()).filter(Boolean))].slice(0, 500)
+      : [];
+    if (!studentIds.length && !usernames.length) {
+      return res.status(400).json({ success: false, message: '请选择要添加的学生' });
+    }
+
+    const or = [];
+    if (studentIds.length) or.push({ _id: { $in: studentIds } });
+    if (usernames.length) or.push({ username: { $in: usernames } });
+    const found = await User.find({ $or: or, role: 'student' }).select('_id username classId').lean();
+    const archivedAdmin = new Set((await Class.find({
+      _id: { $in: [...new Set(found.map(s => s.classId).filter(Boolean).map(String))] },
+      status: 'archived'
+    }).select('_id').lean()).map(c => String(c._id)));
+    // 按教师给出的顺序添加（超过人数上限时，排在前面的优先）
+    const order = new Map([...studentIds.map(String), ...usernames].map((key, i) => [key, i]));
+    const rank = s => Math.min(order.get(String(s._id)) ?? Infinity, order.get(s.username) ?? Infinity);
+    const usable = found
+      .filter(s => !s.classId || !archivedAdmin.has(String(s.classId)))
+      .sort((a, b) => rank(a) - rank(b));
+    const foundNames = new Set(found.map(s => s.username));
+    const notFound = usernames.filter(u => !foundNames.has(u));
+
+    const existing = new Set((await ClassMembership.find({ class: cls._id }).distinct('student')).map(String));
+    let toAdd = usable.filter(s => !existing.has(String(s._id)));
+    let overCapacity = 0;
+    if (cls.capacity > 0) {
+      const room = Math.max(0, cls.capacity - existing.size);
+      overCapacity = Math.max(0, toAdd.length - room);
+      toAdd = toAdd.slice(0, room);
+    }
+    if (toAdd.length) {
+      await ClassMembership.insertMany(
+        toAdd.map(s => ({ class: cls._id, student: s._id, addedBy: req.user._id })),
+        { ordered: false }
+      ).catch(e => { if (e.code !== 11000 && !(e.writeErrors || []).every(w => w.code === 11000)) throw e; });
+    }
+
+    const parts = [`已添加 ${toAdd.length} 名学生`];
+    if (usable.length - toAdd.length - overCapacity > 0) parts.push(`${usable.length - toAdd.length - overCapacity} 名已在本班`);
+    if (overCapacity) parts.push(`${overCapacity} 名因超过人数上限未添加`);
+    if (found.length - usable.length) parts.push(`${found.length - usable.length} 名所在行政班已归档`);
+    if (notFound.length) parts.push(`${notFound.length} 个学号未找到`);
+    logger.info('教学班添加成员', { classId: String(cls._id), added: toAdd.length, operator: req.user._id });
+    res.json({ success: true, message: parts.join('，'), data: { added: toAdd.length, overCapacity, notFound } });
+  } catch (error) {
+    logger.error('添加教学班成员失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '添加教学班成员失败' });
+  }
+};
+
+// 移出成员（只移出教学班，不影响学生账号和学习记录）
+exports.removeElectiveMembers = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds.filter(id => mongoose.isValidObjectId(id)) : [];
+    if (!studentIds.length) return res.status(400).json({ success: false, message: '请选择要移出的学生' });
+    const r = await ClassMembership.deleteMany({ class: cls._id, student: { $in: studentIds } });
+    // 正在以该教学班身份登录的学生立即下线，避免继续看到该班内容
+    await User.updateMany(
+      { _id: { $in: studentIds }, sessionClassId: cls._id },
+      { $unset: { sessionId: 1, sessionExpiresAt: 1 }, $set: { sessionClassId: null } }
+    );
+    logger.info('教学班移出成员', { classId: String(cls._id), removed: r.deletedCount, operator: req.user._id });
+    res.json({ success: true, message: `已移出 ${r.deletedCount} 名学生`, data: { removed: r.deletedCount } });
+  } catch (error) {
+    logger.error('移出教学班成员失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '移出教学班成员失败' });
+  }
+};
+
+// 修改成员在教学班里的座位号或清除绑定 IP
+exports.updateElectiveMember = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    const { studentId } = req.params;
+    if (!mongoose.isValidObjectId(studentId)) return res.status(400).json({ success: false, message: '学生编号无效' });
+    const $set = {};
+    if (req.body.seatNumber !== undefined) {
+      const seat = req.body.seatNumber;
+      if (seat !== null && seat !== '' && !(typeof seat === 'string' && /^[A-Z][0-9]+$/.test(seat))) {
+        return res.status(400).json({ success: false, message: '无效的座位号格式' });
+      }
+      if (seat) {
+        const taken = await ClassMembership.exists({ class: cls._id, seatNumber: seat, student: { $ne: studentId } });
+        if (taken) return res.status(400).json({ success: false, message: '该座位已被本班其他同学占用' });
+      }
+      $set.seatNumber = seat || null;
+    }
+    if (req.body.clearBoundIp === true) $set.boundIp = null;
+    if (!Object.keys($set).length) return res.status(400).json({ success: false, message: '没有要修改的内容' });
+    const m = await ClassMembership.findOneAndUpdate({ class: cls._id, student: studentId }, { $set }, { new: true });
+    if (!m) return res.status(404).json({ success: false, message: '该学生不在本教学班' });
+    res.json({ success: true, message: '已更新', data: { seatNumber: m.seatNumber, boundIp: m.boundIp } });
+  } catch (error) {
+    logger.error('修改教学班成员失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '修改教学班成员失败' });
+  }
+};
+
+// 归档 / 恢复教学班（学期结束后由任课教师或管理员操作）
+exports.setElectiveArchived = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    const archived = req.body.archived !== false;
+    if (archived) {
+      Object.assign(cls, {
+        status: 'archived', archivedAt: new Date(), isInClass: false, scheduledEndTime: null,
+        autoRedirectToLesson: false
+      });
+      await require('../models/ScheduleSlot').deleteMany({ class: cls._id });
+      await User.updateMany(
+        { sessionClassId: cls._id },
+        { $unset: { sessionId: 1, sessionExpiresAt: 1 }, $set: { sessionClassId: null } }
+      );
+    } else {
+      Object.assign(cls, { status: 'active', archivedAt: null });
+    }
+    await cls.save();
+    logger.info(archived ? '教学班已归档' : '教学班已恢复', { classId: String(cls._id), operator: req.user._id });
+    res.json({ success: true, message: archived ? '教学班已归档，其课表已移除' : '教学班已恢复', data: cls });
+  } catch (error) {
+    logger.error('归档教学班失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '操作失败' });
+  }
+};
+
+// 按姓名或学号搜索学生（添加教学班成员用；可限定行政班）
+exports.searchStudentsForElective = async (req, res) => {
+  try {
+    if (!['teacher', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: '无权操作' });
+    }
+    const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim().slice(0, 30) : '';
+    const classId = mongoose.isValidObjectId(req.query.classId) ? req.query.classId : null;
+    if (!keyword && !classId) return res.json({ success: true, data: [] });
+    const activeAdmin = await Class.find({ type: { $ne: 'elective' }, status: { $ne: 'archived' } }).select('_id').lean();
+    const activeIds = activeAdmin.map(c => String(c._id));
+    if (classId && !activeIds.includes(String(classId))) return res.json({ success: true, data: [] });
+    const filter = { role: 'student', classId: classId || { $in: activeIds } };
+    if (keyword) {
+      const re = new RegExp(escapeRegex(keyword), 'i');
+      filter.$or = [{ name: re }, { username: re }];
+    }
+    const students = await User.find(filter).select('name username gender classId').sort({ username: 1 }).limit(200).lean();
+    const classMap = await adminClassMap(students);
+    res.json({ success: true, data: students.map(s => studentLabel(s, classMap)) });
+  } catch (error) {
+    logger.error('搜索学生失败', { error: error.message });
+    res.status(500).json({ success: false, message: '搜索学生失败' });
+  }
+};
+
+// ============================================================
+// 登录页：根据这台电脑的 IP 自动选择正在上课的班级
+// ============================================================
+
+/**
+ * 返回正在上课的班级；若这台电脑的 IP 登记在某个正在上课班级所用的机房布局里，标记为 detected。
+ * 只有一个班在上课时也直接选中它。
+ */
+exports.getLoginContext = async (req, res) => {
+  try {
+    const { getClientIp } = require('../utils/getClientIp');
+    const ip = getClientIp(req);
+    const live = await Class.find({ isInClass: true, status: { $ne: 'archived' } })
+      .select('grade name type title selectedClassroomLayout teacher')
+      .populate('teacher', 'name')
+      .lean();
+    const layoutIds = [...new Set(live.map(c => c.selectedClassroomLayout && String(c.selectedClassroomLayout)).filter(Boolean))];
+    const layouts = layoutIds.length
+      ? await require('../models/ClassroomLayout').find({ _id: { $in: layoutIds } }).select('seats.ip name').lean()
+      : [];
+    const layoutHasIp = new Map(layouts.map(l => [String(l._id), (l.seats || []).some(seat => seat.ip === ip)]));
+    const byIp = live.filter(c => c.selectedClassroomLayout && layoutHasIp.get(String(c.selectedClassroomLayout)));
+
+    let detectedClassId = null;
+    let reason = null;
+    if (byIp.length === 1) { detectedClassId = byIp[0]._id; reason = 'room'; }
+    else if (byIp.length === 0 && live.length === 1) { detectedClassId = live[0]._id; reason = 'only'; }
+
+    res.json({
+      success: true,
+      data: {
+        detectedClassId,
+        reason,
+        liveClasses: live
+          .map(c => ({
+            _id: c._id,
+            type: c.type || 'admin',
+            displayName: formatClassName(c),
+            teacherName: c.teacher && c.teacher.name,
+            inThisRoom: byIp.some(b => String(b._id) === String(c._id))
+          }))
+          .sort((a, b) => Number(b.inThisRoom) - Number(a.inThisRoom) || a.displayName.localeCompare(b.displayName, 'zh-CN'))
+      }
+    });
+  } catch (error) {
+    logger.error('获取登录班级失败', { error: error.message });
+    res.status(500).json({ success: false, message: '获取正在上课的班级失败' });
   }
 };
 

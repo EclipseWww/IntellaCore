@@ -183,7 +183,8 @@ const PointShopManagement = () => {
       setClassesLoading(true);
       const response = await getTeacherClasses();
       if (response.success) {
-        setClasses(response.data);
+        // 积分与商店按学生的行政班管理，社团/选修不单独设商店
+        setClasses((response.data || []).filter(c => c.type !== 'elective'));
       } else {
         message.error('获取班级列表失败');
       }

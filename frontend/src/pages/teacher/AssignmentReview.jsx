@@ -19,7 +19,7 @@ import {
   Switch
 } from 'antd';
 import { useParams } from 'react-router-dom';
-import { courseManagementAPI, API_BASE_URL, flowchartAPI, spreadsheetActivityAPI, fillBlankAPI } from '../../services/api';
+import { courseManagementAPI, API_BASE_URL, flowchartAPI, spreadsheetActivityAPI, fillBlankAPI, classAPI } from '../../services/api';
 import htmlProjectAPI from '../../services/htmlProjectAPI';
 import { pythonAPI } from '../../services/pythonAPI';
 import SpreadsheetEditor from '../../components/Spreadsheet/LazySpreadsheetEditor';
@@ -35,7 +35,7 @@ import { LeftOutlined, RightOutlined, CheckCircleOutlined, DownloadOutlined, Que
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { github } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
-import { getFileType, formatClassName } from './components/review/assignmentReviewUtils';
+import { getFileType, formatClassName, inSelectedClass, setElectiveRosters, electiveOptions, electiveIdOf } from './components/review/assignmentReviewUtils';
 import AIGradePanel from './components/review/AIGradePanel';
 import ReviewStatistics from './components/review/ReviewStatistics';
 import BatchAIGradeModal from './components/review/BatchAIGradeModal';
@@ -65,6 +65,13 @@ const AssignmentReview = () => {
   const [sortedInfo, setSortedInfo] = useState({});
   const [selectedClass, setSelectedClass] = useState(null);
   const [classOptions, setClassOptions] = useState([]);
+  // 社团/选修（教学班）筛选项：学生来自各行政班，按成员名单筛选
+  const [electiveClassOptions, setElectiveClassOptions] = useState([]);
+  useEffect(() => {
+    classAPI.getTeacherClasses()
+      .then(res => { setElectiveRosters(res.data || []); setElectiveClassOptions(electiveOptions()); })
+      .catch(() => {});
+  }, []);
   const selectedClassRef = useRef(selectedClass);
   selectedClassRef.current = selectedClass;
   const submissionRequestRef = useRef(0);
@@ -605,7 +612,8 @@ const AssignmentReview = () => {
           const matchingSub = pythonSubmissions.find(s =>
             formatClassName(s.studentId?.classId?.grade, s.studentId?.classId?.name) === value
           );
-          const classIdToFilter = matchingSub?.studentId?.classId?._id;
+          // 社团/选修直接用教学班 ID，由后端按成员筛选
+          const classIdToFilter = electiveIdOf(value) || matchingSub?.studentId?.classId?._id;
           if (classIdToFilter) {
             try {
               const response = await pythonAPI.getActivitySubmissions(lessonId, activityId, classIdToFilter);
@@ -619,20 +627,20 @@ const AssignmentReview = () => {
         } else if (isFillBlankActivity) {
           // 填空题逻辑
           const filteredData = allSubmissions.filter(s =>
-            formatClassName(s.student?.grade, s.student?.className) === value
+            inSelectedClass(value, s.student?.grade, s.student?.className, s.student?._id)
           );
           setSubmissions(filteredData);
           if (filteredData.length > 0) handlePreview(filteredData[0], 0);
         } else if (isFlowchartActivity) {
           // 流程图筛选
           const filteredData = allFlowchartSubmissions.filter(s =>
-            formatClassName(s.userId?.classId?.grade, s.userId?.classId?.name) === value
+            inSelectedClass(value, s.userId?.classId?.grade, s.userId?.classId?.name, s.userId?._id)
           );
           setFlowchartSubmissions(filteredData);
         } else {
           // 普通作业筛选
           const filteredData = allSubmissions.filter(s =>
-            formatClassName(s.student?.grade, s.student?.className) === value
+            inSelectedClass(value, s.student?.grade, s.student?.className, s.student?._id)
           );
           setSubmissions(filteredData);
           if (filteredData.length > 0) handlePreview(filteredData[0], 0);
@@ -720,7 +728,7 @@ const AssignmentReview = () => {
 
       // 如果选择了班级，过滤提交列表
       const filteredData = selectedClassRef.current
-        ? data.filter(s => formatClassName(s.student?.grade, s.student?.className) === selectedClassRef.current)
+        ? data.filter(s => inSelectedClass(selectedClassRef.current, s.student?.grade, s.student?.className, s.student?._id))
         : data;
 
       setSubmissions(filteredData);
@@ -1139,7 +1147,7 @@ const AssignmentReview = () => {
             // 应用班级筛选
             if (selectedClass) {
               filteredData = filteredData.filter(s =>
-                formatClassName(s.student?.grade, s.student?.className) === selectedClass
+                inSelectedClass(selectedClass, s.student?.grade, s.student?.className, s.student?._id)
               );
             }
 
@@ -1279,7 +1287,7 @@ const AssignmentReview = () => {
       if (checked) {
         // 首先应用班级筛选（如果有）
         const classFiltered = selectedClass
-          ? allSubmissions.filter(s => formatClassName(s.student?.grade, s.student?.className) === selectedClass)
+          ? allSubmissions.filter(s => inSelectedClass(selectedClass, s.student?.grade, s.student?.className, s.student?._id))
           : allSubmissions;
 
         // 然后从筛选后的记录中筛选出未评分的作业
@@ -1305,7 +1313,7 @@ const AssignmentReview = () => {
         // 取消未评分筛选，恢复显示所有作业（考虑班级筛选）
         if (selectedClass) {
           const classFiltered = allSubmissions.filter(s =>
-            formatClassName(s.student?.grade, s.student?.className) === selectedClass
+            inSelectedClass(selectedClass, s.student?.grade, s.student?.className, s.student?._id)
           );
           setSubmissions(classFiltered);
           // 如果有提交记录，自动加载第一份作业
@@ -1635,7 +1643,7 @@ const AssignmentReview = () => {
     // 如果有班级筛选，再次筛选
     if (selectedClass) {
       submissionsToProcess = submissionsToProcess.filter(s =>
-        formatClassName(s.student?.grade, s.student?.className) === selectedClass
+        inSelectedClass(selectedClass, s.student?.grade, s.student?.className, s.student?._id)
       );
     }
 
@@ -1702,7 +1710,7 @@ const AssignmentReview = () => {
 
         // 应用当前的筛选条件
         const filteredData = selectedClass
-          ? data.filter(s => formatClassName(s.student?.grade, s.student?.className) === selectedClass)
+          ? data.filter(s => inSelectedClass(selectedClass, s.student?.grade, s.student?.className, s.student?._id))
           : data;
 
         setSubmissions(filteredData);
@@ -2086,7 +2094,7 @@ const AssignmentReview = () => {
         const student = s.student || s.studentId || s.userId;
         const grade = student?.grade || student?.classId?.grade;
         const className = student?.className || student?.classId?.name;
-        return formatClassName(grade, className) === selectedClass;
+        return inSelectedClass(selectedClass, grade, className, student?._id);
       });
     }
 
@@ -2219,7 +2227,7 @@ const AssignmentReview = () => {
             onChange={handleClassChange}
             value={selectedClass}
             allowClear
-            options={classOptions.map(c => ({ label: c, value: c }))}
+            options={[...classOptions, ...electiveClassOptions].map(c => ({ label: c, value: c }))}
           />
           <Space>
             <span>只看未评:</span>
@@ -2513,7 +2521,7 @@ const AssignmentReview = () => {
                   const student = s.student || s.studentId;
                   const grade = student?.grade || student?.classId?.grade;
                   const className = student?.className || student?.classId?.name;
-                  return formatClassName(grade, className) === selectedClass;
+                  return inSelectedClass(selectedClass, grade, className, student?._id);
                 })}
                 gradingState={fillBlankGrading}
                 onUpdateGradingState={(id, updates) => setFillBlankGrading(prev => ({
@@ -2608,7 +2616,7 @@ const AssignmentReview = () => {
                   const student = s.studentId;
                   const grade = student?.classId?.grade;
                   const className = student?.classId?.name;
-                  return formatClassName(grade, className) === selectedClass;
+                  return inSelectedClass(selectedClass, grade, className, student?._id);
                 })}
                 onRefresh={(id, grade) => {
                   setPythonSubmissions(prev => prev.map(s =>

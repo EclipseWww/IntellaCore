@@ -657,10 +657,12 @@ exports.exportSubmissions = async (req, res) => {
 
     // 如果指定了班级，进行过滤（兼容已populate与未populate两种情况）
     if (classId) {
+      // 教学班按成员筛选，行政班按学生所在班级
+      const inClass = await require('../services/classRoster').rosterIdSet([classId]);
       submissions = submissions.filter(submission => {
-        const cls = submission?.studentId?.classId;
-        const id = cls && cls._id ? cls._id.toString() : (cls ? cls.toString() : null);
-        return id === classId;
+        const student = submission?.studentId;
+        const id = student && student._id ? student._id.toString() : (student ? student.toString() : null);
+        return !!id && inClass.has(id);
       });
     }
 
@@ -1445,10 +1447,7 @@ exports.getClassQuizSubmissions = async (req, res) => {
     }
 
     // 获取班级所有学生
-    const classStudents = await User.find({
-      classId: classId,
-      role: 'student'
-    }).select('_id name username');
+    const classStudents = await require('../services/classRoster').findRoster(classId, { select: '_id name username' });
 
     if (!classStudents || classStudents.length === 0) {
       logger.warn('班级中没有学生', { classId });

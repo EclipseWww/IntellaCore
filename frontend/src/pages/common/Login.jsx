@@ -3,6 +3,7 @@ import { Form, Input, Button, message, Select, Modal, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import api, { classAPI, loginRequestAPI } from '../../services/api';
 import { ExclamationCircleOutlined, LoadingOutlined, SyncOutlined } from '@ant-design/icons';
+import { formatClassName } from '../../utils/className';
 
 const { Option } = Select;
 
@@ -88,7 +89,9 @@ const IconWrap = ({ children }) => (
 const Login = () => {
   const confirmSeatMapRef = useRef(null);
   const [loading, setLoading] = useState(false);
+  // 班级下拉分组：[{ key, label, items: [班级] }]
   const [classes, setClasses] = useState([]);
+  const [autoClassTip, setAutoClassTip] = useState('');
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [students, setStudents] = useState([]);
   const [selectedClassStatus, setSelectedClassStatus] = useState({
@@ -149,18 +152,50 @@ const Login = () => {
   }, [navigate]);
 
   useEffect(() => {
+    // 被新的一节课（如社团课）要求重新登录时，提示并自动选好那个班
+    const notice = sessionStorage.getItem('loginNotice');
+    const hint = sessionStorage.getItem('loginClassHint');
+    sessionStorage.removeItem('loginNotice');
+    sessionStorage.removeItem('loginClassHint');
+    if (notice) message.info({ content: notice, duration: 6 });
+
     const fetchClasses = async () => {
       try {
         setLoadingClasses(true);
-        const response = await classAPI.getAvailableClasses();
-        const groupedClasses = response.data.reduce((acc, cls) => {
-          if (!acc[cls.grade]) {
-            acc[cls.grade] = [];
-          }
-          acc[cls.grade].push(cls);
+        const [response, context] = await Promise.all([
+          classAPI.getAvailableClasses(),
+          classAPI.getLoginContext().catch(() => null)
+        ]);
+        const list = response.data || [];
+        const liveIds = new Set((context?.data?.liveClasses || []).map(c => String(c._id)));
+        const isLive = cls => liveIds.has(String(cls._id)) || !!cls.isInClass;
+
+        // 正在上课的班级排在最前面，其余按 社团/选修、各年级 分组
+        const groups = [];
+        const live = list.filter(isLive);
+        if (live.length) groups.push({ key: 'live', label: '正在上课', items: live });
+        const rest = list.filter(c => !isLive(c));
+        const electives = rest.filter(c => c.type === 'elective');
+        if (electives.length) groups.push({ key: 'elective', label: '社团 / 选修', items: electives });
+        const byGrade = rest.filter(c => c.type !== 'elective').reduce((acc, cls) => {
+          (acc[cls.grade] = acc[cls.grade] || []).push(cls);
           return acc;
         }, {});
-        setClasses(groupedClasses);
+        Object.keys(byGrade).sort().forEach(grade => groups.push({ key: `g${grade}`, label: `${grade}级`, items: byGrade[grade] }));
+        setClasses(groups);
+
+        // 自动选择班级：被要求重新登录的班 > 本机房正在上课的班 > 全校唯一正在上课的班
+        const exists = id => id && list.some(c => String(c._id) === String(id));
+        const detected = context?.data?.detectedClassId;
+        const pick = exists(hint) ? hint : (exists(detected) ? detected : null);
+        if (pick) {
+          form.setFieldsValue({ classId: pick });
+          fetchClassStudents(pick);
+          const cls = list.find(c => String(c._id) === String(pick));
+          setAutoClassTip(pick === hint
+            ? `已为你选好：${formatClassName(cls)}`
+            : (context?.data?.reason === 'room' ? `本机房正在上：${formatClassName(cls)}` : `正在上课：${formatClassName(cls)}`));
+        }
       } catch (error) {
         console.error('获取班级列表失败:', error);
         message.error('获取班级列表失败');
@@ -289,14 +324,24 @@ const Login = () => {
         values.isInClass = true;
       }
 
+      // 带上所选班级：选了社团/选修时，本次登录属于该教学班
       const { classId, ...loginData } = values;
+      if (classId) loginData.classId = classId;
 
       api.post('/auth/login', loginData)
         .then(response => {
           localStorage.setItem('token', response.data.token);
           const userInfo = {
             ...response.data.user,
-            seatNumber: response.data.user.seatNumber
+            seatNumber: response.data.user.seatNumber,
+            // 本次登录所在的班级（行政班或社团/选修）
+            ...(response.data.classInfo?.classId && {
+              currentClass: {
+                _id: response.data.classInfo.classId,
+                name: response.data.classInfo.className,
+                type: response.data.classInfo.classType
+              }
+            })
           };
           localStorage.setItem('user', JSON.stringify(userInfo));
 
@@ -349,12 +394,13 @@ const Login = () => {
               newIp: errorData.newIp || null
             });
           } else if (errorData?.code === 'CLASS_ARCHIVED') {
-            // 班级已归档（学生已毕业），显示专属提示
+            // 班级已归档（学生已毕业或教学班已结课），显示专属提示
             message.warning({
-              content: '您所在班级已完成本阶段学习，账号已停用，如有问题请联系教师',
-              duration: 6,
-              icon: '🎓'
+              content: errorData.message || '您所在班级已完成本阶段学习，如有问题请联系教师',
+              duration: 6
             });
+          } else if (errorData?.code === 'NOT_IN_CLASS') {
+            message.warning({ content: errorData.message || '你不在所选的班级里，请重新选择班级', duration: 5 });
           } else if (error.response?.status === 409) {
             message.error('该用户已登录');
           } else {
@@ -376,7 +422,8 @@ const Login = () => {
   };
 
   const handleClassChange = (classId) => {
-    form.setFieldsValue({ username: '', name: '' });
+    setAutoClassTip('');
+    form.setFieldsValue({ username: '', name: '', studentId: undefined });
     fetchClassStudents(classId);
     setSelectedSeat(null);
     setSelectedStudentName('');
@@ -922,17 +969,20 @@ const Login = () => {
                 style={{ width: '100%' }}
                 dropdownStyle={{ borderRadius: '12px' }}
               >
-                {Object.entries(classes).map(([grade, gradeClasses]) => (
-                  <Select.OptGroup key={grade} label={`${grade}级`}>
-                    {gradeClasses.map(cls => (
+                {classes.map(group => (
+                  <Select.OptGroup key={group.key} label={group.label}>
+                    {group.items.map(cls => (
                       <Option key={cls._id} value={cls._id}>
-                        {cls.name}班
+                        {formatClassName(cls)}
                       </Option>
                     ))}
                   </Select.OptGroup>
                 ))}
               </Select>
             </Form.Item>
+            {autoClassTip && (
+              <div style={{ margin: '-12px 0 16px', color: '#16a34a', fontSize: 13 }}>{autoClassTip}</div>
+            )}
 
             <Form.Item
               label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>选择姓名</span>}

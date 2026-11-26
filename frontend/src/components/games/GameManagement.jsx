@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import gameService from '../../services/gameService';
 import { getTeacherClasses, updateClassSettings } from '../../services/classService';
 import { LOCAL_GAMES, formatPlayTime } from './gameCatalog';
+import { formatClassName } from '../../utils/className';
 
 const { Text } = Typography;
 
@@ -40,7 +41,7 @@ const GameManagement = () => {
     try {
       await updateClassSettings(cls._id, { allowGameCenter: allow });
       setClasses(prev => prev.map(c => c._id === cls._id ? { ...c, allowGameCenter: allow } : c));
-      message.success(`已${allow ? '开启' : '关闭'} ${cls.grade}年级${cls.name}班 的游戏中心`);
+      message.success(`已${allow ? '开启' : '关闭'} ${formatClassName(cls)} 的游戏中心`);
     } catch (e) {
       message.error('操作失败');
     } finally { setUpdatingClassId(null); }
@@ -94,8 +95,7 @@ const GameManagement = () => {
           关闭后，该班学生看不到游戏中心，也看不到、不能兑换你在积分商店发布的游戏商品。
         </Text>
         <Table size="small" rowKey="_id" loading={classesLoading} dataSource={classes} pagination={{ pageSize: 10, hideOnSinglePage: true }} columns={[
-          { title: '年级', dataIndex: 'grade', sorter: (a, b) => a.grade - b.grade, render: g => `${g}年级` },
-          { title: '班级', dataIndex: 'name', render: n => `${n}班` },
+          { title: '班级', key: 'className', sorter: (a, b) => (a.type === 'elective') - (b.type === 'elective') || (a.grade || 0) - (b.grade || 0), render: (_, c) => formatClassName(c) },
           {
             title: '状态', render: (_, c) => (
               <Tag color={c.allowGameCenter !== false ? 'success' : 'default'}>{c.allowGameCenter !== false ? '允许访问' : '禁止访问'}</Tag>

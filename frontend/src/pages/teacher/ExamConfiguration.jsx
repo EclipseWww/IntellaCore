@@ -18,6 +18,7 @@ import {
 import usePageTitle from '../../hooks/usePageTitle';
 import * as XLSX from 'xlsx';
 import './ExamConfiguration.css';
+import { formatClassName, classGroupKey, classGroupLabel, compareClassGroupKeys } from '../../utils/className';
 
 const { Option } = Select;
 
@@ -820,15 +821,15 @@ const ExamConfiguration = () => {
                                     size="large"
                                 >
                                     {Object.entries(classes.reduce((acc, c) => {
-                                        const g = c.grade || '其他';
+                                        const g = classGroupKey(c);
                                         if (!acc[g]) acc[g] = [];
                                         acc[g].push(c);
                                         return acc;
-                                    }, {})).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).map(([grade, list]) => (
-                                        <Select.OptGroup key={grade} label={`${grade}级`}>
+                                    }, {})).sort((a, b) => compareClassGroupKeys(a[0], b[0])).map(([grade, list]) => (
+                                        <Select.OptGroup key={grade} label={classGroupLabel(grade)}>
                                             {list.map(c => (
                                                 <Option key={c._id} value={c._id}>
-                                                    {c.name} ({grade}级)
+                                                    {formatClassName(c)}
                                                 </Option>
                                             ))}
                                         </Select.OptGroup>

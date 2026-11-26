@@ -1,6 +1,7 @@
 const ClassroomLayout = require('../models/ClassroomLayout');
 const User = require('../models/User');
 const Class = require('../models/Class');
+const roster = require('../services/classRoster');
 const logger = require('../utils/logger');
 
 /**
@@ -68,7 +69,9 @@ exports.getLayouts = async (req, res) => {
       logger.info('教师获取机房布局列表成功', { count: layouts.length });
     } else if (req.user.role === 'student') {
       // 如果是学生，先查找所在班级
-      const student = await User.findById(req.user._id).select('classId');
+      const found = await User.findById(req.user._id).select('classId sessionClassId').lean();
+      // 按本次登录所在的班级（教学班可能在另一个机房）
+      const student = found && { ...found, classId: roster.contextClassId(found) };
       
       if (!student || !student.classId) {
         logger.warn('学生没有所属班级', { userId: req.user._id });

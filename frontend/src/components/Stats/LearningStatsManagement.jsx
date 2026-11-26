@@ -18,6 +18,7 @@ import ClassLearningStatsComponent from '../../pages/teacher/ClassLearningStats'
 import ClassDailyScoresComponent from '../../pages/teacher/ClassDailyScores';
 import StudentLearningStatsComponent from '../../pages/teacher/StudentLearningStats';
 import StudentDailyScoreComponent from '../../pages/teacher/StudentDailyScore';
+import { formatClassName, classGroupKey, classGroupLabel, compareClassGroupKeys, compareClasses } from '../../utils/className';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -133,7 +134,7 @@ const LearningStatsManagement = () => {
         
         // 按年级分组班级
         const groupedClasses = activeClasses.reduce((acc, cls) => {
-          const grade = cls.grade || '未分组';
+          const grade = classGroupKey(cls); // 社团/选修单独一组
           if (!acc[grade]) {
             acc[grade] = [];
           }
@@ -143,14 +144,14 @@ const LearningStatsManagement = () => {
         
         // 对每个年级内的班级进行排序（按班级名称/号码升序）
         Object.keys(groupedClasses).forEach(grade => {
-          groupedClasses[grade].sort((a, b) => Number(a.name) - Number(b.name));
+          groupedClasses[grade].sort(compareClasses);
         });
         
         setClasses(groupedClasses);
         setError(null);
 
         // 如果有班级数据，默认选中第一个年级和第一个班级
-        const grades = Object.keys(groupedClasses).sort((a, b) => Number(b) - Number(a));
+        const grades = Object.keys(groupedClasses).sort(compareClassGroupKeys);
         if (grades.length > 0) {
           const firstGrade = grades[0];
           setSelectedGrade(firstGrade);
@@ -406,8 +407,8 @@ const LearningStatsManagement = () => {
               }}
               disabled={loading || Object.keys(classes).length === 0}
             >
-              {Object.keys(classes).sort((a, b) => Number(b) - Number(a)).map(grade => (
-                <Option key={grade} value={grade}>{grade}级</Option>
+              {Object.keys(classes).sort(compareClassGroupKeys).map(grade => (
+                <Option key={grade} value={grade}>{classGroupLabel(grade)}</Option>
               ))}
             </Select>
             <Text strong style={{ marginRight: 8 }}>选择班级:</Text>
@@ -419,7 +420,7 @@ const LearningStatsManagement = () => {
               disabled={loading || !selectedGrade || (classes[selectedGrade] || []).length === 0}
             >
               {(classes[selectedGrade] || []).map(cls => (
-                <Option key={cls._id} value={cls._id}>{cls.name}班</Option>
+                <Option key={cls._id} value={cls._id}>{formatClassName(cls)}</Option>
               ))}
             </Select>
           </div>

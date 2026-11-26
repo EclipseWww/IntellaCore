@@ -408,10 +408,7 @@ exports.getClassLearningStats = async (req, res) => {
     }
 
     // 查找班级中的所有学生
-    const students = await User.find({
-      role: 'student',
-      classId: new mongoose.Types.ObjectId(classId)
-    }).select('_id username name');
+    const students = await require('../services/classRoster').findRoster(classId, { select: '_id username name' });
 
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: '未找到班级学生' });
@@ -1173,10 +1170,7 @@ exports.calculateClassDailyScores = async (req, res) => {
     const { startDate, endDate } = semesterUtils.parseSemesterDateRange(semester);
 
     // 查找班级中的所有学生
-    const students = await User.find({
-      role: 'student',
-      classId: new mongoose.Types.ObjectId(classId)
-    }).select('_id username name');
+    const students = await require('../services/classRoster').findRoster(classId, { select: '_id username name' });
 
     if (students.length === 0) {
       return res.status(404).json({ success: false, message: '未找到班级学生' });

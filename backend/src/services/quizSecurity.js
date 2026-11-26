@@ -1,6 +1,7 @@
 const Lesson = require('../models/Lesson');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const roster = require('./classRoster');
 const secretFields = new Set(['isCorrect', 'correctOption', 'correctAnswer', 'correctAnswers', 'answer', 'explanation']);
 function withoutAnswers(value) {
   if (value?.toObject) value = value.toObject();
@@ -25,10 +26,12 @@ async function quizContext(user, quizId, lessonId, activityId, requireActivity =
   if (user.role === 'student' && requireActivity && !activityId) fail('请从课程活动中进入测验', 400);
   const student = user.role === 'student' ? await User.findById(user._id || user.id).select('classId') : null;
   if (student && !student.classId) fail('学生未分配班级');
+  // 学生的行政班和参加的教学班都可以访问其课程
+  const classIds = student ? (await roster.classIdsOfStudent(student)).map(String) : [];
   let lesson;
   if (lessonId) lesson = await Lesson.findById(lessonId);
   else if (student) {
-    const courses = await Course.find({ $or: [{ isPublic: true }, { accessibleClasses: student.classId }] }).select('_id');
+    const courses = await Course.find({ $or: [{ isPublic: true }, { accessibleClasses: { $in: classIds } }] }).select('_id');
     lesson = await Lesson.findOne({ course: { $in: courses.map(c => c._id) }, status: 'published', 'activities.quizSettings.quiz': quizId });
   }
   if (!lesson && user.role === 'student') fail('无权访问此测验');
@@ -38,7 +41,7 @@ async function quizContext(user, quizId, lessonId, activityId, requireActivity =
   if (student) {
     if (activity.isPublished === false) fail('此活动未发布');
     const course = await Course.findById(lesson.course);
-    if (lesson.status !== 'published' || !course || (!course.isPublic && !course.accessibleClasses.some(id => String(id) === String(student.classId)))) fail('无权访问此测验');
+    if (lesson.status !== 'published' || !course || (!course.isPublic && !course.accessibleClasses.some(id => classIds.includes(String(id))))) fail('无权访问此测验');
   }
   return activity;
 }

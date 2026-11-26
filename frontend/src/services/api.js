@@ -85,6 +85,11 @@ api.interceptors.response.use(
       if (error.response.status === 401) {
         const isLoginRequestApi = error.config?.url?.includes('/login-requests/');
         if (!isLoginRequestApi) {
+          // 新的一节课（如社团课）开始，需要重新登录到那个班：登录页会自动选好该班
+          if (error.response.data?.code === 'CLASS_SWITCH') {
+            sessionStorage.setItem('loginClassHint', error.response.data.classId || '');
+            sessionStorage.setItem('loginNotice', error.response.data.message || '新的一节课已开始，请重新登录');
+          }
           console.warn('认证失败，清除token');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -848,8 +853,8 @@ export const classAPI = {
   },
 
   // 获取教师的所有班级
-  async getTeacherClasses() {
-    const response = await api.get('/classes/teacher');
+  async getTeacherClasses(params) {
+    const response = await api.get('/classes/teacher', { params });
     return response.data;
   },
 
@@ -895,6 +900,37 @@ export const classAPI = {
     return response.data;
   },
 
+  // 登录页：正在上课的班级，以及根据这台电脑判断出的班级
+  async getLoginContext() {
+    const response = await api.get('/classes/login-context');
+    return response.data;
+  },
+
+  // 教学班（社团、选修）成员
+  async getElectiveMembers(classId) {
+    const response = await api.get(`/classes/${classId}/members`);
+    return response.data;
+  },
+  async addElectiveMembers(classId, payload) {
+    const response = await api.post(`/classes/${classId}/members`, payload);
+    return response.data;
+  },
+  async removeElectiveMembers(classId, studentIds) {
+    const response = await api.post(`/classes/${classId}/members/remove`, { studentIds });
+    return response.data;
+  },
+  async updateElectiveMember(classId, studentId, payload) {
+    const response = await api.patch(`/classes/${classId}/members/${studentId}`, payload);
+    return response.data;
+  },
+  async setElectiveArchived(classId, archived) {
+    const response = await api.post(`/classes/${classId}/elective-archive`, { archived });
+    return response.data;
+  },
+  async searchStudentsForElective(params) {
+    const response = await api.get('/classes/elective/student-search', { params });
+    return response.data;
+  },
   // 获取学生登录历史
   async getStudentLoginHistory(studentId) {
     const response = await api.get(`/classes/students/${studentId}/login-history`);

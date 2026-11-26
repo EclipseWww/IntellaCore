@@ -53,10 +53,10 @@ exports.getQuizAnalytics = async (req, res) => {
     // 如果有班级ID，过滤出该班级的提交记录
     let filteredSubmissions = submissions;
     if (classId) {
-      filteredSubmissions = submissions.filter(submission => 
-        submission.studentId && 
-        submission.studentId.classId && 
-        submission.studentId.classId.toString() === classId
+      // 教学班按成员筛选，行政班按学生所在班级
+      const inClass = await require('../services/classRoster').rosterIdSet([classId]);
+      filteredSubmissions = submissions.filter(submission =>
+        submission.studentId && inClass.has(String(submission.studentId._id))
       );
       
       logger.info('班级筛选结果', { 

@@ -203,6 +203,7 @@ const startServer = async () => {
           socketTimeoutMS: 45000,
         });
         logger.info('数据库连接成功');
+        await require('./services/classIndexMigration').migrateClassIndexes();
         break;
       } catch (err) {
         if (retries === 1) throw err;

@@ -10,6 +10,7 @@ import { quizAPI, classAPI } from '../../../services/api';
 import QuizResult from '../../Quiz/student/QuizResult';
 
 import usePageTitle from '../../../hooks/usePageTitle';
+import { formatClassName, classGroupKey, classGroupLabel, compareClassGroupKeys, compareClasses } from '../../../utils/className';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -157,17 +158,18 @@ const QuizAnalysis = () => {
         const activeClasses = response.data.filter(cls => cls.status !== 'archived');
         
         const groupedClasses = activeClasses.reduce((acc, cls) => {
-          if (!acc[cls.grade]) {
-            acc[cls.grade] = [];
+          const key = classGroupKey(cls);
+          if (!acc[key]) {
+            acc[key] = [];
           }
-          acc[cls.grade].push(cls);
+          acc[key].push(cls);
           return acc;
         }, {});
         Object.keys(groupedClasses).forEach(grade => {
-          groupedClasses[grade].sort((a, b) => Number(a.name) - Number(b.name));
+          groupedClasses[grade].sort(compareClasses);
         });
         const sortedGroupedClasses = Object.keys(groupedClasses)
-          .sort((a, b) => Number(b) - Number(a))
+          .sort(compareClassGroupKeys)
           .reduce((acc, grade) => {
             acc[grade] = groupedClasses[grade];
             return acc;
@@ -448,7 +450,7 @@ const QuizAnalysis = () => {
     for (const grade in classes) {
       const cls = classes[grade].find(c => c._id === classId);
       if (cls) {
-        return `${grade}级${cls.name}班`;
+        return formatClassName(cls);
       }
     }
     return '未知班级';
@@ -640,10 +642,10 @@ const QuizAnalysis = () => {
             value={selectedClass}
           >
             {Object.entries(classes).map(([grade, gradeClasses]) => (
-              <Select.OptGroup key={grade} label={`${grade}级`}>
+              <Select.OptGroup key={grade} label={classGroupLabel(grade)}>
                 {gradeClasses.map(cls => (
                   <Option key={cls._id} value={cls._id}>
-                    {cls.name}班
+                    {formatClassName(cls)}
                   </Option>
                 ))}
               </Select.OptGroup>

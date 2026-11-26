@@ -17,6 +17,7 @@ import {
 import { courseManagementAPI, classAPI } from '../../services/api';
 import UnitList from './UnitList';
 import { PlusOutlined } from '@ant-design/icons';
+import { formatClassName } from '../../utils/className';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -194,7 +195,7 @@ const CourseForm = () => {
             >
               {classes.map(cls => (
                 <Option key={cls._id} value={cls._id}>
-                  {cls.grade}年级{cls.name}班
+                  {formatClassName(cls)}
                 </Option>
               ))}
             </Select>

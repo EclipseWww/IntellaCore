@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const logger = require('../utils/logger');
+// 游戏中心按学生本次登录所在的班级（行政班或教学班）的设置
+const { contextClassId: ctxClass } = require('../services/classRoster');
 
 // 获取当前用户的游戏剩余时长（秒）
 // 同时检查学生是否登录满35分钟
@@ -31,7 +33,7 @@ exports.getRemainingTime = async (req, res) => {
     const userRole = req.user?.role;
     logger.info('获取游戏剩余时长', { userId, role: userRole });
 
-    const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin role classId');
+    const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin role classId sessionClassId');
     if (!user) {
       logger.warn('未找到用户', { userId });
       return res.status(404).json({ success: false, message: '用户不存在' });
@@ -70,7 +72,7 @@ exports.getRemainingTime = async (req, res) => {
     }
 
     // 教师已为本班提前开放游戏中心
-    if (isLocked && await classOpenedEarly(user.classId)) { isLocked = false; lockMessage = null; unlockTime = null; }
+    if (isLocked && await classOpenedEarly(ctxClass(user))) { isLocked = false; lockMessage = null; unlockTime = null; }
 
     return res.status(200).json({
       success: true,
@@ -138,16 +140,16 @@ const MAX_BEAT_GAP_SECONDS = 45; // 心跳间隔 30 秒；断线、挂起期间�
 
 /** 学生能否开始/继续游戏：剩余时长、登录满 35 分钟、班级允许 */
 async function studentGate(userId, gameId) {
-  const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin classId gameSession role');
+  const user = await User.findById(userId).select('gameTimeRemainingSeconds lastLogin classId sessionClassId gameSession role');
   if (!user) return { error: '用户不存在', code: 404 };
   if (user.role !== 'student') return { user };
-  if (gameId && (await disabledGamesForStudent(user.classId)).includes(gameId)) return { error: '老师暂未开放这个游戏', code: 403 };
+  if (gameId && (await disabledGamesForStudent(ctxClass(user))).includes(gameId)) return { error: '老师暂未开放这个游戏', code: 403 };
   const tooEarly = !user.lastLogin || Date.now() - new Date(user.lastLogin) < LOGIN_MINUTES_REQUIRED * 60000;
-  if (tooEarly && !await classOpenedEarly(user.classId)) {
+  if (tooEarly && !await classOpenedEarly(ctxClass(user))) {
     return { error: `游戏将在登录后${LOGIN_MINUTES_REQUIRED}分钟解锁`, code: 403 };
   }
-  if (user.classId) {
-    const cls = await Class.findById(user.classId).select('allowGameCenter').lean();
+  if (ctxClass(user)) {
+    const cls = await Class.findById(ctxClass(user)).select('allowGameCenter').lean();
     if (cls && cls.allowGameCenter === false) return { error: '老师已关闭本班的游戏中心', code: 403 };
   }
   if (!(user.gameTimeRemainingSeconds > 0)) return { error: '游戏时间已用完', code: 403 };
@@ -369,7 +371,7 @@ exports.getStats = async (req, res) => {
     const totalSeconds = data.reduce((a, x) => a + (x.totalSeconds || 0), 0);
     // 学生：返回其任课教师关闭的游戏；教师：返回自己关闭的游戏
     const disabled = req.user.role === 'student'
-      ? await disabledGamesForStudent((await User.findById(req.user._id || req.user.id).select('classId').lean() || {}).classId)
+      ? await disabledGamesForStudent(ctxClass(await User.findById(req.user._id || req.user.id).select('classId sessionClassId').lean()))
       : await disabledGamesFor(req.user._id || req.user.id);
     res.json({ success: true, data, totalSeconds, disabled });
   } catch (error) {

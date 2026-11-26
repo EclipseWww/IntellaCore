@@ -58,12 +58,29 @@ const mongoose = require('mongoose');
  *           description: 更新时间
  */
 
+const isElective = doc => doc && doc.type === 'elective';
+
 const classSchema = new mongoose.Schema({
+  // 班级类型：admin=行政班（学生账号归属的班级）；elective=教学班（社团课、选修课，学生可来自不同班级和年级）
+  type: {
+    type: String,
+    enum: ['admin', 'elective'],
+    default: 'admin'
+  },
+  // 教学班名称，如“Python 社团”（行政班不用）
+  title: { type: String, trim: true, default: undefined },
+  // 教学班学期，如“2026-2027学年第一学期”（仅用于显示与归档）
+  term: { type: String, trim: true, default: undefined },
+  // 教学班面向的年级（仅用于显示，可为空，表示不限）
+  grades: { type: [Number], default: undefined },
+  // 教学班人数上限（0 或空表示不限）
+  capacity: { type: Number, min: 0, default: undefined },
   grade: {
     type: Number,
-    required: true,
+    required: function () { return !isElective(this); },
     validate: {
       validator: function (v) {
+        if (v == null) return true;
         // 验证为四位数年份(2000-2099)
         return /^20\d{2}$/.test(String(v));
       },
@@ -72,7 +89,7 @@ const classSchema = new mongoose.Schema({
   },
   name: {
     type: Number,
-    required: true
+    required: function () { return !isElective(this); }
   },
   teacher: {
     type: mongoose.Schema.Types.ObjectId,
@@ -173,8 +190,15 @@ const classSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// 添加复合索引确保班级名称在同一年级内唯一
-classSchema.index({ grade: 1, name: 1 }, { unique: true });
+// 行政班的年级 + 班号唯一；教学班没有年级和班号，不参与该约束。
+// 旧版本的 grade_1_name_1 唯一索引不区分班级类型，启动时由 migrateClassIndexes 删除。
+classSchema.index(
+  { grade: 1, name: 1 },
+  { unique: true, name: 'grade_name_unique_admin', partialFilterExpression: { grade: { $type: 'number' }, name: { $type: 'number' } } }
+);
+classSchema.index({ type: 1, status: 1 });
+
+classSchema.statics.isElective = isElective;
 
 const Class = mongoose.model('Class', classSchema);
 

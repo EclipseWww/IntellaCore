@@ -8,6 +8,7 @@ const logger = require('../utils/logger');
 const { gradeChoiceAnswer, getSelectedOptionIds } = require('../utils/choiceAnswer');
 const mongoose = require('mongoose');
 const wrongQuestionService = require('../services/wrongQuestionService');
+const roster = require('../services/classRoster');
 
 const WRONG_RETRY_COUNT = 10;
 const WRONG_RETRY_SECONDS_PER_QUESTION = 60;
@@ -93,12 +94,13 @@ exports.startPractice = async (req, res) => {
         const studentId = req.user.id;
 
         // 1. 获取学生班级及练习配置
-        const user = await User.findById(studentId).select('classId');
+        const user = await User.findById(studentId).select('classId sessionClassId');
         if (!user.classId) {
             return res.status(403).json({ success: false, message: '未分配班级，无法进行练习' });
         }
 
-        const classObj = await Class.findById(user.classId).select('freePracticeSettings');
+        // 按本次登录所在班级（行政班或教学班）的练习配置
+        const classObj = await Class.findById(roster.contextClassId(user)).select('freePracticeSettings');
 
         // 默认配置
         const defaultConfig = {
@@ -512,24 +514,23 @@ exports.getStudentRecords = async (req, res) => {
             });
         }
 
-        // 2. 构建学生筛选条件
-        let studentFilter = { classId: { $in: teacherClassIds } };
+        // 2. 构建学生筛选条件（教学班按成员）
+        let scopeIds = teacherClassIds;
 
         if (classId) {
             // 验证班级属于该老师
             if (!teacherClassIds.some(id => id.toString() === classId)) {
                 return res.status(403).json({ success: false, message: '无权访问该班级' });
             }
-            studentFilter.classId = new mongoose.Types.ObjectId(classId);
+            scopeIds = [classId];
         }
 
         if (grade) {
-            const gradeClasses = teacherClasses.filter(c => c.grade === parseInt(grade));
-            studentFilter.classId = { $in: gradeClasses.map(c => c._id) };
+            scopeIds = teacherClasses.filter(c => c.grade === parseInt(grade)).map(c => c._id);
         }
 
         // 获取符合条件的学生
-        const students = await User.find({ ...studentFilter, role: 'student' }).select('_id name classId');
+        const students = await User.find({ ...await roster.rosterFilter(scopeIds), role: 'student' }).select('_id name classId');
         const studentIds = students.map(s => s._id);
         const studentMap = new Map(students.map(s => [s._id.toString(), s]));
 
@@ -561,12 +562,12 @@ exports.getStudentRecords = async (req, res) => {
             PracticeSession.countDocuments(sessionFilter)
         ]);
 
-        // 5. 补充学生和班级信息
-        const classMap = new Map(teacherClasses.map(c => [c._id.toString(), c]));
+        // 5. 补充学生和班级信息（标注学生所在的行政班）
+        const classMap = await roster.classMapOf(students.map(s => s.classId));
 
         const enrichedRecords = records.map(r => {
             const student = studentMap.get(r.studentId.toString());
-            const cls = student ? classMap.get(student.classId.toString()) : null;
+            const cls = student && student.classId ? classMap.get(student.classId.toString()) : null;
             return {
                 _id: r._id,
                 studentName: student?.name || '未知',
@@ -609,22 +610,21 @@ exports.getLeaderboard = async (req, res) => {
             return res.json({ success: true, data: [] });
         }
 
-        // 2. 构建学生筛选条件
-        let studentFilter = { classId: { $in: teacherClassIds }, role: 'student' };
+        // 2. 构建学生筛选条件（教学班按成员）
+        let scopeIds = teacherClassIds;
 
         if (classId) {
             if (!teacherClassIds.some(id => id.toString() === classId)) {
                 return res.status(403).json({ success: false, message: '无权访问该班级' });
             }
-            studentFilter.classId = new mongoose.Types.ObjectId(classId);
+            scopeIds = [classId];
         }
 
         if (grade) {
-            const gradeClasses = teacherClasses.filter(c => c.grade === parseInt(grade));
-            studentFilter.classId = { $in: gradeClasses.map(c => c._id) };
+            scopeIds = teacherClasses.filter(c => c.grade === parseInt(grade)).map(c => c._id);
         }
 
-        const students = await User.find(studentFilter).select('_id name classId');
+        const students = await User.find({ ...await roster.rosterFilter(scopeIds), role: 'student' }).select('_id name classId');
         const studentIds = students.map(s => s._id);
 
         // 3. 构建时间筛选条件
@@ -670,11 +670,11 @@ exports.getLeaderboard = async (req, res) => {
 
         // 5. 补充学生信息
         const studentMap = new Map(students.map(s => [s._id.toString(), s]));
-        const classMap = new Map(teacherClasses.map(c => [c._id.toString(), c]));
+        const classMap = await roster.classMapOf(students.map(s => s.classId));
 
         const leaderboard = leaderboardData.map((item, index) => {
             const student = studentMap.get(item._id.toString());
-            const cls = student ? classMap.get(student.classId.toString()) : null;
+            const cls = student && student.classId ? classMap.get(student.classId.toString()) : null;
             return {
                 rank: index + 1,
                 studentId: item._id,
@@ -723,12 +723,12 @@ exports.getWrongQuestions = async (req, res) => {
 exports.startWrongRetry = async (req, res) => {
     try {
         const studentId = req.user.id;
-        const user = await User.findById(studentId).select('classId');
+        const user = await User.findById(studentId).select('classId sessionClassId');
         if (!user?.classId) {
             return res.status(403).json({ success: false, message: '未分配班级，无法进行练习' });
         }
         // 老师关闭自由练习时，错题重练一并关闭（错题本仍可查看）
-        const classObj = await Class.findById(user.classId).select('freePracticeSettings');
+        const classObj = await Class.findById(roster.contextClassId(user)).select('freePracticeSettings');
         if (classObj?.freePracticeSettings?.isEnabled === false) {
             return res.status(403).json({ success: false, message: '当前班级未开启自由练习，暂不能错题重练' });
         }
@@ -768,7 +768,7 @@ exports.getClassWrongQuestions = async (req, res) => {
         const since = days > 0 ? new Date(Date.now() - days * 24 * 3600 * 1000) : undefined;
         const source = ['quiz', 'practice'].includes(req.query.source) ? req.query.source : 'all';
 
-        const students = await User.find({ classId, role: 'student' }).select('_id name username').lean();
+        const students = await roster.findRoster(classId, { select: '_id name username' });
         const nameMap = new Map(students.map(s => [String(s._id), s.name || s.username]));
         const items = await wrongQuestionService.getClassWrongStats(students.map(s => s._id), { since, source });
 

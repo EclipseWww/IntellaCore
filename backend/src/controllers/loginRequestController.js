@@ -3,6 +3,8 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 const Class = require('../models/Class');
 const { getClientIp } = require('../utils/getClientIp');
+const ClassMembership = require('../models/ClassMembership');
+const roster = require('../services/classRoster');
 async function canManageClass(user, classId) {
     if (user?.role === 'admin') return true;
     if (user?.role !== 'teacher') return false;
@@ -29,10 +31,16 @@ const loginRequestController = {
                 });
             }
 
-            const student = await User.findOne({ _id: studentId, username, classId, role: 'student', isActive: { $ne: false } });
-            if (!student || !['device_conflict', 'ip_change', 'ip_and_device_conflict'].includes(requestType)) {
+            // 请求发给学生所选班级（行政班或参加的教学班）的老师
+            const student = await User.findOne({ _id: studentId, username, role: 'student', isActive: { $ne: false } });
+            const cls = student && await Class.findById(classId).select('type');
+            const inClass = cls && await roster.isStudentInClass(student, cls);
+            if (!student || !inClass || !['device_conflict', 'ip_change', 'ip_and_device_conflict'].includes(requestType)) {
                 return res.status(400).json({ success: false, message: '学生信息或请求类型无效' });
             }
+            const membership = roster.isElective(cls)
+                ? await ClassMembership.findOne({ class: cls._id, student: student._id }).select('boundIp').lean()
+                : null;
             // 检查学生是否已有待处理的请求
             const existingRequest = await LoginRequest.hasPendingRequest(studentId);
             if (existingRequest) {
@@ -52,7 +60,7 @@ const loginRequestController = {
                 username,
                 classId,
                 requestType,
-                oldIp: student.loginHistory?.[0]?.ip || null,
+                oldIp: roster.boundIpFor(student, cls, membership),
                 newIp: getClientIp(req)
             });
 
@@ -144,12 +152,9 @@ const loginRequestController = {
                 logger.info('已清除学生原有会话', { studentId: loginRequest.studentId });
             }
 
-            // 如果是IP变更或组合类型，需要更新登录历史中的IP地址
+            // 如果是IP变更或组合类型，更新学生在该班级绑定的IP（行政班、教学班分别绑定）
             if ((loginRequest.requestType === 'ip_change' || loginRequest.requestType === 'ip_and_device_conflict') && loginRequest.newIp) {
-                // 更新最近一条登录记录的IP为新IP
-                await User.findByIdAndUpdate(loginRequest.studentId, {
-                    $set: { 'loginHistory.0.ip': loginRequest.newIp }
-                });
+                await roster.setBoundIp(loginRequest.studentId, loginRequest.classId, loginRequest.newIp);
                 logger.info('已更新学生登录历史IP', {
                     studentId: loginRequest.studentId,
                     oldIp: loginRequest.oldIp,
@@ -258,9 +263,7 @@ const loginRequestController = {
                 }
                 // 对于IP变更类型或组合类型，更新登录历史IP
                 if ((request.requestType === 'ip_change' || request.requestType === 'ip_and_device_conflict') && request.newIp) {
-                    await User.findByIdAndUpdate(request.studentId, {
-                        $set: { 'loginHistory.0.ip': request.newIp }
-                    });
+                    await roster.setBoundIp(request.studentId, request.classId, request.newIp);
                 }
             }
 

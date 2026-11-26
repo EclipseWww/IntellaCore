@@ -2,8 +2,21 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 // 与下方静音 console 一致：未单独提供时给日志模块一个静音替身
 const silentLogger = { debug() {}, info() {}, warn() {}, error() {} };
+// 班级名单服务的简单替身：只有行政班、没有教学班（需要时测试可单独提供）
+const rosterStub = {
+  isElective: cls => !!cls && cls.type === 'elective',
+  sameId: (a, b) => a != null && b != null && String(a._id || a) === String(b._id || b),
+  contextClassId: user => (user ? (user.sessionClassId || user.classId || null) : null),
+  rosterFilter: async ids => ({ classId: { $in: [].concat(ids) } }),
+  rosterStudentIds: async () => [],
+  rosterIdSet: async () => new Set(),
+  findRoster: async () => [],
+  classIdsOfStudent: async student => (student && student.classId ? [student.classId] : []),
+  classMapOf: async () => new Map(),
+  removeStudentsEverywhere: async () => 0
+};
 function load(file, mocks) {
-  mocks = { '../utils/logger': silentLogger, ...mocks };
+  mocks = { '../utils/logger': silentLogger, '../services/classRoster': rosterStub, './classRoster': rosterStub, ...mocks };
   const context = { __dirname: require('node:path').dirname(file), module: { exports: {} }, exports: {}, require: name => {
     if (!(name in mocks)) throw new Error('Unexpected dependency: ' + name);
     return mocks[name];
@@ -54,4 +67,4 @@ function apply(doc, pipeline) {
 }
 const logger = { info() {}, warn() {}, error() {}, debug() {} };
 const response = () => ({ statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } });
-module.exports = { load, apply, logger, response };
+module.exports = { rosterStub, load, apply, logger, response };

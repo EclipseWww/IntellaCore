@@ -4,8 +4,9 @@ import { ClockCircleOutlined, PlayCircleOutlined, FieldTimeOutlined, WarningOutl
 import dayjs from 'dayjs';
 import { scheduleAPI } from '../../services/scheduleAPI';
 import { inTz, setScheduleTz } from '../../utils/scheduleTime';
+import { formatClassName } from '../../utils/className';
 
-const classLabel = (c) => (c ? `${c.grade}级${c.name}班` : '');
+const classLabel = (c) => (c ? formatClassName(c, '') : '');
 const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
 
 /**

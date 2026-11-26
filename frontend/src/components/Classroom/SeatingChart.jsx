@@ -325,8 +325,10 @@ const SeatingChart = ({ students = [], onUpdateSeat, stats, classId, extraAction
 
       try {
         // 调用后端 API 更新座位
+        // 带上班级：教学班的座位与行政班分开保存
         await api.post('/auth/update-seat', {
           userId: selectedStudent._id,
+          classId,
           seatNumber: shouldClearSeat ? null : seatInput.toUpperCase()
         });
 
@@ -396,6 +398,7 @@ const SeatingChart = ({ students = [], onUpdateSeat, stats, classId, extraAction
           student.seatNumber ?
             api.post('/auth/update-seat', {
               userId: student._id,
+              classId,
               seatNumber: null
             }) :
             Promise.resolve()

@@ -4,7 +4,7 @@ const { load, logger, response } = require('../testing/reviewTestSupport');
 
 function setup({ history = [{ ip: '192.168.1.10' }], existing = null } = {}) {
   const saved = [];
-  const student = { name: '学生', loginHistory: history };
+  const student = { _id: 'student-id', name: '学生', classId: 'class-id', loginHistory: history };
   class LoginRequest {
     constructor(data) {
       Object.assign(this, data, { _id: 'request-id', expiresAt: new Date(Date.now() + 300000) });
@@ -15,7 +15,12 @@ function setup({ history = [{ ip: '192.168.1.10' }], existing = null } = {}) {
   const controller = load(require.resolve('./loginRequestController'), {
     '../models/LoginRequest': LoginRequest,
     '../models/User': { findOne: async () => student },
-    '../models/Class': {},
+    '../models/Class': { findById: () => ({ select: async () => ({ _id: 'class-id', type: 'admin' }) }) },
+    '../models/ClassMembership': {},
+    '../services/classRoster': {
+      ...require('../services/classRoster'),
+      isStudentInClass: async (s, cls) => String(s.classId) === String(cls._id)
+    },
     '../utils/logger': logger,
     '../utils/getClientIp': { getClientIp: req => req.ip }
   });

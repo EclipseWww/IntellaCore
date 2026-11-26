@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Class = require('../models/Class');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 
 // 获取用户的班级设置
 exports.getClassSettings = async (req, res) => {
@@ -27,8 +28,8 @@ exports.getClassSettings = async (req, res) => {
       });
     }
 
-    // 获取学生所在班级的设置
-    const classSettings = await Class.findById(user.classId)
+    // 获取学生本次登录所在班级（行政班或教学班）的设置
+    const classSettings = await Class.findById(roster.contextClassId(user))
       .select('allowIpChange isInClass allowAiUsage currentCourse currentUnit currentLesson autoRedirectToLesson');
 
     if (!classSettings) {

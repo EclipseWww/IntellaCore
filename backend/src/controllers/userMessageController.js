@@ -2,6 +2,7 @@ const Conversation = require('../models/Conversation');
 const UserMessage = require('../models/UserMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 
 const ensureParticipant = async (conversationId, userId) => {
   const conv = await Conversation.findById(conversationId).select('_id participants type admins');
@@ -328,7 +329,8 @@ userMessageController.getStudentConversationsForTeacher = async (req, res) => {
       return res.status(404).json({ success: false, message: '未找到学生' });
     }
     const ClassModel = require('../models/Class');
-    const cls = await ClassModel.findOne({ _id: student.classId, teacher: teacherId }).select('_id');
+    // 学生的行政班或参加的教学班由该教师任教即可审查
+    const cls = await ClassModel.findOne({ _id: { $in: await roster.classIdsOfStudent(student) }, teacher: teacherId }).select('_id');
     if (!cls) return res.status(403).json({ success: false, message: '无权审查该学生' });
 
     const list = await Conversation.find({ participants: studentId })
@@ -354,7 +356,7 @@ userMessageController.getConversationMessagesForTeacher = async (req, res) => {
     const participants = (conv.participants || []).map(String);
     const ClassModel = require('../models/Class');
     const students = await User.find({ _id: { $in: participants }, role: 'student' }).select('_id classId');
-    const classIds = students.map(s => s.classId).filter(Boolean);
+    const classIds = (await Promise.all(students.map(s => roster.classIdsOfStudent(s)))).flat();
     const hasOwned = await ClassModel.exists({ _id: { $in: classIds }, teacher: teacherId });
     if (!hasOwned) return res.status(403).json({ success: false, message: '无权查看该会话' });
 
@@ -388,8 +390,7 @@ userMessageController.getClassGroupConversationsForTeacher = async (req, res) =>
     if (!cls) return res.status(403).json({ success: false, message: '无权查看该班级群聊' });
 
     // 找到该班级所有学生
-    const students = await User.find({ classId, role: 'student' }).select('_id');
-    const studentIds = students.map(s => s._id);
+    const studentIds = await roster.rosterStudentIds([classId]);
 
     // 查找包含本班学生的群聊（type=group 且 participants ∩ studentIds 非空）
     const groups = await Conversation.find({

@@ -19,6 +19,9 @@ const upload = multer({ dest: 'uploads/' });
  */
 router.get('/available', classController.getAvailableClasses);
 
+// 登录页：正在上课的班级，以及根据这台电脑 IP 判断出的班级（无需登录）
+router.get('/login-context', classController.getLoginContext);
+
 /**
  * @swagger
  * /classes/{classId}/students:
@@ -113,6 +116,9 @@ router.get('/teacher', classController.getTeacherClasses);
 
 // 获取所有已归档班级列表
 router.get('/archived', classController.getArchivedClasses);
+
+// 教学班（社团、选修）：搜索可加入的学生
+router.get('/elective/student-search', classController.searchStudentsForElective);
 
 // 按入学年级批量归档（管理员）
 router.post('/archive/grade', classController.archiveGrade);
@@ -542,6 +548,13 @@ router.post('/students/import', auth, upload.single('file'), classController.imp
  *         description: 班级不存在
  */
 router.patch('/:classId/settings', classController.updateClassSettings);
+
+// 教学班成员管理
+router.get('/:classId/members', classController.getElectiveMembers);
+router.post('/:classId/members', classController.addElectiveMembers);
+router.post('/:classId/members/remove', classController.removeElectiveMembers);
+router.patch('/:classId/members/:studentId', classController.updateElectiveMember);
+router.post('/:classId/elective-archive', classController.setElectiveArchived);
 
 /**
  * @swagger

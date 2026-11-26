@@ -3,6 +3,7 @@ const Lesson = require('../models/Lesson');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 const PointsManager = require('../utils/pointsManager');
 
 // 提交流程图
@@ -258,7 +259,7 @@ exports.getActivitySubmissions = async (req, res) => {
 
     // 如果指定了班级，筛选该班级的学生
     if (classId) {
-      const studentsInClass = await User.find({ classId }).select('_id');
+      const studentsInClass = await User.find({ ...await roster.rosterFilter([classId]), role: 'student' }).select('_id');
       const studentIds = studentsInClass.map(s => s._id);
       query.userId = { $in: studentIds };
     }
@@ -411,7 +412,7 @@ exports.getClassStats = async (req, res) => {
     });
 
     // 获取班级学生
-    const studentsInClass = await User.find({ classId }).select('_id name studentId');
+    const studentsInClass = await roster.findRoster(classId, { select: '_id name studentId' });
     const studentIds = studentsInClass.map(s => s._id);
 
     // 获取提交记录

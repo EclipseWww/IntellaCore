@@ -46,6 +46,25 @@ export const formatClassName = (grade, name) => {
   return `${grade}级${name}班`;
 };
 
+// 社团/选修（教学班）：筛选项名称 -> { id, 成员 ID 集合 }。学生来自各行政班，按成员名单筛选。
+let electiveRosters = new Map();
+export const electiveOptionName = (title) => `${title || '未命名'}（社团/选修）`;
+export const setElectiveRosters = (classes = []) => {
+  electiveRosters = new Map(classes
+    .filter(c => c.type === 'elective' && c.status !== 'archived')
+    .map(c => [electiveOptionName(c.title), { id: c._id, ids: new Set((c.students || []).map(st => String(st._id))) }]));
+};
+export const electiveOptions = () => [...electiveRosters.keys()];
+export const electiveIdOf = (option) => electiveRosters.get(option)?.id || null;
+
+// 学生是否属于所选班级（行政班按“2024级3班”名称，社团/选修按成员名单）
+export const inSelectedClass = (selected, grade, name, studentId) => {
+  if (!selected) return true;
+  const elective = electiveRosters.get(selected);
+  if (elective) return !!studentId && elective.ids.has(String(studentId));
+  return formatClassName(grade, name) === selected;
+};
+
 // 计算各等级学生数量和未评阅作业数量
 export const calculateStatistics = (submissions) => {
   const stats = {

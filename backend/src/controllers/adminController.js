@@ -3,6 +3,19 @@ const Class = require('../models/Class');
 const Course = require('../models/Course');
 const logger = require('../utils/logger');
 const { escapeRegex } = require('../utils/escapeRegex');
+const roster = require('../services/classRoster');
+const ClassMembership = require('../models/ClassMembership');
+const { formatClassName } = require('../utils/className');
+
+// 学生账号只能归属行政班；教学班（社团、选修）通过成员管理加入
+async function rejectElectiveAsHome(classId) {
+  if (!classId) return false;
+  return !!await Class.exists({ _id: classId, type: 'elective' });
+}
+// 班级人数：行政班按账号归属，教学班按成员
+const countStudents = (classItem) => roster.isElective(classItem)
+  ? ClassMembership.countDocuments({ class: classItem._id })
+  : User.countDocuments({ classId: classItem._id, role: 'student' });
 
 const adminController = {
   // 获取系统概览统计
@@ -73,7 +86,7 @@ const adminController = {
       // 分页查询
       const users = await User.find(query)
         .select('-password')
-        .populate('classId', 'name grade')
+        .populate('classId', 'name grade type title')
         .sort({ createdAt: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -108,6 +121,10 @@ const adminController = {
         return res.status(400).json({
           message: '用户名、密码、姓名和角色不能为空'
         });
+      }
+
+      if (await rejectElectiveAsHome(classId)) {
+        return res.status(400).json({ message: '学生的所在班级只能是行政班；社团、选修请在教学班中添加成员' });
       }
 
       // 检查用户名是否已存在
@@ -171,6 +188,9 @@ const adminController = {
       if (name !== undefined) user.name = name;
       if (role !== undefined) user.role = role;
       if (gender !== undefined) user.gender = gender;
+      if (classId !== undefined && await rejectElectiveAsHome(classId)) {
+        return res.status(400).json({ message: '学生的所在班级只能是行政班；社团、选修请在教学班中添加成员' });
+      }
       if (classId !== undefined) user.classId = classId || null;
       if (isActive !== undefined) user.isActive = isActive;
 
@@ -213,6 +233,7 @@ const adminController = {
       }
 
       await User.findByIdAndDelete(userId);
+      await roster.removeStudentsEverywhere([userId]);
 
       logger.info('用户删除成功', { userId, username: user.username });
       res.json({
@@ -276,13 +297,12 @@ const adminController = {
       // 为每个班级统计学生数量
       const classesWithStats = await Promise.all(
         classes.map(async (classItem) => {
-          const studentCount = await User.countDocuments({
-            classId: classItem._id,
-            role: 'student'
-          });
+          const studentCount = await countStudents(classItem);
 
           return {
             ...classItem.toObject(),
+            type: classItem.type || 'admin',
+            displayName: formatClassName(classItem),
             studentCount
           };
         })
@@ -432,13 +452,12 @@ const adminController = {
       // 为每个班级统计学生数量
       const classesWithStats = await Promise.all(
         classes.map(async (classItem) => {
-          const studentCount = await User.countDocuments({
-            classId: classItem._id,
-            role: 'student'
-          });
+          const studentCount = await countStudents(classItem);
 
           return {
             ...classItem.toObject(),
+            type: classItem.type || 'admin',
+            displayName: formatClassName(classItem),
             studentCount
           };
         })
@@ -484,7 +503,7 @@ const adminController = {
       }
 
       // 检查班级是否已存在
-      const existingClass = await Class.findOne({ grade, name });
+      const existingClass = await Class.findOne({ grade, name, type: { $ne: 'elective' } });
       if (existingClass) {
         return res.status(400).json({
           message: `${grade}级${name}班已存在`
@@ -761,7 +780,8 @@ const adminController = {
         // 查找或创建班级（管理员可以为任何班级导入学生）
         let classObj = await Class.findOne({
           grade: Number(grade),
-          name: Number(className)
+          name: Number(className),
+          type: { $ne: 'elective' }
         });
 
         if (!classObj) {

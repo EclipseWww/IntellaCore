@@ -3,6 +3,7 @@ const TypingRecord = require('../models/TypingRecord');
 const User = require('../models/User');
 const Class = require('../models/Class');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 const Achievement = require('../models/Achievement');
 const PointsManager = require('../utils/pointsManager');
 const mongoose = require('mongoose');
@@ -445,7 +446,7 @@ exports.getTeacherRecords = async (req, res) => {
 
     // 获取教师的所有班级
     const classes = await Class.find({ teacher: req.user._id })
-      .select('name grade')
+      .select('name grade type title')
       .sort('grade name');
 
     logger.info('获取教师班级列表', { teacherId: req.user._id, classCount: classes.length });
@@ -453,7 +454,7 @@ exports.getTeacherRecords = async (req, res) => {
     // 添加班级筛选
     if (classId) {
       // 从 User 模型中查找属于该班级的学生
-      const studentsInClass = await User.find({ classId }).select('_id');
+      const studentsInClass = await User.find({ ...await roster.rosterFilter([classId]), role: 'student' }).select('_id');
       const studentIds = studentsInClass.map(student => student._id);
       query.userId = { $in: studentIds };
 
@@ -488,7 +489,7 @@ exports.getTeacherRecords = async (req, res) => {
     // 格式化班级列表
     const formattedClasses = classes.map(cls => ({
       _id: cls._id,
-      name: `${cls.grade}年级${cls.name}班`
+      name: cls.type === 'elective' ? (cls.title || '未命名教学班') : `${cls.grade}年级${cls.name}班`
     }));
 
     res.json({
@@ -518,7 +519,7 @@ exports.getTeacherStats = async (req, res) => {
     // 添加班级筛选
     if (classId) {
       // 从 User 模型中查找属于该班级的学生
-      const studentsInClass = await User.find({ classId }).select('_id');
+      const studentsInClass = await User.find({ ...await roster.rosterFilter([classId]), role: 'student' }).select('_id');
       const studentIds = studentsInClass.map(student => student._id);
       query.userId = { $in: studentIds };
 
@@ -656,8 +657,9 @@ exports.getLeaderboard = async (req, res) => {
     const studentId = req.user._id;
 
     // 获取当前学生的班级信息
-    const currentUser = await User.findById(studentId).select('classId');
-    const currentClassId = currentUser?.classId;
+    // 班级排行按本次登录所在的班级（教学班为其成员）
+    const currentUser = await User.findById(studentId).select('classId sessionClassId');
+    const currentClassId = roster.contextClassId(currentUser);
 
     // 构建时间筛选条件
     let timeFilter = {};
@@ -676,7 +678,7 @@ exports.getLeaderboard = async (req, res) => {
     // 根据 scope 决定查询范围
     let studentFilter = { role: 'student' };
     if (scope === 'class' && currentClassId) {
-      studentFilter.classId = currentClassId;
+      studentFilter = { ...await roster.rosterFilter([currentClassId]), role: 'student' };
     }
 
     // 获取符合条件的学生

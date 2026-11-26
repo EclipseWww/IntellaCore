@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, UserAddOutlined, GroupOutli
 import { classAPI } from '../../services/api';
 import moment from 'moment';
 import { useNavigate } from 'react-router-dom';
+import ElectiveClassPanel, { ElectiveFormModal } from './ElectiveClassPanel';
 
 const { Sider, Content } = Layout;
 
@@ -37,24 +38,27 @@ const ClassManagement = () => {
   const [fileList, setFileList] = useState([]);
   const navigate = useNavigate();
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [electiveModalOpen, setElectiveModalOpen] = useState(false);
+  const isElectiveId = (id) => classes.some(c => c._id === id && c.type === 'elective');
 
   // 获取班级列表
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      const response = await classAPI.getTeacherClasses();
-      // 对班级进行排序 - 年级降序（较新的年级在前面），班级号升序
-      const sortedClasses = response.data.sort((a, b) => {
-        if (a.grade === b.grade) {
-          return a.name - b.name; // 按班级号升序
-        }
-        return b.grade - a.grade; // 按年级降序，较新的年级在前
-      });
+      // 已归档的教学班也列出（可以恢复）；已归档的行政班仍不显示
+      const response = await classAPI.getTeacherClasses({ includeArchived: true });
+      const all = (response.data || []).filter(c => c.type === 'elective' || c.status !== 'archived');
+      // 行政班：年级降序（较新的年级在前面），班级号升序；社团/选修排在后面，按名称排序
+      const sortedClasses = [
+        ...all.filter(c => c.type !== 'elective').sort((a, b) => (a.grade === b.grade ? a.name - b.name : b.grade - a.grade)),
+        ...all.filter(c => c.type === 'elective').sort((a, b) =>
+          (a.status === 'archived') - (b.status === 'archived') || String(a.title).localeCompare(String(b.title), 'zh-CN'))
+      ];
       setClasses(sortedClasses);
-      // 如果有班级且没有选中的班级，默认选中第一个
-      if (sortedClasses.length > 0 && !selectedClass) {
+      // 如果有班级且没有选中的班级（或选中的已不存在），默认选中第一个
+      if (sortedClasses.length > 0 && (!selectedClass || !sortedClasses.some(c => c._id === selectedClass))) {
         setSelectedClass(sortedClasses[0]._id);
-        fetchClassDetails(sortedClasses[0]._id);
+        if (sortedClasses[0].type !== 'elective') fetchClassDetails(sortedClasses[0]._id);
       }
     } catch (error) {
       message.error('获取班级列表失败');
@@ -219,7 +223,8 @@ const ClassManagement = () => {
   // 处理菜单选择
   const handleMenuSelect = ({ key }) => {
     setSelectedClass(key);
-    fetchClassDetails(key);
+    setSelectedRowKeys([]);
+    if (!isElectiveId(key)) fetchClassDetails(key);
   };
 
   // 处理查看登录历史
@@ -477,7 +482,12 @@ const ClassManagement = () => {
           mode="inline"
           selectedKeys={[selectedClass]}
           onSelect={handleMenuSelect}
-          items={classes.map(cls => ({
+          items={[
+            {
+              type: 'group',
+              key: 'admin-group',
+              label: '行政班',
+              children: classes.filter(c => c.type !== 'elective').map(cls => ({
             key: cls._id,
             label: (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -510,12 +520,39 @@ const ClassManagement = () => {
                 </span>
               </div>
             ),
-          }))}
+          }))
+            },
+            {
+              type: 'group',
+              key: 'elective-group',
+              label: (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>社团 / 选修</span>
+                  <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => setElectiveModalOpen(true)}>新建</Button>
+                </div>
+              ),
+              children: classes.filter(c => c.type === 'elective').map(cls => ({
+                key: cls._id,
+                label: (
+                  <span style={{ color: cls.status === 'archived' ? '#999' : undefined }}>
+                    {cls.title}{cls.status === 'archived' ? '（已归档）' : ''}
+                  </span>
+                )
+              }))
+            }
+          ]}
           style={{ height: 'calc(100vh - 120px)', overflowY: 'auto' }}
         />
       </Sider>
       <Content style={{ padding: '24px', minHeight: 280 }}>
-        {selectedClass && (
+        {selectedClass && isElectiveId(selectedClass) && (
+          <ElectiveClassPanel
+            cls={classes.find(c => c._id === selectedClass)}
+            onChanged={fetchClasses}
+            onDeleted={() => { setSelectedClass(null); fetchClasses(); }}
+          />
+        )}
+        {selectedClass && !isElectiveId(selectedClass) && (
           <Card
             title={`${formatClassName(
               classes.find(c => c._id === selectedClass)?.grade,
@@ -566,6 +603,17 @@ const ClassManagement = () => {
           </Card>
         )}
       </Content>
+
+      <ElectiveFormModal
+        open={electiveModalOpen}
+        editing={null}
+        onCancel={() => setElectiveModalOpen(false)}
+        onSaved={(created) => {
+          setElectiveModalOpen(false);
+          if (created?._id) setSelectedClass(created._id);
+          fetchClasses();
+        }}
+      />
 
       {/* 登录历史记录模态框 */}
       <Modal
@@ -854,7 +902,7 @@ const ClassManagement = () => {
             label="班级"
           >
             <Select placeholder="请选择班级">
-              {classes.map(cls => (
+              {classes.filter(c => c.type !== 'elective' && c.status !== 'archived').map(cls => (
                 <Select.Option key={cls._id} value={cls._id}>
                   {formatClassName(cls.grade, cls.name)}
                 </Select.Option>

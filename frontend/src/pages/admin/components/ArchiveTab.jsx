@@ -134,7 +134,7 @@ const ArchiveTab = ({ active, classes }) => {
               {
                 title: '班级',
                 key: 'class',
-                render: (_, r) => `${r.grade}届${r.name}班`
+                render: (_, r) => (r.type === 'elective' ? `${r.title || '未命名'}（社团/选修）` : `${r.grade}届${r.name}班`)
               },
               {
                 title: '学生数',
@@ -174,7 +174,7 @@ const ArchiveTab = ({ active, classes }) => {
                     >
                       <Button type="link" size="small" icon={<RollbackOutlined />}>恢复</Button>
                     </Popconfirm>
-                    <Popconfirm
+                    {r.type !== 'elective' && <Popconfirm
                       title="确定删除该班级学生的所有作业文件？"
                       description="删除后文件不可恢复，成绩、评语等数据不受影响"
                       okText="确定删除"
@@ -188,7 +188,7 @@ const ArchiveTab = ({ active, classes }) => {
                       }}
                     >
                       <Button type="link" size="small" danger icon={<DeleteOutlined />}>清理文件</Button>
-                    </Popconfirm>
+                    </Popconfirm>}
                   </Space>
                 )
               }

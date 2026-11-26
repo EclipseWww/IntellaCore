@@ -8,7 +8,7 @@ import {
 
 
 
-import { formatClassName, calculateStatistics } from './assignmentReviewUtils';
+import { formatClassName, calculateStatistics, inSelectedClass } from './assignmentReviewUtils';
 
 
 // 批阅页顶部的等级统计
@@ -31,7 +31,7 @@ const ReviewStatistics = ({ allSubmissions, fillBlankSubmissions, flowchartSubmi
       const student = s.student || s.studentId;
       const grade = student?.grade || student?.classId?.grade;
       const className = student?.className || student?.classId?.name;
-      return formatClassName(grade, className) === selectedClass;
+      return inSelectedClass(selectedClass, grade, className, student?._id);
     });
   }
 

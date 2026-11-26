@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Tag, Button, Space, Empty, message, Modal, Card, Typography, Row, Col, Tooltip, Spin, Descriptions, Progress } from 'antd';
 import { EyeOutlined, DeleteOutlined, DownloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { quizAPI } from '../../../../services/api';
+import { inSelectedClass } from './assignmentReviewUtils';
 
 const { Text, Title } = Typography;
 
@@ -51,10 +52,8 @@ const QuizReview = ({
                     subs = subs.filter(s => {
                         const student = s.studentId;
                         if (!student?.classId) return false;
-                        const className = formatClassName ?
-                            formatClassName(student.classId.grade, student.classId.name) :
-                            `${student.classId.grade || ''}级${student.classId.name || ''}班`;
-                        return className === selectedClass;
+                        // 社团/选修按成员名单，行政班按班级名称
+                        return inSelectedClass(selectedClass, student.classId.grade, student.classId.name, student._id);
                     });
                 }
                 // 提取班级列表并通知父组件

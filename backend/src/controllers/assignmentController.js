@@ -1419,7 +1419,7 @@ exports.previewCleanup = async (req, res) => {
 
         // 查找属于这些班级的所有学生ID
         const studentsInClasses = await User.find(
-          { classId: { $in: classObjectIds } },
+          { ...await require('../services/classRoster').rosterFilter(classObjectIds), role: 'student' },
           { _id: 1 }
         );
 
@@ -1500,7 +1500,7 @@ exports.previewCleanup = async (req, res) => {
         const classes = await Class.find({ _id: { $in: classObjectIds } });
         const classMap = {};
         classes.forEach(cls => {
-          classMap[cls._id.toString()] = `${cls.grade}级${cls.name}班`;
+          classMap[cls._id.toString()] = require('../utils/className').formatClassName(cls);
         });
 
         // 为选中的每个班级初始化统计
@@ -1592,7 +1592,7 @@ exports.cleanupFiles = async (req, res) => {
 
         // 查找属于这些班级的所有学生ID
         const studentsInClasses = await User.find(
-          { classId: { $in: classObjectIds } },
+          { ...await require('../services/classRoster').rosterFilter(classObjectIds), role: 'student' },
           { _id: 1 }
         );
 

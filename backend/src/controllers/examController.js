@@ -202,7 +202,7 @@ const calculateResultsInternal = async (configId) => {
     // Optimization: Fetch only necessary fields
     const students = await User.find({
         role: 'student',
-        classId: { $in: classIds }
+        ...await require('../services/classRoster').rosterFilter(classIds)
     }).select('_id name username studentId classId')
         .populate('classId', 'name');
 

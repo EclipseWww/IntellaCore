@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Select, List, Space, Tabs, Typography, message } from 'antd';
 import imAPI from '../../services/userMessages';
 import api, { classAPI } from '../../services/api';
+import { formatClassName } from '../../utils/className';
 
 const { Text } = Typography;
 
@@ -70,7 +71,7 @@ const ChatAudit = () => {
           <Select style={{ width: '100%' }} placeholder="选择班级"
             value={selectedClassId}
              onChange={(v) => { setSelectedClassId(v); setSelectedStudentId(undefined); setSelectedConv(undefined); setMessages([]); loadStudents(v); loadClassGroups(v); }}
-            options={(classes || []).map(c => ({ label: `${c.grade}级${c.name}班`, value: c._id }))}
+            options={(classes || []).map(c => ({ label: formatClassName(c), value: c._id }))}
           />
         </Card>
         <Card size="small" title="选择学生">

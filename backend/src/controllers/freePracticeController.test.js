@@ -133,7 +133,8 @@ test('class wrong-question stats are limited to the teacher own class', async ()
   const controller = load(require.resolve('./freePracticeController'), {
     '../models/PracticeSession': {}, '../models/Question': {}, '../models/Setting': {}, '../utils/pointsManager': {},
     '../models/Class': { findOne: query => ({ select: async () => (query.teacher === 'owner' || !query.teacher ? { _id: query._id } : null) }) },
-    '../models/User': { find: () => ({ select: () => ({ lean: async () => [{ _id: 's1', name: '张三' }] }) }) },
+    '../models/User': {},
+    '../services/classRoster': { findRoster: async () => [{ _id: 's1', name: '张三' }] },
     '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: require('mongoose'),
     '../services/wrongQuestionService': { getClassWrongStats: async () => [{ questionId: 'q1', unmasteredStudentIds: ['s1'] }] }
   });

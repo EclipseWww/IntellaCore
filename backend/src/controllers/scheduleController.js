@@ -11,6 +11,8 @@ const logger = require('../utils/logger');
 const L = require('../services/scheduleLogic');
 const svc = require('../services/scheduleService');
 const semesterUtils = require('../utils/semesterUtils');
+const roster = require('../services/classRoster');
+const { formatClassName } = require('../utils/className');
 
 const isId = (v) => mongoose.Types.ObjectId.isValid(v);
 const fail = (res, code, message) => res.status(code).json({ success: false, message });
@@ -48,7 +50,7 @@ exports.updateConfig = guard(async (req, res) => {
 
 exports.listSlots = guard(async (req, res) => {
   const slots = await ScheduleSlot.find({ teacher: req.user._id })
-    .populate('class', 'grade name').populate('course', 'title').lean();
+    .populate('class', 'grade name type title').populate('course', 'title').lean();
   res.json({ success: true, data: slots });
 });
 
@@ -74,7 +76,7 @@ exports.upsertSlot = guard(async (req, res) => {
     { teacher: req.user._id, weekday, period },
     { teacher: req.user._id, weekday, period, class: classId, course: oc.courseId, autoStart: !!autoStart, startDate, endDate },
     { upsert: true, new: true, setDefaultsOnInsert: true }
-  ).populate('class', 'grade name').populate('course', 'title');
+  ).populate('class', 'grade name type title').populate('course', 'title');
   res.json({ success: true, data: slot });
 });
 
@@ -156,7 +158,7 @@ exports.listOccurrences = guard(async (req, res) => {
     if (c) { o.course = String(c); o.courseAuto = true; }
   }
   for (const o of occ) if (o.session && o.session.course) o.course = String(o.session.course);
-  const classes = await Class.find({ _id: { $in: [...new Set(occ.map(o => o.class))] } }).select('grade name').lean();
+  const classes = await Class.find({ _id: { $in: [...new Set(occ.map(o => o.class))] } }).select('grade name type title').lean();
   const courses = await Course.find({ _id: { $in: [...new Set(occ.map(o => o.course))] } }).select('title').lean();
   const cMap = new Map(classes.map(c => [String(c._id), c]));
   const kMap = new Map(courses.map(c => [String(c._id), c]));
@@ -304,8 +306,7 @@ exports.updateSession = guard(async (req, res) => {
 exports.getSession = guard(async (req, res) => {
   const session = await ownSession(req, res);
   if (!session) return;
-  const students = await User.find({ classId: session.class, role: 'student' })
-    .select('name username seatNumber').sort({ username: 1 }).lean();
+  const students = await roster.findRoster(session.class, { select: 'name username seatNumber', sort: { username: 1 } });
   const map = new Map(session.attendance.map(a => [String(a.student), a]));
   res.json({
     success: true,
@@ -327,8 +328,7 @@ exports.saveAttendance = guard(async (req, res) => {
   const { records } = req.body || {};
   if (!Array.isArray(records)) return fail(res, 400, '参数错误');
   const valid = new Set(['present', 'late', 'absent', 'leave']);
-  const students = await User.find({ classId: session.class, role: 'student' }).select('_id').lean();
-  const inClass = new Set(students.map(s => String(s._id)));
+  const inClass = await roster.rosterIdSet([session.class]);
 
   const next = new Map();
   for (const r of records) {
@@ -401,7 +401,7 @@ exports.exportRoster = guard(async (req, res) => {
 
   const [sessions, students] = await Promise.all([
     LessonSession.find(q).populate('lesson', 'title').populate('course', 'title').sort({ date: 1, period: 1 }).lean(),
-    User.find({ classId, role: 'student' }).select('name username seatNumber gender').sort({ username: 1 }).lean()
+    roster.findRoster(classId, { select: 'name username seatNumber gender', sort: { username: 1 } })
   ]);
 
   let scoreMap = new Map();
@@ -419,7 +419,7 @@ exports.exportRoster = guard(async (req, res) => {
   const fixedHeaders = ['序号', '学号', '姓名', '性别', '座号'];
   const sumHeaders = ['应到次数', '出勤', '迟到', '缺勤', '请假', '出勤率', '平日成绩'];
   const sessionHeaders = sessions.map(s => `${s.date.slice(5)} 第${s.period}节`);
-  ws.addRow([`${classObj.grade}级${classObj.name}班 平日成绩花名册`]);
+  ws.addRow([`${formatClassName(classObj)} 平日成绩花名册`]);
   ws.addRow([`导出时间：${new Date().toLocaleString('zh-CN', { timeZone: L.getTimezone() })}　课节数：${sessions.length}（已点名 ${taken.length}）　标记：迟=迟到 缺=缺勤 假=请假 空=出勤`]);
   ws.addRow([...fixedHeaders, ...sumHeaders, ...sessionHeaders]);
   const leadCols = fixedHeaders.length + sumHeaders.length;
@@ -457,7 +457,7 @@ exports.exportRoster = guard(async (req, res) => {
   ws.columns.forEach((c, i) => { c.width = i < 3 ? 12 : i < 12 ? 9 : 14; });
   ws.views = [{ state: 'frozen', xSplit: 3, ySplit: 4 }];
 
-  const filename = encodeURIComponent(`${classObj.grade}级${classObj.name}班-平日成绩花名册.xlsx`);
+  const filename = encodeURIComponent(`${formatClassName(classObj)}-平日成绩花名册.xlsx`);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
   await wb.xlsx.write(res);

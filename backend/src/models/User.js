@@ -77,6 +77,8 @@ const bcrypt = require('bcryptjs');
 
 const loginHistorySchema = new mongoose.Schema({
   ip: String,
+  // 这次登录所选的班级（行政班或教学班）；旧记录没有该字段，视为行政班
+  classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', default: undefined },
   timestamp: {
     type: Date,
     default: Date.now
@@ -140,6 +142,19 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // 当前登录会话所属的班级（学生在登录页所选的行政班或教学班）；为空表示行政班
+  sessionClassId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class',
+    default: null
+  },
+  // 一次性登录放行：教学班开始上课时被踢下线的学生，在原电脑上登录该班不需要审批
+  loginHandoff: {
+    _id: false,
+    classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', default: null },
+    ip: { type: String, default: null },
+    expiresAt: { type: Date, default: null }
+  },
   // 学生游戏剩余时长（秒）
   gameTimeRemainingSeconds: {
     type: Number,
@@ -199,9 +214,9 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // 记录登录历史的方法
-userSchema.methods.addLoginRecord = async function(ip, userAgent) {
+userSchema.methods.addLoginRecord = async function(ip, userAgent, classId) {
   this.lastLogin = new Date();
-  this.loginHistory.unshift({ ip, userAgent });
+  this.loginHistory.unshift({ ip, userAgent, ...(classId && { classId }) });
   
   // 只保留最近的10条登录记录
   if (this.loginHistory.length > 10) {

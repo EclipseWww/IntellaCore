@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const { getClientIp } = require('../utils/getClientIp');
+const mongoose = require('mongoose');
+const ClassMembership = require('../models/ClassMembership');
+const roster = require('../services/classRoster');
+const { formatClassName } = require('../utils/className');
 
 const STUDENT_SESSION_SECONDS = 2 * 60 * 60;
 
@@ -83,24 +87,23 @@ const authController = {
         logger.info('教师登录成功:', username);
         return res.json(responseData);
       }
-      // 学生登录：查找班级并检查状态 + 单点登录会话处理
+      // 学生登录：确定本次登录的班级（行政班或参加的教学班）并检查状态 + 单点登录会话处理
       else if (user.role === 'student') {
-        const userWithClass = await User.findById(user._id).select('classId loginHistory seatNumber');
-        logger.info('用户班级信息:', userWithClass);
+        const userWithClass = await User.findById(user._id).select('classId loginHistory seatNumber loginHandoff');
         if (!userWithClass.classId) {
           logger.warn('学生未分配班级:', username);
           return res.status(404).json({ message: '未找到学生所在班级' });
         }
 
-        const classObj = await Class.findById(userWithClass.classId)
-          .select('allowIpChange isInClass currentLesson currentCourse currentUnit autoRedirectToLesson status');
-        if (!classObj) {
+        const CLASS_FIELDS = 'type title grade name allowIpChange isInClass currentLesson currentCourse currentUnit autoRedirectToLesson status';
+        const adminClass = await Class.findById(userWithClass.classId).select(CLASS_FIELDS);
+        if (!adminClass) {
           logger.warn('班级未找到:', userWithClass.classId);
           return res.status(404).json({ message: '未找到指定的班级' });
         }
 
-        // 如果班级已归档（已毕业），则禁止登录并返回友好提示
-        if (classObj.status === 'archived') {
+        // 如果行政班已归档（已毕业），则禁止登录并返回友好提示
+        if (adminClass.status === 'archived') {
           logger.info('学生尝试登录已归档班级', { username, classId: userWithClass.classId });
           return res.status(403).json({
             message: '您所在班级已完成本阶段学习，如有问题请联系教师',
@@ -108,12 +111,34 @@ const authController = {
           });
         }
 
+        // 登录页选了教学班（社团、选修）：必须是该班成员
+        let classObj = adminClass;
+        let membership = null;
+        const requestedClassId = req.body.classId;
+        if (requestedClassId && String(requestedClassId) !== String(adminClass._id)) {
+          const requested = mongoose.isValidObjectId(requestedClassId)
+            ? await Class.findById(requestedClassId).select(CLASS_FIELDS)
+            : null;
+          membership = requested && requested.type === 'elective'
+            ? await ClassMembership.findOne({ class: requested._id, student: user._id })
+            : null;
+          if (!requested || !membership) {
+            logger.warn('学生选择了不属于自己的班级', { username, requestedClassId });
+            return res.status(403).json({ message: '你不在所选的班级里，请重新选择班级', code: 'NOT_IN_CLASS' });
+          }
+          if (requested.status === 'archived') {
+            return res.status(403).json({ message: '该教学班已结课', code: 'CLASS_ARCHIVED' });
+          }
+          classObj = requested;
+        }
+        const classId = classObj._id;
+
         // 非上课时间一律不允许学生登录（无论密码是否正确）。
         // 该检查放在 IP/设备冲突检查之前：未登录成功前不向外返回学生姓名、上次登录 IP 等信息。
         if (!classObj.isInClass) {
           logger.warn('学生在非上课时间尝试登录被拒绝', {
             username,
-            classId: userWithClass.classId,
+            classId,
             attemptTime: new Date().toISOString()
           });
           return res.status(403).json({
@@ -124,30 +149,29 @@ const authController = {
         }
 
         const currentIp = getClientIp(req);
-        logger.info('IP检查信息:', { allowIpChange: classObj.allowIpChange, currentIp });
+        const now = new Date();
+        // 一次性放行：该班开始上课时被踢下线的学生，在原来那台电脑上登录本班不需要审批
+        const handoff = roster.handoffApplies(userWithClass, classId, currentIp, now);
+        const boundIp = roster.boundIpFor(userWithClass, classObj, membership);
+        logger.info('IP检查信息:', { allowIpChange: classObj.allowIpChange, currentIp, handoff });
 
         // 检测两种可能的问题
         let hasIpIssue = false;
         let hasDeviceConflict = false;
         let oldIp = null;
 
-        // 检查 IP 变更问题
-        if (!classObj.allowIpChange && userWithClass.loginHistory?.length > 0) {
-          const lastLogin = userWithClass.loginHistory[0];
-          logger.info('IP比对:', { lastLoginIp: lastLogin.ip, currentIp });
-          if (lastLogin.ip !== currentIp) {
-            hasIpIssue = true;
-            oldIp = lastLogin.ip;
-          }
+        // 检查 IP 变更问题：只和这个班级绑定的 IP 比较（行政班、各教学班分别绑定）
+        if (!classObj.allowIpChange && !handoff && boundIp && boundIp !== currentIp) {
+          hasIpIssue = true;
+          oldIp = boundIp;
         }
 
         // 检查设备冲突问题
-        const now = new Date();
         if (user.sessionId && user.sessionExpiresAt && user.sessionExpiresAt > now) {
           hasDeviceConflict = true;
         }
 
-        // 根据问题类型返回相应的错误响应
+        // 根据问题类型返回相应的错误响应（审批请求发给所选班级的老师）
         if (hasIpIssue && hasDeviceConflict) {
           // 同时存在 IP 变更和设备冲突
           logger.warn('IP不匹配且存在设备冲突，需要请求登录', {
@@ -163,7 +187,7 @@ const authController = {
             canRequestLogin: true,
             studentId: user._id,
             studentName: user.name,
-            classId: userWithClass.classId
+            classId
           });
         } else if (hasIpIssue) {
           // 仅 IP 变更
@@ -176,7 +200,7 @@ const authController = {
             canRequestLogin: true,
             studentId: user._id,
             studentName: user.name,
-            classId: userWithClass.classId
+            classId
           });
         } else if (hasDeviceConflict) {
           // 仅设备冲突
@@ -187,18 +211,28 @@ const authController = {
             canRequestLogin: true,
             studentId: user._id,
             studentName: user.name,
-            classId: userWithClass.classId
+            classId
           });
         }
 
-        const ip = getClientIp(req);
         const userAgent = req.headers['user-agent'];
-        await user.addLoginRecord(ip, userAgent);
+        await user.addLoginRecord(currentIp, userAgent, classId);
 
-        // 创建新的会话ID与过期时间，并存储到用户
+        // 教学班第一次登录：绑定这台电脑的 IP
+        if (membership && !membership.boundIp) {
+          await ClassMembership.updateOne({ _id: membership._id, boundIp: null }, { $set: { boundIp: currentIp } });
+        }
+
+        // 创建新的会话ID与过期时间，并存储到用户；记下本次登录所属的班级，用过的一次性放行作废
         const newSessionId = require('crypto').randomBytes(16).toString('hex');
         const sessionExpiresAt = new Date(Date.now() + STUDENT_SESSION_SECONDS * 1000);
-        await User.findByIdAndUpdate(user._id, { sessionId: newSessionId, sessionExpiresAt });
+        await User.findByIdAndUpdate(user._id, {
+          sessionId: newSessionId,
+          sessionExpiresAt,
+          sessionClassId: classId,
+          ...(handoff && { loginHandoff: { classId: null, ip: null, expiresAt: null } })
+        });
+        const seatNumber = membership ? (membership.seatNumber || null) : userWithClass.seatNumber;
 
         const token = jwt.sign(
           {
@@ -218,16 +252,19 @@ const authController = {
             username: user.username,
             role: user.role,
             name: user.name,
-            seatNumber: userWithClass.seatNumber
+            seatNumber
           },
           token,
           classInfo: {
+            classId,
+            className: formatClassName(classObj),
+            classType: classObj.type || 'admin',
             isInClass: classObj.isInClass,
             currentLesson: classObj.currentLesson,
             currentCourse: classObj.currentCourse,
             currentUnit: classObj.currentUnit,
             autoRedirectToLesson: classObj.autoRedirectToLesson,
-            needSelectSeat: !userWithClass.seatNumber  // 添加是否需要选择座位的标志
+            needSelectSeat: !seatNumber  // 是否需要选择座位（教学班的座位与行政班分开）
           }
         };
 
@@ -289,6 +326,28 @@ const authController = {
         ...user.toObject(),
         seatNumber: user.seatNumber
       };
+      delete responseData.loginHandoff;
+
+      // 学生：本次登录所在的班级（教学班的座位号取该班的座位），以及参加的教学班
+      if (user.role === 'student') {
+        const ctxId = roster.contextClassId(user);
+        const memberships = await ClassMembership.find({ student: user._id }).select('class seatNumber').lean();
+        const electives = memberships.length
+          ? await Class.find({ _id: { $in: memberships.map(m => m.class) } }).select('type title term status teacher').populate('teacher', 'name').lean()
+          : [];
+        responseData.electives = electives
+          .filter(c => c.status !== 'archived')
+          .map(c => ({ _id: c._id, title: c.title, term: c.term || '', teacherName: c.teacher && c.teacher.name }));
+        const ctxMembership = memberships.find(m => roster.sameId(m.class, ctxId));
+        if (ctxMembership) {
+          const ctx = electives.find(c => roster.sameId(c._id, ctxId));
+          responseData.seatNumber = ctxMembership.seatNumber || null;
+          responseData.currentClass = { _id: ctxId, type: 'elective', displayName: formatClassName(ctx || { type: 'elective' }) };
+        } else if (user.classId) {
+          const admin = await Class.findById(user.classId).select('grade name type').lean();
+          responseData.currentClass = admin ? { _id: admin._id, type: 'admin', displayName: formatClassName(admin) } : null;
+        }
+      }
 
       res.json(responseData);
     } catch (error) {
@@ -316,15 +375,59 @@ const authController = {
   async updateSeatNumber(req, res) {
     try {
       const { seatNumber, userId } = req.body;
-      const targetUserId = userId || req.user.id; // 如果传入了userId就用传入的,否则用当前用户id
+      // 学生只能给自己选座位；教师可以指定学生
+      const targetUserId = req.user.role === 'student' ? req.user.id : (userId || req.user.id);
 
       logger.info('更新座位号:', { targetUserId, seatNumber });
 
       // 获取目标用户信息(包含班级ID和当前座位号)
-      const targetUser = await User.findById(targetUserId).select('classId seatNumber role');
+      const targetUser = await User.findById(targetUserId).select('classId sessionClassId seatNumber role');
       if (!targetUser) {
         logger.warn('用户不存在:', targetUserId);
         return res.status(404).json({ message: '用户不存在' });
+      }
+
+      // 教学班的座位记在成员记录里，与行政班座位分开：
+      // 学生按本次登录的班级，教师按传入的 classId
+      const seatClassId = req.user.role === 'student'
+        ? roster.contextClassId(targetUser)
+        : (mongoose.isValidObjectId(req.body.classId) ? req.body.classId : null);
+      const seatClass = seatClassId && !roster.sameId(seatClassId, targetUser.classId)
+        ? await Class.findById(seatClassId).select('type teacher isInClass currentLesson currentCourse currentUnit autoRedirectToLesson')
+        : null;
+      if (seatClass && seatClass.type === 'elective') {
+        if (req.user.role === 'teacher' && String(seatClass.teacher) !== String(req.user.id || req.user._id)) {
+          return res.status(403).json({ message: '无权修改该班级的座位' });
+        }
+        const membership = await ClassMembership.findOne({ class: seatClass._id, student: targetUserId });
+        if (!membership) return res.status(404).json({ message: '该学生不在这个教学班' });
+        if (req.user.role === 'student' && membership.seatNumber) {
+          return res.status(403).json({ message: '已分配座位只能由老师修改' });
+        }
+        if (req.user.role !== 'student' && seatNumber === null) {
+          membership.seatNumber = null;
+          await membership.save();
+          return res.json({ message: '座位号已清空', seatNumber: null });
+        }
+        if (!seatNumber || !/^[A-Z][0-9]+$/.test(seatNumber)) {
+          return res.status(400).json({ message: '无效的座位号格式' });
+        }
+        if (await ClassMembership.exists({ class: seatClass._id, seatNumber, student: { $ne: targetUserId } })) {
+          return res.status(400).json({ message: '该座位已被同班级其他同学占用' });
+        }
+        membership.seatNumber = seatNumber;
+        await membership.save();
+        return res.json({
+          message: '座位号更新成功',
+          seatNumber,
+          classInfo: {
+            isInClass: seatClass.isInClass,
+            currentLesson: seatClass.currentLesson,
+            currentCourse: seatClass.currentCourse,
+            currentUnit: seatClass.currentUnit,
+            autoRedirectToLesson: seatClass.autoRedirectToLesson
+          }
+        });
       }
 
       // 检查权限：如果是学生自己更新且已有座位号，则不允许

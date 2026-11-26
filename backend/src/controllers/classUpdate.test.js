@@ -18,7 +18,7 @@ function setup({ owned = true, duplicate = false } = {}) {
       return Promise.resolve(owned || !query.teacher ? classObj : null);
     }
   };
-  const mocks = { '../models/Class': Class, mongoose, '../utils/logger': { info() {}, warn() {}, error() {}, debug() {} } };
+  const mocks = { '../models/Class': Class, mongoose, '../services/classRoster': { isElective: c => !!c && c.type === 'elective' }, '../utils/logger': { info() {}, warn() {}, error() {}, debug() {} } };
   const context = { module: { exports: {} }, exports: {}, require: name => mocks[name] || {}, console, Date, Map, Number, String };
   vm.runInNewContext(fs.readFileSync(require.resolve('./classController'), 'utf8'), context);
   return { controller: context.module.exports, saved, queries };

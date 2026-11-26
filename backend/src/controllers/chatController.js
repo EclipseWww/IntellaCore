@@ -5,6 +5,7 @@ const Progress = require('../models/Progress');
 const Setting = require('../models/Setting');
 const Chat = require('../models/Chat');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 const Class = require('../models/Class');
 const User = require('../models/User');
 const CourseUnit = require('../models/CourseUnit');
@@ -63,7 +64,7 @@ const chatController = {
       if (className) classQuery.name = Number(className);
       const classes = await Class.find(classQuery).select('_id');
       const classIds = classes.map(c => c._id);
-      const studentIds = await User.find({ classId: { $in: classIds } }).distinct('_id');
+      const studentIds = await User.find(await roster.rosterFilter(classIds)).distinct('_id');
 
       // 构建匹配条件
       const match = {
@@ -141,7 +142,7 @@ const chatController = {
       // 校验该学生是否属于当前教师的班级
       const classes = await Class.find({ teacher: teacherId }).select('_id');
       const classIds = classes.map(c => c._id);
-      const studentInScope = await User.exists({ _id: studentId, classId: { $in: classIds } });
+      const studentInScope = (await roster.rosterIdSet(classIds)).has(String(studentId));
       if (!studentInScope) {
         logger.warn('学生不属于该教师的班级，拒绝访问', { teacherId, studentId });
         return res.status(403).json({ success: false, message: '无权访问该学生的数据' });
@@ -803,7 +804,7 @@ ${contextInfo}
       if (isTeacher) {
         // 如果是教师，获取他们所教班级的所有学生的消息
         const classes = await Class.find({ teacher: userId }); // 获取教师所教的班级
-        const studentIds = await User.find({ classId: { $in: classes.map(cls => cls._id) } }).distinct('_id'); // 从用户模型中获取所有学生的ID
+        const studentIds = await User.find(await roster.rosterFilter(classes.map(cls => cls._id))).distinct('_id'); // 从用户模型中获取所有学生的ID
         query.student = { $in: studentIds }; // 查询条件中包含所有学生的ID
       } else {
         query.student = userId; // 仅限当前用户
@@ -894,7 +895,7 @@ ${contextInfo}
       if (role === 'teacher') {
         const classes = await Class.find({ teacher: userId }).select('_id');
         const classIds = classes.map(c => c._id);
-        const studentIds = await User.find({ classId: { $in: classIds } }).distinct('_id');
+        const studentIds = await User.find(await roster.rosterFilter(classIds)).distinct('_id');
         query.student = { $in: studentIds };
       } else if (role === 'student') {
         query.student = userId;

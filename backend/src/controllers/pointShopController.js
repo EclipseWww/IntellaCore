@@ -536,7 +536,7 @@ exports.getAllStudentRedemptions = async (req, res) => {
     // 支持按班级筛选
     if (req.query.classId) {
       // 查找特定班级的学生
-      const classStudents = await User.find({ classId: req.query.classId }).select('_id');
+      const classStudents = await User.find({ ...await require('../services/classRoster').rosterFilter([req.query.classId]), role: 'student' }).select('_id');
       if (classStudents && classStudents.length > 0) {
         const studentIds = classStudents.map(student => student._id);
         query.studentId = { $in: studentIds };

@@ -7,6 +7,7 @@ const Lesson = require('../models/Lesson');
 const Progress = require('../models/Progress');
 const Achievement = require('../models/Achievement');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 const { escapeRegex } = require('../utils/escapeRegex');
 
 // 获取所有课程
@@ -322,11 +323,11 @@ exports.getAllCoursesNew = async (req, res) => {
         });
       }
 
-      // 查询条件：课程是公开的，或者学生所在班级在可访问班级列表中
+      // 查询条件：课程是公开的，或者学生所在班级（行政班或参加的教学班）在可访问班级列表中
       query.$or = [
         { isPublic: true },
         {
-          accessibleClasses: user.classId,
+          accessibleClasses: { $in: await roster.classIdsOfStudent(user) },
           $expr: { $gt: [{ $size: "$accessibleClasses" }, 0] } // 确保accessibleClasses不为空
         }
       ];
@@ -576,9 +577,9 @@ exports.getStudentCourseDetails = async (req, res) => {
       .sort('order')
       .lean();
 
-    // 获取学生所在班级信息
+    // 获取学生本次登录所在班级信息（行政班或教学班）
     const student = await User.findById(req.user.id);
-    const classInfo = await Class.findById(student.classId)
+    const classInfo = await Class.findById(roster.contextClassId(student))
       .select('currentLesson currentUnit')
       .lean();
 
@@ -675,7 +676,7 @@ exports.getHtmlActivities = async (req, res) => {
     if (req.user.role === 'student') {
       query.$or = [
         { isPublic: true },
-        { accessibleClasses: student.classId }
+        { accessibleClasses: { $in: await roster.classIdsOfStudent(student) } }
       ];
     }
 

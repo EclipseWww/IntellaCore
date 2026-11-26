@@ -13,6 +13,7 @@ import {
 import { quizAPI } from '../../../services/quizAPI';
 import { classAPI } from '../../../services/api';
 import dayjs from 'dayjs';
+import { formatClassName } from '../../../utils/className';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -262,7 +263,7 @@ const FreePracticeRecords = () => {
             >
                 {filteredClasses.map(c => (
                     <Select.Option key={c._id} value={c._id}>
-                        {c.grade}年级{c.name}班
+                        {formatClassName(c)}
                     </Select.Option>
                 ))}
             </Select>

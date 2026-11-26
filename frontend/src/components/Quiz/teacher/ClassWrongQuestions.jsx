@@ -4,6 +4,7 @@ import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { quizAPI } from '../../../services/quizAPI';
 import { classAPI } from '../../../services/api';
+import { formatClassName } from '../../../utils/className';
 
 const { Text, Title } = Typography;
 
@@ -167,7 +168,7 @@ const ClassWrongQuestions = () => {
                     placeholder="选择班级"
                     value={classId}
                     onChange={setClassId}
-                    options={classes.map(c => ({ value: c._id, label: `${c.grade}级${c.name}班` }))}
+                    options={classes.map(c => ({ value: c._id, label: formatClassName(c) }))}
                 />
                 <Segmented
                     value={days}

@@ -312,7 +312,9 @@ exports.getActivitySubmissions = async (req, res) => {
         });
 
         if (classId) {
-            submissions = submissions.filter(s => s.studentId?.classId?._id?.toString() === classId);
+            // 教学班按成员筛选，行政班按学生所在班级
+            const inClass = await require('../services/classRoster').rosterIdSet([classId]);
+            submissions = submissions.filter(s => s.studentId && inClass.has(String(s.studentId._id)));
         }
 
         res.json({ success: true, data: submissions });

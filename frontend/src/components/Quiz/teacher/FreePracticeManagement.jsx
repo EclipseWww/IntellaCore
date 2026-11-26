@@ -4,12 +4,10 @@ import { SettingOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { classAPI } from '../../../services/api';
 import { quizAPI } from '../../../services/quizAPI';
 import FreePracticeSettings from './FreePracticeSettings';
+import { formatClassName } from '../../../utils/className';
 
 const { Title } = Typography;
 
-const formatClassName = (grade, name) => {
-    return `${grade}级${name}班`;
-};
 
 // Debounced Input Component for smoother UX
 const CellInputNumber = ({ value, onChange, ...props }) => {
@@ -201,20 +199,11 @@ const FreePracticeManagement = () => {
 
     const columns = [
         {
-            title: '年级',
-            dataIndex: 'grade',
-            key: 'grade',
-            render: (text) => `${text}级`,
-            sorter: (a, b) => a.grade - b.grade,
-            width: 80,
-        },
-        {
             title: '班级',
-            dataIndex: 'name',
-            key: 'name',
-            render: (text) => `${text}班`,
-            sorter: (a, b) => a.name - b.name,
-            width: 80,
+            key: 'className',
+            render: (_, record) => formatClassName(record),
+            sorter: (a, b) => (a.type === 'elective') - (b.type === 'elective') || (a.grade || 0) - (b.grade || 0) || (a.name || 0) - (b.name || 0),
+            width: 140,
         },
 
         {

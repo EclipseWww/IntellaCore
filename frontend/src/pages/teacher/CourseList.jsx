@@ -31,6 +31,7 @@ import {
 import { courseManagementAPI } from '../../services/api';
 import { classAPI } from '../../services/api';
 import UnitList from './UnitList';
+import { formatClassName, classGroupKey, compareClassGroupKeys, compareClasses } from '../../utils/className';
 
 const { Panel } = Collapse;
 const { Title } = Typography;
@@ -365,11 +366,11 @@ const CourseList = () => {
           const accessibleClassNames = record.accessibleClasses.map(cls => {
             // cls 可能是对象或者 ID 字符串
             if (typeof cls === 'object' && cls !== null) {
-              return `${cls.grade}年级${cls.name}班`;
+              return formatClassName(cls);
             }
             // 如果是 ID 字符串，从 teacherClasses 中查找
             const foundClass = teacherClasses.find(tc => tc._id === cls);
-            return foundClass ? `${foundClass.grade}年级${foundClass.name}班` : cls;
+            return foundClass ? formatClassName(foundClass) : cls;
           });
 
           const displayCount = 2; // 最多显示2个班级
@@ -569,19 +570,19 @@ const CourseList = () => {
                       ) : (
                         <>
                           {/* 按年级分组显示班级 */}
-                          {Array.from(new Set(teacherClasses.map(cls => cls.grade))).sort().map(grade => (
+                          {Array.from(new Set(teacherClasses.map(classGroupKey))).sort(compareClassGroupKeys).map(grade => (
                             <div key={grade} style={{ marginBottom: '16px' }}>
                               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                                {grade}年级
+                                {grade === 'elective' ? '社团 / 选修' : `${grade}年级`}
                               </div>
                               <Row gutter={[16, 8]}>
                                 {teacherClasses
-                                  .filter(cls => cls.grade === grade)
-                                  .sort((a, b) => a.name - b.name)
+                                  .filter(cls => classGroupKey(cls) === grade)
+                                  .sort(compareClasses)
                                   .map(cls => (
                                     <Col span={8} key={cls._id}>
                                       <Checkbox value={cls._id}>
-                                        {cls.name}班
+                                        {cls.type === 'elective' ? formatClassName(cls) : `${cls.name}班`}
                                       </Checkbox>
                                     </Col>
                                   ))}

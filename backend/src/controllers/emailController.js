@@ -8,6 +8,7 @@ const EmailTemplate = require('../models/EmailTemplate');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const roster = require('../services/classRoster');
 const { escapeRegex } = require('../utils/escapeRegex');
 
 // 邮件系统开关设置键
@@ -835,7 +836,7 @@ exports.sendBroadcast = async (req, res) => {
         const senderName = senderUser?.name || senderAccount.emailUsername;
 
         // 获取班级所有学生
-        const students = await User.find({ classId, role: 'student' }).select('_id name');
+        const students = await roster.findRoster(classId, { select: '_id name' });
         const studentIds = students.map(s => s._id);
 
         // 获取有邮箱的学生

@@ -155,6 +155,12 @@ const StudentHeader = () => {
             }}>
               {user?.name || '未知用户'}
             </Text>
+            {/* 本次登录的是社团/选修课时，显示所在的教学班 */}
+            {user?.currentClass?.type === 'elective' && (
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px', marginLeft: 8 }}>
+                {user.currentClass.name}
+              </Text>
+            )}
           </div>
         </div>
       </Space>

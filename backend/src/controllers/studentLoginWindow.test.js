@@ -17,7 +17,10 @@ async function setup({ isInClass, loginHistory = [], sessionId } = {}) {
     '../models/User': { findOne: async () => student, findById: () => select(student), findByIdAndUpdate: async () => {} },
     '../models/Class': { findById: () => select({ _id: 'c1', isInClass, allowIpChange: true, status: 'active' }) },
     bcryptjs: bcrypt, jsonwebtoken: jwt, '../utils/logger': logger, '../utils/getClientIp': { getClientIp: () => '10.0.0.5' },
-    crypto: require('node:crypto')
+    crypto: require('node:crypto'),
+    mongoose: require('mongoose'),
+    '../services/classRoster': require('../services/classRoster'),
+    '../utils/className': require('../utils/className')
   };
   const context = { module: { exports: {} }, exports: {}, require: name => mocks[name] || {}, process: { env: { JWT_SECRET: 'test-secret' } }, console, Date };
   vm.runInNewContext(fs.readFileSync(require.resolve('./authController'), 'utf8'), context);

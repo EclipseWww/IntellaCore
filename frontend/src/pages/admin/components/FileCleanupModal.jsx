@@ -214,7 +214,7 @@ const FileCleanupModal = ({ open, onClose, courses, classes, onCleaned }) => {
                   allowClear
                   style={{ width: '100%' }}
                 >
-                  {classes.map(cls => (
+                  {classes.filter(cls => cls.type !== 'elective').map(cls => (
                     <Option key={cls._id} value={cls._id}>{cls.grade}级{cls.name}</Option>
                   ))}
                 </Select>

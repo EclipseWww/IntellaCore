@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import { nowTz, atTz, setScheduleTz } from '../../utils/scheduleTime';
 import { classAPI } from '../../services/api';
 import { scheduleAPI } from '../../services/scheduleAPI';
+import { formatClassName } from '../../utils/className';
 
 const { Text } = Typography;
 const DAY_NAMES = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -19,9 +20,15 @@ const ATT_OPTIONS = [
   { label: '缺勤', value: 'absent' }, { label: '请假', value: 'leave' }
 ];
 const errMsg = (e, fallback) => e?.response?.data?.message || fallback;
-const classLabel = (c) => (c ? `${c.grade}级${c.name}班` : '未知班级');
+const classLabel = (c) => formatClassName(c, '未知班级');
 /** 班级排序：年级新到旧，同年级按班号 */
-const sortClasses = (list) => [...list].sort((a, b) => (b.grade - a.grade) || (Number(a.name) - Number(b.name)));
+// 行政班按年级、班号排序；社团/选修排在后面
+const sortClasses = (list) => [...list].sort((a, b) => {
+  const ea = a.type === 'elective', eb = b.type === 'elective';
+  if (ea !== eb) return ea ? 1 : -1;
+  if (ea) return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN');
+  return (b.grade - a.grade) || (Number(a.name) - Number(b.name));
+});
 const AUTO_COURSE = '__auto__';
 const courseOptions = (courses) => [
   { value: AUTO_COURSE, label: '自动（跟随该班最近上的课程）' },

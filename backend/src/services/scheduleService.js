@@ -11,6 +11,7 @@ const LessonSession = require('../models/LessonSession');
 const logger = require('../utils/logger');
 const L = require('./scheduleLogic');
 const { collectCompletions, isLessonTrackable } = require('./lessonActivity');
+const roster = require('./classRoster');
 
 const CONFIG_KEY = 'schedule.config';
 const JUDGE_GRACE_MIN = 10;   // 下课后再等 10 分钟收齐提交，再判定上没上
@@ -90,8 +91,8 @@ async function orderedLessons(courseId) {
   return lessons;
 }
 
-const classStudentIds = async (classId) =>
-  (await User.find({ classId, role: 'student' }).select('_id').lean()).map(s => s._id);
+// 班级学生（教学班为成员）
+const classStudentIds = async (classId) => roster.rosterStudentIds([classId]);
 
 /** 该班在该课程上过的课时（≥阈值比例的学生至少完成过一个活动，不限时间） */
 async function taughtSetFor(classId, lessons, cfg, studentIds) {
@@ -280,6 +281,10 @@ async function startSession(occ, { lessonId: pickedLesson, now = new Date(), for
   // 下一课时还没准备好：不让学生停在已上过的课时上
   if (lesson) { set.currentLesson = lesson._id; set.currentUnit = lesson.unit; } else if (lessonBy === 'auto') { set.currentLesson = null; set.currentUnit = null; }
   await Class.updateOne({ _id: occ.class }, { $set: set });
+  // 名单里正从别的班级登录着的学生需要重新登录到本班
+  try { await roster.signOutFromOtherClasses(occ.class, { now }); } catch (e) {
+    logger.warn('上课时让学生重新登录失败', { classId: String(occ.class), error: e.message });
+  }
 
   logger.info('课表上课', { classId: String(occ.class), date: occ.date, period: occ.period, lesson: lesson && lesson.title, force });
   return { session, started: true };
@@ -290,7 +295,7 @@ async function startSession(occ, { lessonId: pickedLesson, now = new Date(), for
  * 连堂（同班上一节刚结束且上过）时学生通常不会重新登录，到课窗口向前延伸到上一节开始。
  */
 async function measureSession(session) {
-  const students = await User.find({ classId: session.class, role: 'student' }).select('_id loginHistory.timestamp').lean();
+  const students = await User.find({ ...await roster.rosterFilter([session.class]), role: 'student' }).select('_id loginHistory.timestamp').lean();
   const studentIds = students.map(s => s._id);
   const from = session.startedAt || session.startAt;
   const to = new Date(sessionEnd(session).getTime() + JUDGE_GRACE_MIN * 60 * 1000);
@@ -556,7 +561,7 @@ async function nowStatus(teacherId, now = new Date()) {
   const { dateKey, minutes } = L.zonedParts(now);
   const occs = await listOccurrences({ teacherId, from: dateKey, to: L.addDays(dateKey, 6) });
   const inProgress = await LessonSession.findOne({ teacher: teacherId, status: 'in_progress' })
-    .populate('class', 'grade name').populate('course', 'title').populate('lesson', 'title').lean();
+    .populate('class', 'grade name type title').populate('course', 'title').populate('lesson', 'title').lean();
   const startOf = (o) => L.zonedToDate(o.date, o.start);
   const upcoming = occs
     .filter(o => o.start && !o.session && (o.date > dateKey || L.toMinutes(o.start) > minutes))
@@ -567,7 +572,7 @@ async function nowStatus(teacherId, now = new Date()) {
     const course = await resolveCourse({ classId: upcoming.class, teacherId, pinned: upcoming.course });
     const lesson = course ? await resolveNextLesson(upcoming.class, course) : null;
     const [cls, c] = await Promise.all([
-      Class.findById(upcoming.class).select('grade name').lean(),
+      Class.findById(upcoming.class).select('grade name type title').lean(),
       course ? Course.findById(course).select('title').lean() : null
     ]);
     next = {
