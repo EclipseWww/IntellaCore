@@ -1,37 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
-  Table,
   Space,
   Button,
-  Modal,
   Form,
   Input,
   InputNumber,
   Select,
   message,
-  Typography,
   Divider,
-  Spin,
   Cascader,
   Empty,
   Tag,
   Tooltip,
   Radio,
-  Layout,
-  Statistic,
   Row,
   Col,
-  Switch,
-  Checkbox,
-  Progress,
-  Drawer
+  Switch
 } from 'antd';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { courseManagementAPI, API_BASE_URL, flowchartAPI, spreadsheetActivityAPI, fillBlankAPI } from '../../services/api';
 import htmlProjectAPI from '../../services/htmlProjectAPI';
 import { pythonAPI } from '../../services/pythonAPI';
-import MxGraphEditor from '../../components/mxgraph/MxGraphEditor';
 import SpreadsheetEditor from '../../components/Spreadsheet/LazySpreadsheetEditor';
 import FillBlankReview from './components/review/FillBlankReview';
 import FlowchartReview from './components/review/FlowchartReview';
@@ -41,107 +31,25 @@ import PptReview from './components/review/PptReview';
 import WordReview from './components/review/WordReview';
 import PythonReview from './components/review/PythonReview';
 import QuizReview from './components/review/QuizReview';
-import { LeftOutlined, RightOutlined, CheckCircleOutlined, DownloadOutlined, QuestionCircleOutlined, ThunderboltOutlined, SettingOutlined, SaveOutlined, EditOutlined, UnorderedListOutlined, FileSearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
+import { LeftOutlined, RightOutlined, CheckCircleOutlined, DownloadOutlined, QuestionCircleOutlined, ThunderboltOutlined, SettingOutlined, SaveOutlined, FileSearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { github } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import python from 'react-syntax-highlighter/dist/esm/languages/hljs/python';
+import { getFileType, formatClassName } from './components/review/assignmentReviewUtils';
+import AIGradePanel from './components/review/AIGradePanel';
+import ReviewStatistics from './components/review/ReviewStatistics';
+import BatchAIGradeModal from './components/review/BatchAIGradeModal';
+import ActivitySettingsDrawer from './components/review/ActivitySettingsDrawer';
+import PendingSummaryDrawer from './components/review/PendingSummaryDrawer';
+import BatchGradeModal from './components/review/BatchGradeModal';
 
 const { TextArea } = Input;
-const { Title } = Typography;
-const { Content } = Layout;
 
 // 注册 Python 语言支持
 SyntaxHighlighter.registerLanguage('python', python);
 
-// 文件类型映射
-const getFileType = (mimeType, fileName) => {
-  const mimeMap = {
-    'application/pdf': 'pdf',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-    'application/vnd.ms-excel': 'xlsx',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-    'application/vnd.ms-powerpoint': 'ppt',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-    'text/plain': 'txt',
-    'text/python': 'py',
-    'application/x-python': 'py'
-  };
-
-  // 首先尝试从 MIME 类型获取
-  if (mimeType && mimeMap[mimeType]) {
-    return mimeMap[mimeType];
-  }
-
-  // 如果 MIME 类型不匹配，尝试从文件扩展名获取
-  const extension = fileName.split('.').pop().toLowerCase();
-  const extensionMap = {
-    'pdf': 'pdf',
-    'doc': 'doc',
-    'docx': 'docx',
-    'xls': 'xlsx',
-    'xlsx': 'xlsx',
-    'ppt': 'ppt',
-    'pptx': 'pptx',
-    'txt': 'txt',
-    'py': 'txt',  // Python 文件作为文本显示
-    'js': 'txt',  // JavaScript 文件作为文本显示
-    'json': 'txt', // JSON 文件作为文本显示
-    'csv': 'csv'
-  };
-
-  return extensionMap[extension] || 'txt';  // 默认作为文本文件处理
-};
-
-// 添加格式化班级名称的函数
-const formatClassName = (grade, name) => {
-  if (!grade || !name) return '未分配班级';
-  return `${grade}级${name}班`;
-};
-
-// 计算各等级学生数量和未评阅作业数量
-const calculateStatistics = (submissions) => {
-  const stats = {
-    A: 0,
-    B: 0,
-    C: 0,
-    D: 0,
-    E: 0,
-    F: 0,
-    ungraded: 0
-  };
-
-  submissions.forEach(submission => {
-    // 检查是否有教师评分或有效的AI评分
-    const hasTeacherGrade = submission.status === 'graded' && (submission.grade?.score !== undefined || submission.grade?.bonusScore !== undefined);
-    const hasAiGrade = submission.aiGrade && submission.aiGrade.score !== undefined;
-
-    if (!hasTeacherGrade && !hasAiGrade) {
-      stats.ungraded++;
-    } else {
-      // 优先使用教师评分，如果没有则使用AI评分
-      let score;
-      if (hasTeacherGrade) {
-        score = submission.grade?.score !== undefined ? submission.grade.score : submission.grade?.bonusScore;
-      } else {
-        score = submission.aiGrade?.score;
-      }
-
-      if (score >= 9) stats.A++;
-      else if (score >= 7) stats.B++;
-      else if (score >= 5) stats.C++;
-      else if (score >= 3) stats.D++;
-      else if (score >= 1) stats.E++;
-      else stats.F++;
-    }
-  });
-
-  return stats;
-};
-
 const AssignmentReview = () => {
   const params = useParams();
-  const navigate = useNavigate();
   const [form] = Form.useForm();
 
   // 状态管理
@@ -199,7 +107,6 @@ const AssignmentReview = () => {
   const [flowchartCurrentIndex, setFlowchartCurrentIndex] = useState(-1);
   const [flowchartScore, setFlowchartScore] = useState(null);
   const [flowchartFeedback, setFlowchartFeedback] = useState('');
-  const [flowchartGrading, setFlowchartGrading] = useState(false);
 
   // 在线表格相关状态
   const [isSpreadsheetActivity, setIsSpreadsheetActivity] = useState(false);
@@ -287,7 +194,6 @@ const AssignmentReview = () => {
   };
 
   const [codeContent, setCodeContent] = useState(null); // 初始化为 null
-  const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef(null);
 
   // 使用useRef存储计时器ID，避免闭包问题
@@ -904,40 +810,6 @@ const AssignmentReview = () => {
       setPreviewUrl(previewUrl); // 设置预览 URL
       setCodeContent(null);   // 明确设置 codeContent 为 null
     }
-
-    // 如果是 Python 文件，获取课程信息用于 AI 评阅
-    if (fileType === 'py') {
-      try {
-        // 获取最新的课程信息
-        const lessonResponse = await courseManagementAPI.getLesson(
-          selectedKeys[0], // courseId
-          selectedKeys[1], // unitId
-          selectedKeys[2]  // lessonId
-        );
-
-        if (lessonResponse.success && lessonResponse.data) {
-          const activity = lessonResponse.data.activities?.find(
-            a => a._id === submission.activity
-          );
-
-          const lessonInfo = {
-            objectives: lessonResponse.data.objectives || [],
-            description: activity?.description || '',
-            referenceAnswer: activity?.referenceAnswer || ''
-          };
-
-          console.log('准备传递给 AI 的数据:', {
-            lessonInfo,
-            codeContent: text,
-            activityId: submission.activity,
-            activities: lessonResponse.data.activities
-          });
-        }
-      } catch (error) {
-        console.error('获取课程信息失败:', error);
-        message.error('获取课程信息失败');
-      }
-    }
   };
 
   // 处理翻页
@@ -1130,68 +1002,6 @@ const AssignmentReview = () => {
     setFlowchartCurrentIndex(index);
     setFlowchartScore(submission.grade?.score ?? null);
     setFlowchartFeedback(submission.grade?.feedback || '');
-  };
-
-  const handleFlowchartPrev = () => {
-    if (flowchartCurrentIndex > 0) {
-      handleSelectFlowchartSubmission(flowchartSubmissions[flowchartCurrentIndex - 1], flowchartCurrentIndex - 1);
-    }
-  };
-
-  const handleFlowchartNext = () => {
-    if (flowchartCurrentIndex < flowchartSubmissions.length - 1) {
-      handleSelectFlowchartSubmission(flowchartSubmissions[flowchartCurrentIndex + 1], flowchartCurrentIndex + 1);
-    }
-  };
-
-  const handleFlowchartGrade = async () => {
-    if (!selectedFlowchartSubmission) return;
-    if (flowchartScore === null || flowchartScore < 0 || flowchartScore > 10) {
-      message.warning('请输入有效的分数（0-10）');
-      return;
-    }
-
-    setFlowchartGrading(true);
-    try {
-      const response = await flowchartAPI.gradeSubmission(selectedFlowchartSubmission._id, flowchartScore, flowchartFeedback);
-      if (response.success) {
-        message.success('评分成功');
-
-        // 更新本地状态
-        const updatedSubmission = {
-          ...selectedFlowchartSubmission,
-          status: 'graded',
-          grade: {
-            score: flowchartScore,
-            feedback: flowchartFeedback,
-            gradedAt: new Date()
-          }
-        };
-        setSelectedFlowchartSubmission(updatedSubmission);
-
-        // 更新提交列表
-        const updatedSubmissions = flowchartSubmissions.map(s =>
-          s._id === selectedFlowchartSubmission._id ? updatedSubmission : s
-        );
-        setFlowchartSubmissions(updatedSubmissions);
-
-        // 自动跳转到下一个
-        if (flowchartCurrentIndex < flowchartSubmissions.length - 1) {
-          handleFlowchartNext();
-        }
-      }
-    } catch (error) {
-      console.error('评分失败:', error);
-      message.error('评分失败');
-    } finally {
-      setFlowchartGrading(false);
-    }
-  };
-
-  // 流程图快捷评分
-  const handleFlowchartQuickGrade = (grade) => {
-    const scoreMap = { 'A': 10, 'B': 8, 'C': 6, 'D': 4, 'E': 2, 'F': 0 };
-    setFlowchartScore(scoreMap[grade]);
   };
 
   // 在线表格相关函数
@@ -1401,420 +1211,10 @@ const AssignmentReview = () => {
   };
 
   // 渲染 AI 评阅结果
-  const renderAIGradePanel = (aiGrade) => {
-    if (!selectedSubmission) return null;
-
-    // 获取当前选中学生的加载状态
-    const isLoading = loadingSubmissions[selectedSubmission._id] || false;
-
-    // 获取当前选中学生的计时
-    const currentTime = submissionTimes[selectedSubmission._id] || 0;
-
-    // 检查 aiGrade 是否为有效的评阅结果
-    const isValidAIGrade = aiGrade && (
-      aiGrade.score !== undefined ||
-      aiGrade.feedback ||
-      (aiGrade.analysis && Object.keys(aiGrade.analysis).length > 0)
-    );
-
-    console.log('渲染AI评阅面板:', {
-      submissionId: selectedSubmission._id,
-      hasAiGrade: !!aiGrade,
-      isValidAiGrade: isValidAIGrade,
-      aiGrade
-    });
-
-    if (!isValidAIGrade) {
-      return (
-        <div style={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '20px'
-        }}>
-          {isLoading ? (
-            <div style={{ textAlign: 'center' }}>
-              <Spin size="large">
-                <div style={{
-                  padding: '50px',
-                  background: 'rgba(255, 255, 255, 0.8)',
-                  borderRadius: '4px',
-                  marginBottom: '20px',
-                  minHeight: '200px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  gap: '16px'
-                }}>
-                  <div style={{ fontSize: '16px', color: '#1890ff' }}>
-                    AI 正在评阅作业...
-                  </div>
-                  <div style={{ color: '#666' }}>
-                    预计需要 30-60 秒，请耐心等待
-                  </div>
-                  <div style={{
-                    color: '#1890ff',
-                    fontSize: '20px',
-                    fontWeight: 'bold',
-                    marginTop: '8px'
-                  }}>
-                    {currentTime} 秒
-                  </div>
-                </div>
-              </Spin>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <Empty
-                description={
-                  <span style={{ color: '#666', marginBottom: '16px', display: 'block' }}>
-                    暂无 AI 评阅结果
-                  </span>
-                }
-              />
-              <Button
-                type="primary"
-                onClick={() => handleRequestAIGrade(selectedSubmission)}
-                disabled={!selectedSubmission}
-                style={{ marginTop: '16px' }}
-              >
-                请求 AI 评阅
-              </Button>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ height: '100%', overflow: 'auto', padding: '20px' }}>
-        <div style={{ marginBottom: '20px' }}>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            <Space>
-              <Title level={4} style={{ margin: 0 }}>AI 评分：{aiGrade.score}</Title>
-              <Spin spinning={isLoading} tip={isLoading ? `评阅中 ${currentTime}s` : ''}>
-                <Button
-                  type="primary"
-                  size="small"
-                  onClick={() => handleRequestAIGrade(selectedSubmission)}
-                  disabled={isLoading}
-                >
-                  重新评阅
-                </Button>
-              </Spin>
-            </Space>
-            <div style={{ marginBottom: '16px' }}>{aiGrade.feedback}</div>
-          </Space>
-        </div>
-
-        <Divider>详细分析</Divider>
-
-        {aiGrade.analysis && Object.entries(aiGrade.analysis).map(([key, analysis]) => {
-          if (!analysis) return null;
-          // 获取对应的中文名称
-          let title;
-          switch (key) {
-            case 'codeQuality': title = '代码质量'; break;
-            case 'functionality': title = '功能实现'; break;
-            case 'basicConcepts': title = '基础概念掌握'; break;
-            case 'logicClarity': title = '逻辑清晰度'; break;
-            case 'readability': title = '代码可读性'; break; // 兼容旧版
-            case 'efficiency': title = '代码效率'; break; // 兼容旧版
-            default: title = key;
-          }
-          return (
-            <Card
-              key={key}
-              size="small"
-              title={
-                <Space>
-                  {title}
-                  <Tag color="blue">{analysis.score} 分</Tag>
-                </Space>
-              }
-              style={{ marginBottom: '12px' }}
-            >
-              {analysis.feedback}
-            </Card>
-          );
-        })}
-
-        {aiGrade.suggestions && aiGrade.suggestions.length > 0 && (
-          <>
-            <Divider>改进建议</Divider>
-            <ul style={{ paddingLeft: '20px' }}>
-              {aiGrade.suggestions.map((suggestion, index) => (
-                <li key={index} style={{ marginBottom: '8px' }}>{suggestion}</li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        <div style={{ marginTop: '20px', color: '#888', fontSize: '12px' }}>
-          评阅时间：{new Date(aiGrade.gradedAt).toLocaleString()}
-        </div>
-      </div>
-    );
-  };
-
-  // 处理标签滚动
-  const handleTagScroll = (direction) => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      const containerWidth = container.offsetWidth;
-      const scrollAmount = containerWidth * 0.8; // 滚动容器宽度的 80%
-      const targetScroll = container.scrollLeft + (direction === 'left' ? -scrollAmount : scrollAmount);
-      container.scrollTo({
-        left: targetScroll,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  // 渲染学生标签
-  const renderStudentTags = () => {
-    return (
-      <div style={{
-        position: 'relative',
-        padding: '10px 40px',
-        borderBottom: '1px solid #f0f0f0',
-      }}>
-        {/* 左滚动按钮 */}
-        <Button
-          type="text"
-          icon={<LeftOutlined />}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 1,
-            height: '100%',
-            background: 'linear-gradient(to right, #fff 0%, rgba(255,255,255,0.9) 100%)'
-          }}
-          onClick={() => handleTagScroll('left')}
-        />
-
-        {/* 标签容器 */}
-        <div
-          ref={scrollContainerRef}
-          style={{
-            overflowX: 'hidden',
-            whiteSpace: 'nowrap',
-            scrollBehavior: 'smooth',
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'none',
-            '&::-webkit-scrollbar': {
-              display: 'none'
-            }
-          }}
-        >
-          {submissions.map((submission, index) => {
-            // 优先使用教师评分，其次使用AI评分
-            const teacherScore = submission.grade?.score;
-            const aiScore = submission.aiGrade?.score;
-            const score = teacherScore !== undefined ? teacherScore : aiScore;
-            const isAiGraded = teacherScore === undefined && aiScore !== undefined;
-
-            const backgroundColor = getScoreColor(score);
-            const borderColor = getScoreBorderColor(score);
-            const isSelected = index === currentPreviewIndex;
-
-            return (
-              <div
-                key={submission._id}
-                onClick={() => handlePreview(submission, index)}
-                style={{
-                  padding: '12px',
-                  backgroundColor: isSelected ? '#e6f7ff' : '#fff',
-                  borderLeft: isSelected ? '3px solid #1890ff' : '3px solid transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  borderRadius: '4px',
-                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.09)' : 'none',
-                  transition: 'all 0.3s'
-                }}
-              >
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold' }}>
-                    {submission.student?.name || '未知学生'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {formatClassName(
-                      submission.student?.grade,
-                      submission.student?.className
-                    )}
-                  </div>
-                </div>
-
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor,
-                  border: `2px solid ${borderColor}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: getScoreTextColor(score),
-                  fontWeight: 'bold',
-                  position: 'relative'
-                }}>
-                  {score !== undefined ? (
-                    <>
-                      {Object.entries(gradeScoreMap).find(([_, s]) => s === score)?.[0]}
-                      {isAiGraded && (
-                        <div style={{
-                          position: 'absolute',
-                          top: -5,
-                          right: -5,
-                          backgroundColor: '#1890ff',
-                          borderRadius: '50%',
-                          width: '16px',
-                          height: '16px',
-                          fontSize: '10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#fff'
-                        }}>
-                          AI
-                        </div>
-                      )}
-                    </>
-                  ) : '?'}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 右滚动按钮 */}
-        <Button
-          type="text"
-          icon={<RightOutlined />}
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            zIndex: 1,
-            height: '100%',
-            background: 'linear-gradient(to left, #fff 0%, rgba(255,255,255,0.9) 100%)'
-          }}
-          onClick={() => handleTagScroll('right')}
-        />
-      </div>
-    );
-  };
+  const renderAIGradePanel = (aiGrade) => <AIGradePanel handleRequestAIGrade={handleRequestAIGrade} loadingSubmissions={loadingSubmissions} selectedSubmission={selectedSubmission} submissionTimes={submissionTimes} aiGrade={aiGrade} />;
 
   // 渲染统计信息
-  const renderStatistics = () => {
-    // 根据当前活动类型和班级筛选，选择使用的数据
-    let dataToUse = [];
-
-    if (isFlowchartActivity) {
-      dataToUse = flowchartSubmissions;
-    } else if (isFillBlankActivity) {
-      dataToUse = fillBlankSubmissions;
-    } else {
-      dataToUse = selectedClass ? submissions : allSubmissions;
-    }
-
-    // 如果是 Flowchart 或 FillBlank，手动应用班级筛选
-    if ((isFlowchartActivity || isFillBlankActivity) && selectedClass) {
-      dataToUse = dataToUse.filter(s => {
-        // 兼容不同数据结构的班级信息获取
-        const student = s.student || s.studentId;
-        const grade = student?.grade || student?.classId?.grade;
-        const className = student?.className || student?.classId?.name;
-        return formatClassName(grade, className) === selectedClass;
-      });
-    }
-
-    const stats = calculateStatistics(dataToUse);
-    const total = dataToUse.length;
-
-    // 计算已评阅的百分比
-    const gradedPercentage = total > 0 ? Math.round(((total - stats.ungraded) / total) * 100) : 0;
-
-    return (
-      <div style={{
-        marginBottom: '10px',
-        background: '#f9f9f9',
-        padding: '8px 12px',
-        borderRadius: '4px',
-        fontSize: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontWeight: 'bold', marginRight: '8px' }}>作业统计:</span>
-            {selectedClass && <Tag color="blue" size="small" style={{ marginRight: '8px' }}>{selectedClass}</Tag>}
-            <span>
-              评阅进度:
-              <span style={{
-                fontWeight: 'bold',
-                margin: '0 4px',
-                color: gradedPercentage >= 80 ? '#52c41a' : gradedPercentage >= 50 ? '#faad14' : '#ff4d4f'
-              }}>
-                {gradedPercentage}%
-              </span>
-              ({total - stats.ungraded}/{total})
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ marginRight: '8px', fontWeight: 'bold', color: '#722ed1' }}>
-              未评阅: {stats.ungraded}
-            </span>
-            <span>|</span>
-            <div style={{ display: 'flex', marginLeft: '8px' }}>
-              <Tooltip title={`A等级: ${stats.A}人 (${total > 0 ? Math.round((stats.A / total) * 100) : 0}%)`}>
-                <Tag color="#52c41a" style={{ margin: '0 2px' }}>A: {stats.A}</Tag>
-              </Tooltip>
-              <Tooltip title={`B等级: ${stats.B}人 (${total > 0 ? Math.round((stats.B / total) * 100) : 0}%)`}>
-                <Tag color="#1890ff" style={{ margin: '0 2px' }}>B: {stats.B}</Tag>
-              </Tooltip>
-              <Tooltip title={`C等级: ${stats.C}人 (${total > 0 ? Math.round((stats.C / total) * 100) : 0}%)`}>
-                <Tag color="#faad14" style={{ margin: '0 2px' }}>C: {stats.C}</Tag>
-              </Tooltip>
-              <Tooltip title={`D等级: ${stats.D}人 (${total > 0 ? Math.round((stats.D / total) * 100) : 0}%)`}>
-                <Tag color="#ff7a45" style={{ margin: '0 2px' }}>D: {stats.D}</Tag>
-              </Tooltip>
-              <Tooltip title={`E等级: ${stats.E}人 (${total > 0 ? Math.round((stats.E / total) * 100) : 0}%)`}>
-                <Tag color="#ff4d4f" style={{ margin: '0 2px' }}>E: {stats.E}</Tag>
-              </Tooltip>
-              <Tooltip title={`F等级: ${stats.F}人 (${total > 0 ? Math.round((stats.F / total) * 100) : 0}%)`}>
-                <Tag color="#f5222d" style={{ margin: '0 2px' }}>F: {stats.F}</Tag>
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-
-        {/* 进度条 */}
-        <div style={{
-          height: '4px',
-          background: '#f0f0f0',
-          borderRadius: '2px',
-          overflow: 'hidden',
-          marginTop: '6px'
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${gradedPercentage}%`,
-            background: gradedPercentage >= 80 ? '#52c41a' : gradedPercentage >= 50 ? '#faad14' : '#ff4d4f',
-            borderRadius: '2px',
-            transition: 'width 0.5s'
-          }} />
-        </div>
-      </div>
-    );
-  };
+  const renderStatistics = () => <ReviewStatistics allSubmissions={allSubmissions} fillBlankSubmissions={fillBlankSubmissions} flowchartSubmissions={flowchartSubmissions} isFillBlankActivity={isFillBlankActivity} isFlowchartActivity={isFlowchartActivity} selectedClass={selectedClass} submissions={submissions} />;
 
   // 处理清除评分
   const handleClearGrade = async (record) => {
@@ -2152,12 +1552,6 @@ const AssignmentReview = () => {
     }
   ].filter(column => column.key !== 'submittedAt'); // 移除提交时间列
 
-  // 处理表格变化
-  const handleTableChange = (pagination, filters, sorter) => {
-    setFilteredInfo(filters);
-    setSortedInfo(sorter);
-  };
-
   // 重置筛选
   const clearFilters = () => {
     setFilteredInfo({});
@@ -2387,191 +1781,7 @@ const AssignmentReview = () => {
   };
 
   // 渲染批量AI评阅对话框
-  const renderBatchAIModal = () => {
-    // 计算各类型作业的数量
-    const counts = {
-      ungraded: allSubmissions.filter(s => {
-        const teacherScore = s.grade?.score;
-        const aiScore = s.aiGrade?.score;
-        return teacherScore === undefined && aiScore === undefined;
-      }).length,
-
-      aigraded: allSubmissions.filter(s => {
-        const teacherScore = s.grade?.score;
-        const aiScore = s.aiGrade?.score;
-        return teacherScore === undefined && aiScore !== undefined;
-      }).length,
-
-      all: allSubmissions.length
-    };
-
-    // 如果有班级筛选，计算筛选后的数量
-    const filteredCounts = selectedClass ? {
-      ungraded: submissions.filter(s => {
-        const teacherScore = s.grade?.score;
-        const aiScore = s.aiGrade?.score;
-        return teacherScore === undefined && aiScore === undefined;
-      }).length,
-
-      aigraded: submissions.filter(s => {
-        const teacherScore = s.grade?.score;
-        const aiScore = s.aiGrade?.score;
-        return teacherScore === undefined && aiScore !== undefined;
-      }).length,
-
-      all: submissions.length
-    } : counts;
-
-    // 使用实际会处理的数量
-    const displayCounts = selectedClass ? filteredCounts : counts;
-
-    // 记录实际成功和失败的提交数量
-    const finalResults = Object.values(batchProcessStatus).reduce(
-      (acc, status) => {
-        if (status === 'success') acc.success++;
-        else if (status === 'failed') acc.failed++;
-        return acc;
-      },
-      { success: 0, failed: 0 }
-    );
-
-    return (
-      <Modal
-        title={
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <ThunderboltOutlined style={{ color: '#1890ff', marginRight: 8 }} />
-            批量AI评阅Python作业
-            {selectedClass && <Tag color="blue" style={{ marginLeft: 8 }}>{selectedClass}</Tag>}
-          </div>
-        }
-        open={batchAIModalVisible}
-        onCancel={handleCloseBatchAIModal}
-        footer={[
-          <Button
-            key="cancel"
-            onClick={handleCloseBatchAIModal}
-            disabled={batchAIRunning}
-          >
-            {batchAICompleted ? '完成' : '取消'}
-          </Button>,
-          !batchAICompleted && (
-            <Button
-              key="submit"
-              type="primary"
-              onClick={handleBatchAIGrade}
-              loading={batchAIRunning}
-              disabled={batchAIRunning}
-            >
-              开始评阅
-            </Button>
-          )
-        ]}
-        width={600}
-      >
-        <div>
-          {!batchAICompleted && !batchAIRunning && (
-            <div style={{ marginBottom: 16 }}>
-              <Radio.Group
-                value={batchAIType}
-                onChange={e => setBatchAIType(e.target.value)}
-                disabled={batchAIRunning}
-              >
-                <Space direction="vertical">
-                  <Radio value="ungraded">
-                    仅评阅未评分作业
-                    <Tag color={displayCounts.ungraded > 0 ? 'blue' : 'default'} style={{ marginLeft: 8 }}>
-                      {displayCounts.ungraded} 份
-                    </Tag>
-                  </Radio>
-                  <Radio value="aigraded">
-                    重新评阅已有AI评分的作业
-                    <Tag color={displayCounts.aigraded > 0 ? 'cyan' : 'default'} style={{ marginLeft: 8 }}>
-                      {displayCounts.aigraded} 份
-                    </Tag>
-                  </Radio>
-                  <Radio value="all">
-                    评阅{selectedClass ? '当前班级' : '所有'}作业
-                    <Tag color={displayCounts.all > 0 ? 'green' : 'default'} style={{ marginLeft: 8 }}>
-                      {displayCounts.all} 份
-                    </Tag>
-                  </Radio>
-                </Space>
-              </Radio.Group>
-            </div>
-          )}
-
-          {(batchAIRunning || batchAICompleted) && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-                <span>评阅进度：{batchAIProgress}/{batchAITotal}</span>
-                <span>
-                  <Tag color="green">成功: {batchAICompleted ? finalResults.success : batchAIResults.success}</Tag>
-                  <Tag color="red">失败: {batchAICompleted ? finalResults.failed : batchAIResults.failed}</Tag>
-                  {!batchAICompleted && (
-                    <Tag color="blue">进行中: {batchAIResults.processing}</Tag>
-                  )}
-                </span>
-              </div>
-              <Progress
-                percent={Math.round((batchAIProgress / batchAITotal) * 100)}
-                status={batchAIProgress === batchAITotal ? 'success' : 'active'}
-              />
-
-              {batchAICompleted && (
-                <div style={{ marginTop: 12, textAlign: 'center' }}>
-                  <div style={{ fontSize: 16, color: '#52c41a', fontWeight: 'bold' }}>
-                    批量评阅已完成
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    共处理 {batchAITotal} 份作业，成功 {finalResults.success} 份，失败 {finalResults.failed} 份
-                  </div>
-                </div>
-              )}
-
-              <div style={{
-                marginTop: 16,
-                maxHeight: 200,
-                overflowY: 'auto',
-                border: '1px solid #f0f0f0',
-                borderRadius: 4,
-                padding: 8
-              }}>
-                {/* 只显示有处理状态的提交 */}
-                {Object.entries(batchProcessStatus).map(([submissionId, status]) => {
-                  // 从提交列表中找出对应的提交对象
-                  const submission = [...allSubmissions].find(s => s._id === submissionId);
-                  if (!submission) return null;
-
-                  let statusTag;
-
-                  if (status === 'pending') {
-                    statusTag = <Tag>等待中</Tag>;
-                  } else if (status === 'processing') {
-                    statusTag = <Tag color="blue">处理中</Tag>;
-                  } else if (status === 'success') {
-                    statusTag = <Tag color="green">成功</Tag>;
-                  } else if (status === 'failed') {
-                    statusTag = <Tag color="red">失败</Tag>;
-                  }
-
-                  return (
-                    <div key={submissionId} style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{submission.student?.name} - {formatClassName(submission.student?.grade, submission.student?.className)}</span>
-                      {statusTag}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 16, fontSize: 12, color: '#888' }}>
-            注意：批量评阅将会同时发送多个请求，可能需要一些时间来完成所有评阅。
-          </div>
-        </div>
-      </Modal>
-    );
-  };
+  const renderBatchAIModal = () => <BatchAIGradeModal allSubmissions={allSubmissions} batchAICompleted={batchAICompleted} batchAIModalVisible={batchAIModalVisible} batchAIProgress={batchAIProgress} batchAIResults={batchAIResults} batchAIRunning={batchAIRunning} batchAITotal={batchAITotal} batchAIType={batchAIType} batchProcessStatus={batchProcessStatus} handleBatchAIGrade={handleBatchAIGrade} handleCloseBatchAIModal={handleCloseBatchAIModal} selectedClass={selectedClass} setBatchAIType={setBatchAIType} submissions={submissions} />;
 
   // 获取活动详情
   const fetchActivityDetails = async (lessonId, activityId) => {
@@ -2655,118 +1865,7 @@ const AssignmentReview = () => {
   };
 
   // 渲染活动详情设置抽屉
-  const renderActivitySettingsDrawer = () => {
-    return (
-      <Drawer
-        title={
-          <Space>
-            <SettingOutlined />
-            <span>Python作业设置</span>
-          </Space>
-        }
-        width={500}
-        open={activitySettingsVisible}
-        onClose={handleCloseActivitySettings}
-        maskClosable={!loadingActivityDetails}
-        extra={
-          <Space>
-            {editingActivityDetails ? (
-              <>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  onClick={updateActivityDetails}
-                  loading={loadingActivityDetails}
-                >
-                  保存
-                </Button>
-                <Button
-                  onClick={() => setEditingActivityDetails(false)}
-                  disabled={loadingActivityDetails}
-                >
-                  取消
-                </Button>
-              </>
-            ) : (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => setEditingActivityDetails(true)}
-                disabled={loadingActivityDetails}
-              >
-                编辑
-              </Button>
-            )}
-          </Space>
-        }
-      >
-        <Spin spinning={loadingActivityDetails}>
-          <Form layout="vertical">
-            <Form.Item label="活动描述">
-              {editingActivityDetails ? (
-                <TextArea
-                  value={activityDetails.description}
-                  onChange={e => handleActivityDetailsChange('description', e.target.value)}
-                  autoSize={{ minRows: 3, maxRows: 8 }}
-                  placeholder="请输入活动描述"
-                />
-              ) : (
-                <div style={{
-                  border: '1px solid #f0f0f0',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  minHeight: '80px',
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  background: '#fafafa'
-                }}>
-                  {activityDetails.description || '暂无描述'}
-                </div>
-              )}
-            </Form.Item>
-
-            <Form.Item label="参考答案">
-              {editingActivityDetails ? (
-                <TextArea
-                  value={activityDetails.referenceAnswer}
-                  onChange={e => handleActivityDetailsChange('referenceAnswer', e.target.value)}
-                  autoSize={{ minRows: 6, maxRows: 15 }}
-                  placeholder="请输入参考答案（Python代码）"
-                />
-              ) : (
-                <div>
-                  {activityDetails.referenceAnswer ? (
-                    <SyntaxHighlighter
-                      language="python"
-                      style={github}
-                      showLineNumbers={true}
-                      customStyle={{
-                        margin: 0,
-                        borderRadius: '4px',
-                        maxHeight: '400px',
-                        overflow: 'auto'
-                      }}
-                    >
-                      {activityDetails.referenceAnswer}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <div style={{
-                      border: '1px solid #f0f0f0',
-                      padding: '8px 12px',
-                      borderRadius: '4px',
-                      minHeight: '80px',
-                      background: '#fafafa'
-                    }}>
-                      暂无参考答案
-                    </div>
-                  )}
-                </div>
-              )}
-            </Form.Item>
-          </Form>
-        </Spin>
-      </Drawer>
-    );
-  };
+  const renderActivitySettingsDrawer = () => <ActivitySettingsDrawer activityDetails={activityDetails} activitySettingsVisible={activitySettingsVisible} editingActivityDetails={editingActivityDetails} handleActivityDetailsChange={handleActivityDetailsChange} handleCloseActivitySettings={handleCloseActivitySettings} loadingActivityDetails={loadingActivityDetails} setEditingActivityDetails={setEditingActivityDetails} updateActivityDetails={updateActivityDetails} />;
 
   // 更新活动详情设置抽屉的打开关闭逻辑
   const handleOpenActivitySettings = () => {
@@ -2964,126 +2063,7 @@ const AssignmentReview = () => {
   };
 
   // 渲染待批改总览抽屉
-  const renderPendingDrawer = () => {
-    // 获取活动类型对应的颜色和名称
-    const getActivityTypeInfo = (type) => {
-      const typeMap = {
-        'flowchart': { color: 'purple', name: '流程图' },
-        'python': { color: 'blue', name: 'Python' },
-        'spreadsheet': { color: 'green', name: '在线表格' },
-        'fillblank': { color: 'orange', name: '填空' },
-        'html': { color: 'cyan', name: 'HTML' },
-        'quiz': { color: 'magenta', name: '测验' }
-      };
-      return typeMap[type] || { color: 'default', name: '作业' };
-    };
-
-    return (
-      <Drawer
-        title={
-          <Space>
-            <FileSearchOutlined />
-            <span>待批改作业总览</span>
-            {totalPending > 0 && (
-              <Tag color="orange" style={{ marginLeft: 8 }}>共 {totalPending} 份待批改</Tag>
-            )}
-          </Space>
-        }
-        width={500}
-        open={pendingDrawerVisible}
-        onClose={handleClosePendingDrawer}
-        extra={
-          <Button onClick={fetchPendingSummary} loading={pendingLoading}>
-            刷新
-          </Button>
-        }
-      >
-        <Spin spinning={pendingLoading}>
-          {pendingData.length === 0 ? (
-            <Empty description="暂无待批改作业" />
-          ) : (
-            <div style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
-              {pendingData.map(course => (
-                <div key={course.value} style={{ marginBottom: 16 }}>
-                  <div style={{
-                    fontWeight: 600,
-                    fontSize: 15,
-                    padding: '8px 12px',
-                    background: '#fafafa',
-                    borderRadius: 4,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span>{course.label}</span>
-                    <Tag color="orange">{course.pendingCount}</Tag>
-                  </div>
-                  {course.children?.map(unit => (
-                    <div key={unit.value} style={{ marginLeft: 12, marginTop: 8 }}>
-                      <div style={{
-                        color: '#666',
-                        fontSize: 13,
-                        marginBottom: 4,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}>
-                        <span>📁 {unit.label}</span>
-                        <Tag color="default">{unit.pendingCount}</Tag>
-                      </div>
-                      {unit.children?.map(lesson => (
-                        <div key={lesson.value} style={{ marginLeft: 12 }}>
-                          <div style={{ color: '#888', fontSize: 12, marginBottom: 2 }}>
-                            📄 {lesson.label}
-                          </div>
-                          {lesson.children?.map(activity => {
-                            const typeInfo = getActivityTypeInfo(activity.type);
-                            return (
-                              <div
-                                key={activity.value}
-                                onClick={() => handleJumpToActivity(activity)}
-                                style={{
-                                  marginLeft: 12,
-                                  padding: '6px 12px',
-                                  marginBottom: 4,
-                                  background: '#fff7e6',
-                                  borderRadius: 4,
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  border: '1px solid #ffe7ba',
-                                  transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = '#fff1b8';
-                                  e.currentTarget.style.borderColor = '#ffd666';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = '#fff7e6';
-                                  e.currentTarget.style.borderColor = '#ffe7ba';
-                                }}
-                              >
-                                <Space size={4}>
-                                  <Tag color={typeInfo.color} style={{ marginRight: 4 }}>{typeInfo.name}</Tag>
-                                  <span style={{ fontSize: 13 }}>{activity.label}</span>
-                                </Space>
-                                <Tag color="red">{activity.pendingCount} 待批改</Tag>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
-        </Spin>
-      </Drawer>
-    );
-  };
+  const renderPendingDrawer = () => <PendingSummaryDrawer fetchPendingSummary={fetchPendingSummary} handleClosePendingDrawer={handleClosePendingDrawer} handleJumpToActivity={handleJumpToActivity} pendingData={pendingData} pendingDrawerVisible={pendingDrawerVisible} pendingLoading={pendingLoading} totalPending={totalPending} />;
 
   // 获取当前未评阅的提交列表
   const getUngradedSubmissions = () => {
@@ -3218,84 +2198,7 @@ const AssignmentReview = () => {
   };
 
   // 渲染一键评分对话框
-  const renderBatchGradeModal = () => {
-    const ungradedCount = getUngradedSubmissions().length;
-    const progressPercent = batchGradeTotal > 0 ? Math.round((batchGradeProgress / batchGradeTotal) * 100) : 0;
-
-    return (
-      <Modal
-        title="一键评分"
-        open={batchGradeModalVisible}
-        onCancel={handleCloseBatchGradeModal}
-        footer={[
-          <Button key="cancel" onClick={handleCloseBatchGradeModal} disabled={batchGrading}>
-            取消
-          </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={handleBatchGrade}
-            loading={batchGrading}
-            disabled={ungradedCount === 0}
-          >
-            确认评分
-          </Button>
-        ]}
-        maskClosable={!batchGrading}
-        closable={!batchGrading}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ marginBottom: 8 }}>
-            当前有 <span style={{ fontWeight: 'bold', color: '#1890ff' }}>{ungradedCount}</span> 份未评阅作业
-            {selectedClass && <Tag color="blue" style={{ marginLeft: 8 }}>{selectedClass}</Tag>}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ marginBottom: 8, color: '#666' }}>选择评分等级：</div>
-            <Radio.Group
-              value={batchGradeScore}
-              onChange={(e) => setBatchGradeScore(e.target.value)}
-              disabled={batchGrading}
-              style={{ width: '100%' }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                <Radio.Button value="A" style={{ textAlign: 'center' }}>A (10分)</Radio.Button>
-                <Radio.Button value="B" style={{ textAlign: 'center' }}>B (8分)</Radio.Button>
-                <Radio.Button value="C" style={{ textAlign: 'center' }}>C (6分)</Radio.Button>
-                <Radio.Button value="D" style={{ textAlign: 'center' }}>D (4分)</Radio.Button>
-                <Radio.Button value="E" style={{ textAlign: 'center' }}>E (2分)</Radio.Button>
-                <Radio.Button value="F" style={{ textAlign: 'center' }}>F (0分)</Radio.Button>
-              </div>
-            </Radio.Group>
-          </div>
-
-          {batchGrading && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ marginBottom: 8, color: '#666' }}>
-                评分进度: {batchGradeProgress} / {batchGradeTotal}
-              </div>
-              <div style={{
-                height: '8px',
-                background: '#f0f0f0',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${progressPercent}%`,
-                  background: '#52c41a',
-                  borderRadius: '4px',
-                  transition: 'width 0.3s'
-                }} />
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
-    );
-  };
-
+  const renderBatchGradeModal = () => <BatchGradeModal batchGradeModalVisible={batchGradeModalVisible} batchGradeProgress={batchGradeProgress} batchGradeScore={batchGradeScore} batchGradeTotal={batchGradeTotal} batchGrading={batchGrading} getUngradedSubmissions={getUngradedSubmissions} handleBatchGrade={handleBatchGrade} handleCloseBatchGradeModal={handleCloseBatchGradeModal} selectedClass={selectedClass} setBatchGradeScore={setBatchGradeScore} />;
 
   return (
     <div style={{ padding: '12px' }}>
@@ -3382,7 +2285,6 @@ const AssignmentReview = () => {
           待批改总览 {totalPending > 0 && <Tag color="orange" style={{ marginLeft: 4 }}>{totalPending}</Tag>}
         </Button>
       </div>
-
 
       {/* 渲染批量AI评阅对话框 */}
       {renderBatchAIModal()}

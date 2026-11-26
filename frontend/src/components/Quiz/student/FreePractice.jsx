@@ -10,7 +10,9 @@ import { formatPoints } from '../../../utils/points';
 
 const { Title, Text } = Typography;
 
-const FreePractice = () => {
+// mode：free 自由练习；wrong 错题重练（由错题本进入，直接开始，结束后通过 onExit 返回错题本）
+const FreePractice = ({ mode = 'free', onExit }) => {
+    const isWrongRetry = mode === 'wrong';
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [questions, setQuestions] = useState([]);
@@ -22,13 +24,16 @@ const FreePractice = () => {
     const [status, setStatus] = useState('intro'); // intro, practicing, submitting, completed, reviewing
     const [result, setResult] = useState(null);
     const timerRef = useRef(null);
+    const autoStartedRef = useRef(false);
     const [showReview, setShowReview] = useState(false);
 
     // 开始练习
     const startPractice = async () => {
         try {
             setLoading(true);
-            const res = await quizAPI.freePractice.start();
+            const res = isWrongRetry
+                ? await quizAPI.freePractice.startWrongRetry()
+                : await quizAPI.freePractice.start();
             if (res.success) {
                 setQuestions(res.data.questions);
                 setSessionId(res.data.sessionId);
@@ -52,6 +57,7 @@ const FreePractice = () => {
             } else {
                 message.error(errorMsg);
             }
+            if (isWrongRetry && onExit) onExit();
         } finally {
             setLoading(false);
         }
@@ -138,20 +144,39 @@ const FreePractice = () => {
                     setStatus('intro');
                     setAnswers({});
                     setQuestions([]);
+                    if (isWrongRetry && onExit) onExit();
                 }
             });
         } else {
-            setStatus('intro');
+            backToStart();
         }
     };
 
+    // 返回起始页：错题重练回到错题本
+    const backToStart = () => {
+        if (isWrongRetry && onExit) onExit();
+        else setStatus('intro');
+    };
+
     useEffect(() => {
+        // 开发模式下 StrictMode 会执行两次副作用，用 ref 避免重复创建练习
+        if (isWrongRetry && !autoStartedRef.current) {
+            autoStartedRef.current = true;
+            startPractice();
+        }
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
 
     // 1. Intro Page (Start Screen)
+    if (status === 'intro' && isWrongRetry) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+                <Spin tip="正在准备错题..." size="large" />
+            </div>
+        );
+    }
     if (status === 'intro') {
         return (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -203,12 +228,14 @@ const FreePractice = () => {
                 <Card className="result-card" style={{ maxWidth: 800, margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', padding: '40px 0' }}>
                         <TrophyOutlined style={{ fontSize: 64, color: '#faad14', marginBottom: 24 }} />
-                        <Title level={2}>练习完成！</Title>
+                        <Title level={2}>{isWrongRetry ? '重练完成！' : '练习完成！'}</Title>
                         <div style={{ margin: '30px 0' }}>
                             <Progress
                                 type="circle"
                                 percent={percentage}
-                                format={() => <span className="points-earned">+{formatPoints(result.pointsEarned)}积分</span>}
+                                format={() => isWrongRetry
+                                    ? <span className="points-earned">{percentage}%</span>
+                                    : <span className="points-earned">+{formatPoints(result.pointsEarned)}积分</span>}
                                 width={160}
                                 strokeColor="#faad14"
                             />
@@ -226,8 +253,8 @@ const FreePractice = () => {
                         <div style={{ marginTop: 40 }}>
                             <Space size="large">
                                 <Button type="default" size="large" icon={<EyeOutlined />} onClick={() => setShowReview(true)}>查看解析</Button>
-                                <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={startPractice}>再练一次</Button>
-                                <Button size="large" onClick={() => setStatus('intro')}>返回首页</Button>
+                                <Button type="primary" size="large" icon={<ReloadOutlined />} onClick={startPractice}>{isWrongRetry ? '继续重练' : '再练一次'}</Button>
+                                <Button size="large" onClick={backToStart}>{isWrongRetry ? '返回错题本' : '返回首页'}</Button>
                             </Space>
                         </div>
                     </div>

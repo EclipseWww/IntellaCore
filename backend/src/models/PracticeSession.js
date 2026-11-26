@@ -57,6 +57,12 @@ const practiceSessionSchema = new mongoose.Schema({
         type: String,
         enum: ['IN_PROGRESS', 'COMPLETED', 'EXPIRED'],
         default: 'IN_PROGRESS'
+    },
+    // free：自由练习（随机抽题、计积分）；wrong_retry：错题重练（不计积分、不进排行榜）
+    mode: {
+        type: String,
+        enum: ['free', 'wrong_retry'],
+        default: 'free'
     }
 }, {
     timestamps: true

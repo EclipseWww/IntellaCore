@@ -57,6 +57,12 @@ const PracticeHistory = () => {
             render: (text) => new Date(text).toLocaleString()
         },
         {
+            title: '类型',
+            dataIndex: 'mode',
+            key: 'mode',
+            render: (mode) => (mode === 'wrong_retry' ? <Tag color="volcano">错题重练</Tag> : <Tag color="blue">自由练习</Tag>)
+        },
+        {
             title: '答对题数',
             key: 'score',
             render: (_, record) => (

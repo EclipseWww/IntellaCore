@@ -9,53 +9,38 @@ import {
   message,
   Space,
   Typography,
-  Breadcrumb,
   Modal,
   Select,
-  Checkbox,
-  Table,
   Row,
   Col,
   Tag,
   Empty,
   Upload,
-  InputNumber,
-  Menu,
-  Switch,
   Tabs,
-  Popconfirm,
-  Radio,
-  Slider,
-  Divider,
   Alert,
-  Tooltip,
-  Collapse
+  Tooltip
 } from 'antd';
 import {
   ArrowLeftOutlined,
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  MinusCircleOutlined,
   UploadOutlined,
-  InboxOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   DownloadOutlined,
-  PictureOutlined,
-  CopyOutlined,
-  VideoCameraOutlined,
-  FileImageOutlined
+  VideoCameraOutlined
 } from '@ant-design/icons';
 import ExcelGradingSettings from './components/ExcelGradingSettings';
 import OfficeGradingSettings from './components/OfficeGradingSettings';
 import { courseManagementAPI, API_BASE_URL, typingAPI, quizAPI, lessonAPI, mediaAPI } from '../../services/api';
-import MarkdownEditor from '../../components/shared/MarkdownEditor';
-import MarkdownRenderer from '../../components/shared/MarkdownRenderer';
+import LessonSidebar from './components/lessonEdit/LessonSidebar';
+import ActivityTypeSettings from './components/lessonEdit/ActivityTypeSettings';
+import PracticeSubmissionSettings from './components/lessonEdit/PracticeSubmissionSettings';
+import ActivityResourcesCard from './components/lessonEdit/ActivityResourcesCard';
+import PublicMediaPanel from './components/lessonEdit/PublicMediaPanel';
+import ImageResizeModal from './components/lessonEdit/ImageResizeModal';
 
 const { Content } = Layout;
 const { Title } = Typography;
-const { TextArea } = Input;
 const { TabPane } = Tabs;
 
 const normalizeOfficeRuleScores = (rules = []) => {
@@ -1362,166 +1347,17 @@ const LessonEdit = () => {
             {missingMedia.length > 0 && <Col span={24}><Alert type="warning" showIcon style={{ marginBottom: 16 }}
               message={`缺少 ${missingMedia.length} 个媒体文件，共 ${(missingMedia.reduce((sum, item) => sum + item.size, 0) / 1024 / 1024).toFixed(1)} MB`}
               description="请返回课程列表，在本单元的「导入课时」入口导入对应媒体包。系统会自动恢复引用，无需修改正文。" /></Col>}
-            <Col span={6}>
-              <div className="left-sidebar">
-                {/* 课时基本信息卡片 */}
-                <Card
-                  title={<span style={{ fontWeight: 'bold' }}>课时基本信息</span>}
-                  className="info-card"
-                  style={{ marginBottom: 24 }}
-                >
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleSubmit}
-                  >
-                    <Form.Item
-                      name="title"
-                      label="课时标题"
-                      rules={[{ required: true, message: '请输入课时标题' }]}
-                    >
-                      <Input placeholder="请输入课时标题" />
-                    </Form.Item>
-
-                    <Form.Item
-                      name="description"
-                      label="课时描述"
-                    >
-                      <TextArea rows={4} placeholder="请输入课时描述" />
-                    </Form.Item>
-
-                    <Form.Item
-                      name="objectives"
-                      label="学习目标"
-                    >
-                      <Select
-                        mode="tags"
-                        placeholder="请输入学习目标（回车添加）"
-                        style={{ width: '100%' }}
-                      />
-                    </Form.Item>
-
-                    <Form.Item>
-                      <Button type="primary" htmlType="submit" loading={loading} block>
-                        保存课时信息
-                      </Button>
-                    </Form.Item>
-                  </Form>
-                </Card>
-
-                {/* 活动列表卡片 */}
-                <Card
-                  title={<span style={{ fontWeight: 'bold' }}>活动列表</span>}
-                  className="activities-card"
-                  extra={
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<PlusOutlined />}
-                      onClick={handleAddActivity}
-                    >
-                      添加活动
-                    </Button>
-                  }
-                >
-                  <div className="activities-list" style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                    {activities.length > 0 ? (
-                      <Menu
-                        mode="vertical"
-                        selectedKeys={[selectedActivityIndex.toString()]}
-                        style={{ border: 'none' }}
-                      >
-                        {activities.map((activity, index) => (
-                          <Menu.Item
-                            key={index.toString()}
-                            onClick={() => handleActivitySelect(index)}
-                            style={{
-                              margin: '4px 0',
-                              padding: '0',
-                              borderRadius: '4px',
-                              background: selectedActivityIndex === index ? '#e6f7ff' : 'transparent',
-                              height: 'auto',
-                              lineHeight: 'normal'
-                            }}
-                          >
-                            <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              width: '100%',
-                              padding: '8px 16px',
-                              minHeight: '40px'
-                            }}>
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                flexGrow: 1,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                <Tag color={
-                                  activity.type === 'reading' ? 'blue' :
-                                    activity.type === 'quiz' ? 'green' :
-                                      activity.type === 'discussion' ? 'orange' :
-                                        activity.type === 'practice' ? 'purple' :
-                                          activity.type === 'typing' ? 'cyan' :
-                                            activity.type === 'flowchart' ? 'magenta' :
-                                              activity.type === 'spreadsheet' ? 'lime' :
-                                                activity.type === 'html' ? 'volcano' :
-                                                  activity.type === 'fillblank' ? 'geekblue' :
-                                                    activity.type === 'python' ? 'gold' : 'default'
-                                }>
-                                  {activity.type === 'reading' ? '阅读' :
-                                    activity.type === 'quiz' ? '测验' :
-                                      activity.type === 'discussion' ? '讨论' :
-                                        activity.type === 'practice' ? '练习' :
-                                          activity.type === 'typing' ? '打字' :
-                                            activity.type === 'flowchart' ? '流程图' :
-                                              activity.type === 'spreadsheet' ? '表格' :
-                                                activity.type === 'html' ? 'HTML' :
-                                                  activity.type === 'fillblank' ? '填空' :
-                                                    activity.type === 'python' ? 'Python' : '活动'}
-                                </Tag>
-                                <span style={{ marginLeft: 8 }}>{activity.title}</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<ArrowUpOutlined />}
-                                  disabled={index === 0}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveUp(index);
-                                  }}
-                                />
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<ArrowDownOutlined />}
-                                  disabled={index === activities.length - 1}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveDown(index);
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          </Menu.Item>
-                        ))}
-                      </Menu>
-                    ) : (
-                      <Empty
-                        description="暂无活动"
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        style={{ margin: '30px 0' }}
-                      />
-                    )}
-                  </div>
-                </Card>
-              </div>
-            </Col>
+            <LessonSidebar
+              activities={activities}
+              form={form}
+              handleActivitySelect={handleActivitySelect}
+              handleAddActivity={handleAddActivity}
+              handleMoveDown={handleMoveDown}
+              handleMoveUp={handleMoveUp}
+              handleSubmit={handleSubmit}
+              loading={loading}
+              selectedActivityIndex={selectedActivityIndex}
+            />
 
             {/* 右侧：活动详细内容 */}
             <Col span={18}>
@@ -1715,671 +1551,18 @@ const LessonEdit = () => {
                           </Col>
                         </Row>
 
-                        <Form.Item
-                          noStyle
-                          shouldUpdate={(prevValues, currentValues) =>
-                            prevValues.type !== currentValues.type
-                          }
-                        >
-                          {({ getFieldValue }) => {
-                            const activityType = getFieldValue('type');
-                            if (activityType === 'typing') {
-                              return (
-                                <Card
-                                  title="打字练习设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name={['typingSettings', 'text']}
-                                    label="练习文本"
-                                    rules={[{ required: true, message: '请选择练习文本' }]}
-                                  >
-                                    <Select
-                                      placeholder="请选择练习文本"
-                                      showSearch
-                                      optionFilterProp="children"
-                                    >
-                                      {typingTexts.map(text => (
-                                        <Select.Option key={text._id} value={text._id}>
-                                          {text.content.substring(0, 30)}...
-                                        </Select.Option>
-                                      ))}
-                                    </Select>
-                                  </Form.Item>
-
-                                  <Row gutter={16}>
-                                    <Col span={8}>
-                                      <Form.Item
-                                        name={['typingSettings', 'targetSpeed']}
-                                        label="目标速度(字/分钟)"
-                                        rules={[{ required: true, message: '请设置目标速度' }]}
-                                      >
-                                        <InputNumber min={1} style={{ width: '100%' }} />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={8}>
-                                      <Form.Item
-                                        name={['typingSettings', 'targetAccuracy']}
-                                        label="目标准确率(%)"
-                                        rules={[{ required: true, message: '请设置目标准确率' }]}
-                                      >
-                                        <InputNumber min={1} max={100} style={{ width: '100%' }} />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={8}>
-                                      <Form.Item
-                                        name={['typingSettings', 'timeLimit']}
-                                        label="时间限制(分钟)"
-                                        rules={[{ required: true, message: '请设置时间限制' }]}
-                                      >
-                                        <InputNumber min={1} style={{ width: '100%' }} />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={24}>
-                                      <Form.Item
-                                        name={['typingSettings', 'allowOnce']}
-                                        valuePropName="checked"
-                                        label=""
-                                      >
-                                        <Checkbox>只允许完成一次（完成后不可再次练习）</Checkbox>
-                                      </Form.Item>
-                                    </Col>
-                                  </Row>
-                                </Card>
-                              );
-                            } else if (activityType === 'quiz') {
-                              return (
-                                <Card
-                                  title="测验设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                  loading={loadingQuizDetails}
-                                >
-                                  <Form.Item
-                                    name={['quizSettings', 'quiz']}
-                                    label="选择测验"
-                                    rules={[{ required: true, message: '请选择测验' }]}
-                                  >
-                                    <Select
-                                      placeholder="请选择测验"
-                                      showSearch
-                                      optionFilterProp="children"
-                                      onChange={handleQuizChange}
-                                    >
-                                      {quizzes.map(quiz => (
-                                        <Select.Option key={quiz._id} value={quiz._id}>
-                                          {quiz.title}
-                                        </Select.Option>
-                                      ))}
-                                    </Select>
-                                  </Form.Item>
-
-                                  {/* 选择测验后显示更多设置 */}
-                                  {quizDetails && (
-                                    <>
-                                      <Divider orientation="left">测验配置</Divider>
-
-
-
-                                      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                          <Tag color={
-                                            quizDetails.status === 'DRAFT' ? 'default' :
-                                              quizDetails.status === 'PUBLISHED' ? 'green' :
-                                                quizDetails.status === 'IN_PROGRESS' ? 'blue' :
-                                                  quizDetails.status === 'ENDED' ? 'red' : 'default'
-                                          }>
-                                            {
-                                              quizDetails.status === 'DRAFT' ? '草稿' :
-                                                quizDetails.status === 'PUBLISHED' ? '已发布' :
-                                                  quizDetails.status === 'IN_PROGRESS' ? '进行中' :
-                                                    quizDetails.status === 'ENDED' ? '已结束' : quizDetails.status
-                                            }
-                                          </Tag>
-                                          {quizDetails.questions?.length > 0 ? (
-                                            <Tag color="blue" style={{ marginLeft: '8px' }}>
-                                              题目数量: {quizDetails.questions.length}
-                                            </Tag>
-                                          ) : (
-                                            <Tag color="red" style={{ marginLeft: '8px' }}>
-                                              未添加题目
-                                            </Tag>
-                                          )}
-                                        </div>
-                                        {quizDetails.status === 'DRAFT' && quizDetails.questions?.length > 0 && (
-                                          <Button
-                                            type="primary"
-                                            size="small"
-                                            onClick={() => {
-                                              Modal.confirm({
-                                                title: '确认发布测验',
-                                                content: '发布后测验将对学生可见，确定要发布吗？',
-                                                onOk: () => handlePublishQuiz(quizDetails._id)
-                                              });
-                                            }}
-                                          >
-                                            发布测验
-                                          </Button>
-                                        )}
-                                        {quizDetails.status === 'PUBLISHED' && (
-                                          <Button
-                                            danger
-                                            size="small"
-                                            onClick={() => {
-                                              Modal.confirm({
-                                                title: '确认撤回测验',
-                                                content: '撤回后测验将变为草稿状态，不再对学生可见，确定要撤回吗？',
-                                                onOk: () => handlePublishQuiz(quizDetails._id)
-                                              });
-                                            }}
-                                          >
-                                            撤回测验
-                                          </Button>
-                                        )}
-                                      </div>
-
-                                      <Row gutter={16}>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            name={['quizSettings', 'timeLimit']}
-                                            label="时间限制(分钟)"
-                                            extra="0表示无时间限制"
-                                          >
-                                            <InputNumber min={0} style={{ width: '100%' }} />
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            label="允许多次尝试"
-                                            style={{ marginBottom: 0 }}
-                                          >
-                                            <Space>
-                                              <Form.Item
-                                                name={['quizSettings', 'allowMultipleAttempts']}
-                                                valuePropName="checked"
-                                                style={{ marginBottom: 0 }}
-                                              >
-                                                <Switch />
-                                              </Form.Item>
-                                              <Form.Item
-                                                noStyle
-                                                shouldUpdate={(prevValues, currentValues) => {
-                                                  return prevValues.quizSettings?.allowMultipleAttempts !==
-                                                    currentValues.quizSettings?.allowMultipleAttempts;
-                                                }}
-                                              >
-                                                {({ getFieldValue }) => {
-                                                  const allowMultiple = getFieldValue(['quizSettings', 'allowMultipleAttempts']);
-                                                  return allowMultiple ? (
-                                                    <Form.Item
-                                                      name={['quizSettings', 'maxAttempts']}
-                                                      style={{ marginBottom: 0 }}
-                                                    >
-                                                      <InputNumber
-                                                        min={1}
-                                                        placeholder="最大次数"
-                                                        style={{ width: '100px' }}
-                                                      />
-                                                    </Form.Item>
-                                                  ) : null;
-                                                }}
-                                              </Form.Item>
-                                            </Space>
-                                          </Form.Item>
-                                        </Col>
-                                      </Row>
-
-                                      <Row gutter={16}>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            name={['quizSettings', 'randomizeQuestions']}
-                                            label="随机题目顺序"
-                                            valuePropName="checked"
-                                          >
-                                            <Switch />
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            name={['quizSettings', 'randomizeOptions']}
-                                            label="随机选项顺序"
-                                            valuePropName="checked"
-                                          >
-                                            <Switch />
-                                          </Form.Item>
-                                        </Col>
-                                      </Row>
-
-                                      <Row gutter={16}>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            name={['quizSettings', 'showAnswerAfterSubmit']}
-                                            label="提交后显示答案"
-                                            valuePropName="checked"
-                                          >
-                                            <Switch />
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={12}>
-                                          <Form.Item
-                                            name={['quizSettings', 'showScoreAfterSubmit']}
-                                            label="提交后显示分数"
-                                            valuePropName="checked"
-                                          >
-                                            <Switch />
-                                          </Form.Item>
-                                        </Col>
-                                      </Row>
-
-
-                                    </>
-                                  )}
-                                </Card>
-                              );
-                            } else if (activityType === 'flowchart') {
-                              return (
-                                <Card
-                                  title="流程图设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name={['flowchartSettings', 'instructions']}
-                                    label="绘制说明"
-                                    extra="向学生说明流程图的绘制要求"
-                                  >
-                                    <MarkdownEditor
-                                      placeholder="请输入流程图绘制说明，支持Markdown格式"
-                                      height={300}
-                                    />
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    name={['flowchartSettings', 'allowedNodeTypes']}
-                                    label="允许的节点类型"
-                                    extra="不选择则允许所有类型"
-                                  >
-                                    <Select
-                                      mode="multiple"
-                                      placeholder="选择允许使用的节点类型（可多选）"
-                                      allowClear
-                                    >
-                                      <Select.Option value="start">开始</Select.Option>
-                                      <Select.Option value="end">结束</Select.Option>
-                                      <Select.Option value="process">处理</Select.Option>
-                                      <Select.Option value="decision">判断</Select.Option>
-                                      <Select.Option value="data">数据</Select.Option>
-                                      <Select.Option value="connector">连接器</Select.Option>
-                                    </Select>
-                                  </Form.Item>
-
-                                  <Alert
-                                    type="info"
-                                    message="流程图活动说明"
-                                    description={
-                                      <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
-                                        <li>学生将在学习页面看到流程图编辑器</li>
-                                        <li>学生可以拖拽节点、连接节点来绘制流程图</li>
-                                        <li>提交后教师可以在课堂管理中查看和评分</li>
-                                      </ul>
-                                    }
-                                    style={{ marginTop: 16 }}
-                                  />
-                                </Card>
-                              );
-                            } else if (activityType === 'spreadsheet') {
-                              return (
-                                <Card
-                                  title="在线表格设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name={['spreadsheetSettings', 'instructions']}
-                                    label="活动说明"
-                                    extra="向学生说明表格处理的要求"
-                                  >
-                                    <MarkdownEditor
-                                      placeholder="请输入活动说明，支持Markdown格式"
-                                    />
-                                  </Form.Item>
-
-                                  <Row gutter={16}>
-                                    <Col span={12}>
-                                      <Form.Item
-                                        name={['spreadsheetSettings', 'spreadsheetId']}
-                                        label="模板表格 (可选)"
-                                        extra="如果选择了模板，学生将基于该模板开始"
-                                      >
-                                        <Select
-                                          placeholder="请选择模板表格"
-                                          allowClear
-                                          showSearch
-                                          optionFilterProp="children"
-                                        >
-                                          {spreadsheets.map(ss => (
-                                            <Select.Option key={ss._id} value={ss._id}>
-                                              {ss.name}
-                                            </Select.Option>
-                                          ))}
-                                        </Select>
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={12}>
-                                      <Form.Item
-                                        name={['spreadsheetSettings', 'timeLimit']}
-                                        label="时间限制(分钟)"
-                                        extra="0表示无时间限制"
-                                      >
-                                        <InputNumber min={0} style={{ width: '100%' }} />
-                                      </Form.Item>
-                                    </Col>
-                                  </Row>
-                                </Card>
-                              );
-                            } else if (activityType === 'fillblank') {
-                              return (
-                                <Card
-                                  title="填空设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name={['fillBlankSettings', 'instructions']}
-                                    label="活动说明"
-                                    extra="向学生说明填空的要求"
-                                  >
-                                    <MarkdownEditor
-                                      placeholder="请输入活动说明，支持Markdown格式"
-                                      height={150}
-                                    />
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    name={['fillBlankSettings', 'content']}
-                                    label="填空内容"
-                                    rules={[{ required: true, message: '请输入填空内容' }]}
-                                    extra={
-                                      <div style={{ marginTop: 8 }}>
-                                        <strong>使用方法：</strong> 在需要挖空的位置使用 <code>{'{{blank:正确答案}}'}</code> 标记。<br />
-                                        <strong>示例：</strong> <code>{'HTTP协议的默认端口号是{{blank:80}}，HTTPS协议的默认端口号是{{blank:443}}。'}</code>
-                                      </div>
-                                    }
-                                  >
-                                    <MarkdownEditor
-                                      placeholder="请输入带有填空标记的内容..."
-                                      height={400}
-                                    />
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    name={['fillBlankSettings', 'showCorrectAfterSubmit']}
-                                    label="提交后显示正确答案"
-                                    valuePropName="checked"
-                                    initialValue={true}
-                                  >
-                                    <Switch />
-                                  </Form.Item>
-
-                                  <Alert
-                                    type="info"
-                                    message="填空活动说明"
-                                    description={
-                                      <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
-                                        <li>学生将看到带有输入框的文本，需要填写空白处</li>
-                                        <li>提交后系统将自动对比答案并计算得分</li>
-                                        <li>支持文本填空和Markdown表格填空</li>
-                                      </ul>
-                                    }
-                                    style={{ marginTop: 16 }}
-                                  />
-                                </Card>
-                              );
-                            } else if (activityType === 'python') {
-                              return (
-                                <Card
-                                  title="Python编程设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name={['pythonSettings', 'instructions']}
-                                    label="活动说明"
-                                    extra="向学生说明编程任务的要求"
-                                  >
-                                    <MarkdownEditor
-                                      placeholder="请输入活动说明，支持Markdown格式"
-                                      height={200}
-                                    />
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    name={['pythonSettings', 'starterCode']}
-                                    label="初始代码"
-                                    extra="学生开始编程时看到的代码模板"
-                                  >
-                                    <Input.TextArea
-                                      rows={8}
-                                      placeholder="# 在这里编写你的Python代码"
-                                      style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-                                    />
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    name={['pythonSettings', 'maxAttempts']}
-                                    label="最多提交次数"
-                                    extra="0 表示不限；有测试点时每次提交都会在服务器重新评测"
-                                  >
-                                    <InputNumber min={0} max={100} precision={0} style={{ width: 160 }} />
-                                  </Form.Item>
-
-                                  <Divider orientation="left">测试用例（OJ自动评测）</Divider>
-
-                                  <Form.List name={['pythonSettings', 'testCases']}>
-                                    {(fields, { add, remove }) => (
-                                      <>
-                                        {fields.map(({ key, name, ...restField }, index) => (
-                                          <Card
-                                            key={key}
-                                            size="small"
-                                            title={`测试点 ${index + 1}`}
-                                            style={{ marginBottom: 12 }}
-                                            extra={
-                                              <Button
-                                                type="text"
-                                                danger
-                                                icon={<MinusCircleOutlined />}
-                                                onClick={() => remove(name)}
-                                              >
-                                                删除
-                                              </Button>
-                                            }
-                                          >
-                                            <Row gutter={16}>
-                                              <Col span={12}>
-                                                <Form.Item
-                                                  {...restField}
-                                                  name={[name, 'input']}
-                                                  label="输入数据"
-                                                  extra="每行对应一次 input() 的返回值；输入用完后 input() 返回空字符串"
-                                                >
-                                                  <Input.TextArea
-                                                    rows={3}
-                                                    placeholder="例如：\n5\n10"
-                                                    style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-                                                  />
-                                                </Form.Item>
-                                              </Col>
-                                              <Col span={12}>
-                                                <Form.Item
-                                                  {...restField}
-                                                  name={[name, 'expectedOutput']}
-                                                  label="预期输出"
-                                                  rules={[{ required: true, message: '请输入预期输出' }]}
-                                                >
-                                                  <Input.TextArea
-                                                    rows={3}
-                                                    placeholder="程序应输出的结果"
-                                                    style={{ fontFamily: 'Consolas, Monaco, monospace' }}
-                                                  />
-                                                </Form.Item>
-                                              </Col>
-                                            </Row>
-                                            <Form.Item
-                                              {...restField}
-                                              name={[name, 'isHidden']}
-                                              valuePropName="checked"
-                                              style={{ marginBottom: 0 }}
-                                            >
-                                              <Checkbox>隐藏测试点（学生看不到具体输入输出）</Checkbox>
-                                            </Form.Item>
-                                          </Card>
-                                        ))}
-                                        <Button
-                                          type="dashed"
-                                          onClick={() => add({ input: '', expectedOutput: '', isHidden: false })}
-                                          block
-                                          icon={<PlusOutlined />}
-                                        >
-                                          添加测试点
-                                        </Button>
-                                      </>
-                                    )}
-                                  </Form.List>
-
-                                  <Alert
-                                    type="info"
-                                    message="Python编程活动说明"
-                                    description={
-                                      <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
-                                        <li>学生将在浏览器中直接编写和运行Python代码</li>
-                                        <li>支持Python基础语法和常用库（无需安装Python环境）</li>
-                                        <li>开启turtle图形后，学生可以使用turtle库绘制图形</li>
-                                        <li>错误消息将以中文显示，便于学生理解</li>
-                                        <li><strong>添加测试用例后，学生可点击"测评"按钮自动评测代码</strong></li>
-                                      </ul>
-                                    }
-                                    style={{ marginTop: 16 }}
-                                  />
-                                </Card>
-                              );
-                            } else {
-                              return (
-                                <Form.Item
-                                  name="content"
-                                  label="活动内容"
-                                >
-                                  <MarkdownEditor placeholder="请输入活动内容..." height="600px" />
-                                </Form.Item>
-                              );
-                            }
-                          }}
-                        </Form.Item>
+                        <ActivityTypeSettings
+                          handlePublishQuiz={handlePublishQuiz}
+                          handleQuizChange={handleQuizChange}
+                          loadingQuizDetails={loadingQuizDetails}
+                          quizDetails={quizDetails}
+                          quizzes={quizzes}
+                          spreadsheets={spreadsheets}
+                          typingTexts={typingTexts}
+                        />
 
                         {/* 练习类型 - 自动需要提交文件 */}
-                        <Form.Item
-                          noStyle
-                          shouldUpdate={(prevValues, currentValues) =>
-                            prevValues.type !== currentValues.type
-                          }
-                        >
-                          {({ getFieldValue }) => {
-                            const activityType = getFieldValue('type');
-                            // 只有练习类型才显示文件提交设置
-                            if (activityType === 'practice') {
-                              return (
-                                <Card
-                                  title="文件提交设置"
-                                  style={{ marginBottom: 24 }}
-                                  type="inner"
-                                >
-                                  <Form.Item
-                                    name="allowedFormats"
-                                    label="允许的文件格式"
-                                    rules={[
-                                      { required: true, message: '请选择允许的文件格式' },
-                                      {
-                                        validator: (_, value) => {
-                                          if (!value || value.length <= 1) return Promise.resolve();
-                                          
-                                          const hasPpt = value.some(v => v.includes('PPT'));
-                                          const hasExcel = value.some(v => v.includes('XLS'));
-                                          const hasWord = value.some(v => v.includes('DOC'));
-                                          const hasPython = value.some(v => v === 'PY');
-                                          
-                                          const typesCount = [hasPpt, hasExcel, hasWord, hasPython].filter(Boolean).length;
-                                          if (typesCount > 1) {
-                                            return Promise.reject(new Error('批阅系统限制：不能同时选择多种需专门解析的格式（如 PPT 和 Excel 不能混选）'));
-                                          }
-                                          return Promise.resolve();
-                                        }
-                                      }
-                                    ]}
-                                  >
-                                    <Select mode="multiple" placeholder="请选择允许的文件格式">
-                                      <Select.Option value="DOC">DOC</Select.Option>
-                                      <Select.Option value="DOCX">DOCX</Select.Option>
-                                      <Select.Option value="PDF">PDF</Select.Option>
-                                      <Select.Option value="PPT">PPT</Select.Option>
-                                      <Select.Option value="PPTX">PPTX</Select.Option>
-                                      <Select.Option value="XLS">XLS</Select.Option>
-                                      <Select.Option value="XLSX">XLSX</Select.Option>
-                                      <Select.Option value="ZIP">ZIP</Select.Option>
-                                      <Select.Option value="RAR">RAR</Select.Option>
-                                      <Select.Option value="PY">PY</Select.Option>
-                                      <Select.Option value="TXT">TXT</Select.Option>
-                                      <Select.Option value="C">C</Select.Option>
-                                      <Select.Option value="CPP">CPP</Select.Option>
-                                    </Select>
-                                  </Form.Item>
-
-                                  <Form.Item
-                                    noStyle
-                                    shouldUpdate={(prevValues, currentValues) => {
-                                      const prevFormats = prevValues.allowedFormats || [];
-                                      const currentFormats = currentValues.allowedFormats || [];
-                                      return prevFormats.includes('PY') !== currentFormats.includes('PY');
-                                    }}
-                                  >
-                                    {({ getFieldValue }) => {
-                                      const allowedFormats = getFieldValue('allowedFormats') || [];
-                                      return allowedFormats.includes('PY') ? (
-                                        <Row gutter={16}>
-                                          <Col span={12}>
-                                            <Form.Item
-                                              name="description"
-                                              label="AI提示词"
-                                              extra="为AI提供的指导信息，用于评估学生的代码"
-                                            >
-                                              <Input.TextArea
-                                                rows={4}
-                                                placeholder="请输入AI提示词（可描述评分标准、关键点等）"
-                                              />
-                                            </Form.Item>
-                                          </Col>
-                                          <Col span={12}>
-                                            <Form.Item
-                                              name="referenceAnswer"
-                                              label="参考答案"
-                                              extra="用于Python编程题的参考答案代码"
-                                            >
-                                              <Input.TextArea
-                                                rows={4}
-                                                placeholder="请输入Python代码参考答案（选填）"
-                                              />
-                                            </Form.Item>
-                                          </Col>
-                                        </Row>
-                                      ) : null;
-                                    }}
-                                  </Form.Item>
-                                </Card>
-                              );
-                            }
-                            return null;
-                          }}
-                        </Form.Item>
+                        <PracticeSubmissionSettings />
                                               <Form.Item
                                                 noStyle
                                                 shouldUpdate={(prevValues, currentValues) =>
@@ -2407,233 +1590,32 @@ const LessonEdit = () => {
                                                   />;
                                                 }}
                           </Form.Item>
-                        <Card
-                          title="活动资源"
-                          style={{ marginBottom: 24 }}
-                          type="inner"
-                          extra={
-                            <Upload
-                              customRequest={async ({ file }) => await handleUpload(file, selectedActivityIndex)}
-                              showUploadList={false}
-                            >
-                              <Button icon={<UploadOutlined />}>上传资源</Button>
-                            </Upload>
-                          }
-                        >
-                          {activities[selectedActivityIndex]?.resources?.length > 0 ? (
-                            <Table
-                              dataSource={activities[selectedActivityIndex].resources.map(r => ({ ...r, key: r._id || r.path }))}
-                              columns={[
-                                {
-                                  title: '文件名',
-                                  dataIndex: 'filename',
-                                  key: 'filename',
-                                  ellipsis: true,
-                                },
-                                {
-                                  title: '类型',
-                                  dataIndex: 'type',
-                                  key: 'type',
-                                  width: 100,
-                                },
-                                {
-                                  title: '大小',
-                                  dataIndex: 'size',
-                                  key: 'size',
-                                  width: 100,
-                                  render: (size) => formatFileSize(size)
-                                },
-                                {
-                                  title: '上传时间',
-                                  dataIndex: 'uploadTime',
-                                  key: 'uploadTime',
-                                  width: 180,
-                                  render: (time) => new Date(time).toLocaleString()
-                                },
-                                {
-                                  title: '操作',
-                                  key: 'action',
-                                  width: 200,
-                                  render: (_, record) => (
-                                    <Space size="small">
-                                      <Button
-                                        type="link"
-                                        size="small"
-                                        onClick={() => handleDownloadResource(record)}
-                                        icon={<DownloadOutlined />}
-                                      >
-                                        下载
-                                      </Button>
-                                      <Button
-                                        type="link"
-                                        danger
-                                        size="small"
-                                        onClick={() => handleDeleteResource(record)}
-                                        icon={<DeleteOutlined />}
-                                      >
-                                        删除
-                                      </Button>
-                                    </Space>
-                                  )
-                                }
-                              ]}
-                              pagination={false}
-                              size="small"
-                            />
-                          ) : (
-                            <Empty
-                              description="暂无活动资源"
-                              image={Empty.PRESENTED_IMAGE_SIMPLE}
-                              style={{ margin: '16px 0' }}
-                            >
-                              <Upload
-                                customRequest={async ({ file }) => await handleUpload(file, selectedActivityIndex)}
-                                showUploadList={false}
-                              >
-                                <Button icon={<UploadOutlined />}>上传资源</Button>
-                              </Upload>
-                            </Empty>
-                          )}
-                        </Card>
+                        <ActivityResourcesCard
+                          activities={activities}
+                          formatFileSize={formatFileSize}
+                          handleDeleteResource={handleDeleteResource}
+                          handleDownloadResource={handleDownloadResource}
+                          handleUpload={handleUpload}
+                          selectedActivityIndex={selectedActivityIndex}
+                        />
                       </Form>
                     </TabPane>
                     <TabPane tab="公开媒体" key="public-media">
-                      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                        <Space>
-                          <Upload
-                            customRequest={() => { }}
-                            beforeUpload={handleImageBeforeUpload}
-                            showUploadList={false}
-                            accept="image/*"
-                          >
-                            <Button
-                              type="primary"
-                              icon={<UploadOutlined />}
-                            >
-                              上传图片
-                            </Button>
-                          </Upload>
-                          <Upload
-                            customRequest={async ({ file }) => {
-                              // 直接走媒体上传接口
-                              const formData = new FormData();
-                              formData.append('media', file);
-                              try {
-                                setLoadingMedias(true);
-                                const resp = await mediaAPI.uploadMedia(courseId, unitId, lessonId, formData);
-                                if (resp.success) {
-                                  message.success('视频上传成功');
-                                  loadPublicMedias();
-                                } else {
-                                  message.error('视频上传失败');
-                                }
-                              } catch (err) {
-                                console.error('视频上传失败:', err);
-                                message.error('视频上传失败: ' + (err.response?.data?.message || err.message));
-                              } finally {
-                                setLoadingMedias(false);
-                              }
-                            }}
-                            showUploadList={false}
-                            accept="video/*"
-                          >
-                            <Button
-                              type="default"
-                              icon={<UploadOutlined />}
-                            >
-                              上传视频
-                            </Button>
-                          </Upload>
-                          <Button
-                            onClick={loadPublicMedias}
-                            icon={<FileImageOutlined />}
-                          >
-                            刷新媒体列表
-                          </Button>
-                        </Space>
-                        <Typography.Text type="secondary">
-                          公开媒体可以在所有活动中通过Markdown引用
-                        </Typography.Text>
-                      </div>
-                      <Table
-                        loading={loadingMedias}
-                        dataSource={publicMedias.map(media => ({ ...media, key: media.path }))}
-                        columns={[
-                          {
-                            title: '预览',
-                            key: 'preview',
-                            width: 80,
-                            render: (_, record) => getMediaPreview(record)
-                          },
-                          {
-                            title: '类型',
-                            dataIndex: 'mediaType',
-                            key: 'mediaType',
-                            width: 80,
-                            render: (type) => type === 'video' ? '视频' : '图片'
-                          },
-                          {
-                            title: '文件名',
-                            dataIndex: 'filename',
-                            key: 'filename',
-                            ellipsis: true,
-                            width: '30%'
-                          },
-                          {
-                            title: '大小',
-                            dataIndex: 'size',
-                            key: 'size',
-                            width: 100,
-                            render: (size) => formatFileSize(size)
-                          },
-                          {
-                            title: '操作',
-                            key: 'action',
-                            width: 180,
-                            render: (_, record) => (
-                              <Space size="small">
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  icon={<CopyOutlined />}
-                                  onClick={() => copyMediaUrlToClipboard(record)}
-                                  title="复制URL"
-                                >
-                                  URL
-                                </Button>
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  onClick={() => copyMarkdownMediaCode(record)}
-                                  title="复制Markdown"
-                                >
-                                  MD
-                                </Button>
-                                <Popconfirm
-                                  title={`确定要删除这${record.mediaType === 'video' ? '个视频' : '张图片'}吗？`}
-                                  onConfirm={() => handleDeletePublicMedia(record)}
-                                  okText="确定"
-                                  cancelText="取消"
-                                >
-                                  <Button
-                                    type="link"
-                                    danger
-                                    size="small"
-                                    icon={<DeleteOutlined />}
-                                    title={`删除${record.mediaType === 'video' ? '视频' : '图片'}`}
-                                  />
-                                </Popconfirm>
-                              </Space>
-                            )
-                          }
-                        ]}
-                        pagination={{ pageSize: 5, size: 'small' }}
-                        size="small"
-                        scroll={{ x: 'max-content' }}
+                      <PublicMediaPanel
+                        copyMarkdownMediaCode={copyMarkdownMediaCode}
+                        copyMediaUrlToClipboard={copyMediaUrlToClipboard}
+                        courseId={courseId}
+                        formatFileSize={formatFileSize}
+                        getMediaPreview={getMediaPreview}
+                        handleDeletePublicMedia={handleDeletePublicMedia}
+                        handleImageBeforeUpload={handleImageBeforeUpload}
+                        lessonId={lessonId}
+                        loadPublicMedias={loadPublicMedias}
+                        loadingMedias={loadingMedias}
+                        publicMedias={publicMedias}
+                        setLoadingMedias={setLoadingMedias}
+                        unitId={unitId}
                       />
-                      {publicMedias.length === 0 && !loadingMedias && (
-                        <Empty description="暂无公开媒体文件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                      )}
                     </TabPane>
 
                   </Tabs>
@@ -2661,80 +1643,20 @@ const LessonEdit = () => {
       </Content>
 
       {/* 图片尺寸调整对话框 */}
-      <Modal
-        title="调整图片尺寸"
-        open={imageResizeModalVisible}
-        onOk={handleResizedImageUpload}
-        onCancel={() => setImageResizeModalVisible(false)}
-        okText="上传"
-        cancelText="取消"
-        width={700}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {previewImage && (
-            <div style={{ marginBottom: 16, border: '1px solid #d9d9d9', padding: 8, borderRadius: 4 }}>
-              <img
-                src={previewImage}
-                alt="预览"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '400px',
-                  width: `${imageWidth}px`,
-                  height: `${imageHeight}px`
-                }}
-              />
-            </div>
-          )}
-
-          <div style={{ width: '100%', marginBottom: 16 }}>
-            <Form layout="vertical">
-              <Form.Item label="调整比例">
-                <Slider
-                  min={10}
-                  max={200}
-                  value={imageScale}
-                  onChange={handleScaleChange}
-                  tipFormatter={value => `${value}%`}
-                />
-              </Form.Item>
-
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item label="宽度(像素)">
-                    <InputNumber
-                      min={10}
-                      max={5000}
-                      value={imageWidth}
-                      onChange={handleWidthChange}
-                      style={{ width: '100%' }}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="高度(像素)">
-                    <InputNumber
-                      min={10}
-                      max={5000}
-                      value={imageHeight}
-                      onChange={handleHeightChange}
-                      style={{ width: '100%' }}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <div style={{ marginTop: 8 }}>
-                <Typography.Text type="secondary">
-                  原始尺寸: {originalImageSize.width} x {originalImageSize.height} 像素
-                </Typography.Text>
-              </div>
-            </Form>
-          </div>
-        </div>
-
-        {/* 隐藏的canvas用于绘制和导出调整后的图片 */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-      </Modal>
+      <ImageResizeModal
+        canvasRef={canvasRef}
+        handleHeightChange={handleHeightChange}
+        handleResizedImageUpload={handleResizedImageUpload}
+        handleScaleChange={handleScaleChange}
+        handleWidthChange={handleWidthChange}
+        imageHeight={imageHeight}
+        imageResizeModalVisible={imageResizeModalVisible}
+        imageScale={imageScale}
+        imageWidth={imageWidth}
+        originalImageSize={originalImageSize}
+        previewImage={previewImage}
+        setImageResizeModalVisible={setImageResizeModalVisible}
+      />
     </Layout>
   );
 };

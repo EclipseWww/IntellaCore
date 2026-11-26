@@ -341,6 +341,15 @@ export const quizAPI = {
             const response = await api.get(`/quiz/free-practice/details/${sessionId}`);
             return response.data;
         },
+        // 错题本与错题重练
+        getWrongQuestions: async () => {
+            const response = await api.get('/quiz/free-practice/wrong-questions');
+            return response.data;
+        },
+        startWrongRetry: async () => {
+            const response = await api.post('/quiz/free-practice/wrong-questions/retry');
+            return response.data;
+        },
         // 教师端接口
         getSettings: async (classId) => {
             const response = await api.get(`/quiz/free-practice/class/${classId}/settings`);

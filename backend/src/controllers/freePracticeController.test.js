@@ -1,9 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load, logger, response } = require('../testing/reviewTestSupport');
-function fixture({ total = 10, correct = 5, earnedToday = 0 } = {}) {
+function fixture({ total = 10, correct = 5, earnedToday = 0, mode } = {}) {
   const questions = Array.from({ length: total }, (_, i) => ({ _id: 'q' + i, options: [{ _id: 'right', isCorrect: true }] }));
-  const session = { _id: 'session', questions: questions.map(q => ({ questionId: q._id })), totalQuestions: 10, pointsPerQuestion: 5, status: 'IN_PROGRESS', save: async () => {} };
+  const session = { _id: 'session', questions: questions.map(q => ({ questionId: q._id })), totalQuestions: 10, pointsPerQuestion: 5, status: 'IN_PROGRESS', mode, save: async () => {} };
   const awards = [];
   const controller = load(require.resolve('./freePracticeController'), {
     '../models/PracticeSession': { findOne: async () => session.status === 'IN_PROGRESS' ? session : null },
@@ -11,7 +11,7 @@ function fixture({ total = 10, correct = 5, earnedToday = 0 } = {}) {
     '../models/Setting': {}, '../models/User': {}, '../models/Class': {},
     '../models/Achievement': { findOne: async () => ({ pointTransactions: [{ type: 'free_practice', amount: earnedToday, timestamp: new Date() }] }) },
     '../utils/pointsManager': { addPoints: async (...args) => awards.push(args) },
-    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}, '../services/wrongQuestionService': {}
   });
   const answers = Object.fromEntries(questions.slice(0, correct).map(q => [q._id, 'right']));
   return { controller, session, awards, req: { user: { id: 'student' }, body: { sessionId: 'session', answers } } };
@@ -67,8 +67,45 @@ test('starting practice stores the number actually drawn from the question bank'
     '../models/Question': { aggregate: async () => questions },
     '../models/User': { findById: () => ({ select: async () => ({ classId: 'class' }) }) },
     '../models/Class': { findById: () => ({ select: async () => ({}) }) },
-    '../models/Setting': {}, '../utils/pointsManager': {}, '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}
+    '../models/Setting': {}, '../utils/pointsManager': {}, '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {}, '../services/wrongQuestionService': {}
   });
   const res = response(); await controller.startPractice({ user: { id: 'student' } }, res);
   assert.equal(res.statusCode, 201); assert.equal(created.totalQuestions, 3);
+});
+test('wrong-question retry never awards points even when every answer is right', async () => {
+  const f = fixture({ correct: 10, mode: 'wrong_retry' }); const res = response();
+  await f.controller.submitPractice(f.req, res);
+  assert.equal(res.body.data.pointsEarned, 0);
+  assert.equal(f.awards.length, 0);
+  assert.equal(res.body.data.mode, 'wrong_retry');
+  assert.match(res.body.data.rewardMessage, /不计积分/);
+});
+function retryController({ picked = [], classSettings = {} } = {}) {
+  let created;
+  const controller = load(require.resolve('./freePracticeController'), {
+    '../models/PracticeSession': { create: async data => { created = data; return { _id: 'session', ...data }; } },
+    '../models/Question': {}, '../models/Setting': {}, '../utils/pointsManager': {},
+    '../models/User': { findById: () => ({ select: async () => ({ classId: 'class' }) }) },
+    '../models/Class': { findById: () => ({ select: async () => ({ freePracticeSettings: classSettings }) }) },
+    '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: {},
+    '../services/wrongQuestionService': { pickRetryQuestions: async () => picked }
+  });
+  return { controller, created: () => created };
+}
+test('wrong-question retry creates a no-points session and hides answers', async () => {
+  const picked = [{ _id: 'q1', type: 'SINGLE_CHOICE', content: 'c', options: [{ _id: 'a', content: 'A', isCorrect: true }] }];
+  const r = retryController({ picked }); const res = response();
+  await r.controller.startWrongRetry({ user: { id: 'student' } }, res);
+  assert.equal(res.statusCode, 201);
+  assert.equal(r.created().mode, 'wrong_retry');
+  assert.equal(r.created().pointsPerQuestion, 0);
+  assert.equal(res.body.data.questions[0].options[0].isCorrect, undefined);
+});
+test('wrong-question retry follows the class free-practice switch and reports an empty book', async () => {
+  const off = retryController({ picked: [{ _id: 'q1', options: [] }], classSettings: { isEnabled: false } }); const r1 = response();
+  await off.controller.startWrongRetry({ user: { id: 'student' } }, r1);
+  assert.equal(r1.statusCode, 403);
+  const empty = retryController(); const r2 = response();
+  await empty.controller.startWrongRetry({ user: { id: 'student' } }, r2);
+  assert.equal(r2.statusCode, 404);
 });

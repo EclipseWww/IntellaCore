@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Card, Row, Col, Statistic, Table, Button, message, Modal, Form, Input, Select, Popconfirm, Space, Tabs, Checkbox, Alert, DatePicker, Steps, Result, Spin, Typography, Tooltip, Tag, Upload, Divider } from 'antd';
-import { UserOutlined, TeamOutlined, BookOutlined, SafetyCertificateOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlusOutlined, KeyOutlined, CloudDownloadOutlined, CloudUploadOutlined, DatabaseOutlined, ExclamationCircleOutlined, FileOutlined, HddOutlined, FolderOutlined, UploadOutlined, DownloadOutlined, CodeOutlined, PlayCircleOutlined, InboxOutlined, RollbackOutlined } from '@ant-design/icons';
+import { Layout, Card, Row, Col, Statistic, Table, Button, message, Modal, Form, Input, Select, Popconfirm, Space, Tabs, Checkbox, Alert, Spin, Typography, Tag, Upload } from 'antd';
+import { UserOutlined, TeamOutlined, BookOutlined, SafetyCertificateOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, PlusOutlined, KeyOutlined, CloudDownloadOutlined, CloudUploadOutlined, DatabaseOutlined, ExclamationCircleOutlined, FileOutlined, HddOutlined, FolderOutlined, UploadOutlined, DownloadOutlined, CodeOutlined, InboxOutlined } from '@ant-design/icons';
 import usePageTitle from '../../hooks/usePageTitle';
-import api, { backupAPI, assignmentFilesAPI, courseManagementAPI, classAPI, getSystemStats, getSettings, updateSetting } from '../../services/api';
-import { archiveGrade as archiveGradeAPI, restoreClass as restoreClassAPI, getArchivedClasses, deleteArchivedClassFiles } from '../../services/classService';
-import moment from 'moment';
+import api, { backupAPI, getSystemStats, getSettings, updateSetting } from '../../services/api';
 import ScheduleSettings from '../../components/Schedule/ScheduleSettings';
+import ScriptsTab from './components/ScriptsTab';
+import ArchiveTab from './components/ArchiveTab';
+import FileCleanupModal from './components/FileCleanupModal';
 
 const { Header, Content } = Layout;
 const { Option } = Select;
 const { TabPane } = Tabs;
-const { RangePicker } = DatePicker;
-const { Step } = Steps;
 const { Text } = Typography;
 
 const AdminDashboard = () => {
@@ -78,109 +77,17 @@ const AdminDashboard = () => {
   const [importStudentModalVisible, setImportStudentModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
 
+  // 当前标签页（脚本运行、归档管理在切换到时刷新数据）
+  const [activeTab, setActiveTab] = useState('students');
+
   // 文件清理相关状态
   const [cleanupModalVisible, setCleanupModalVisible] = useState(false);
-  const [cleanupForm] = Form.useForm();
-  const [cleanupStep, setCleanupStep] = useState(1);
-  const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [previewData, setPreviewData] = useState(null);
-  const [cleanupResult, setCleanupResult] = useState(null);
-  const [validatedFormValues, setValidatedFormValues] = useState(null);
   const [systemStats, setSystemStats] = useState(null);
   const [systemStatsLoading, setSystemStatsLoading] = useState(false);
 
   // AI 配置状态
   const [aiLoading, setAiLoading] = useState(false);
   const [aiForm] = Form.useForm();
-
-  // 脚本运行相关状态
-  const [scripts, setScripts] = useState([]);
-  const [scriptsLoading, setScriptsLoading] = useState(false);
-  const [selectedScript, setSelectedScript] = useState(null);
-  const [scriptRunning, setScriptRunning] = useState(false);
-  const [scriptOutput, setScriptOutput] = useState('');
-
-  // 归档管理相关状态
-  const [archivedClasses, setArchivedClasses] = useState([]);
-  const [archivedLoading, setArchivedLoading] = useState(false);
-  const [archiveForm] = Form.useForm();
-  const [archiving, setArchiving] = useState(false);
-
-  // 获取可用脚本列表
-  const fetchScripts = async () => {
-    try {
-      setScriptsLoading(true);
-      const response = await api.get('/admin/scripts');
-      setScripts(response.data.data || []);
-    } catch (error) {
-      console.error('获取脚本列表失败:', error);
-      message.error('获取脚本列表失败');
-    } finally {
-      setScriptsLoading(false);
-    }
-  };
-
-  // 运行脚本
-  const handleRunScript = async () => {
-    if (!selectedScript) {
-      message.warning('请先选择一个脚本');
-      return;
-    }
-
-    const script = scripts.find(s => s.id === selectedScript);
-    if (!script) return;
-
-    if (script.dangerous) {
-      Modal.confirm({
-        title: '危险操作确认',
-        icon: <ExclamationCircleOutlined />,
-        content: (
-          <div>
-            <Alert
-              message="警告"
-              description={`您即将运行的脚本「${script.name}」可能会修改数据库数据，请确保在运行前已备份数据！`}
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <p><strong>脚本描述:</strong> {script.description}</p>
-          </div>
-        ),
-        okText: '确认运行',
-        okType: 'danger',
-        cancelText: '取消',
-        onOk: () => executeScript(script.id, true)
-      });
-    } else {
-      executeScript(script.id, false);
-    }
-  };
-
-  const executeScript = async (scriptId, confirmed) => {
-    try {
-      setScriptRunning(true);
-      setScriptOutput('正在运行脚本...');
-
-      const response = await api.post('/admin/scripts/run', {
-        scriptId,
-        confirmed
-      });
-
-      if (response.data.success) {
-        setScriptOutput(response.data.data.output || '脚本运行完成（无输出）');
-        message.success('脚本运行成功');
-      } else {
-        setScriptOutput(`错误: ${response.data.data?.errors || response.data.message}`);
-        message.error('脚本运行失败');
-      }
-    } catch (error) {
-      console.error('运行脚本失败:', error);
-      setScriptOutput(`运行失败: ${error.response?.data?.message || error.message}`);
-      message.error('运行脚本失败');
-    } finally {
-      setScriptRunning(false);
-    }
-  };
 
   const fetchAISettings = async () => {
     try {
@@ -466,11 +373,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // 处理分页变化
-  const handleTableChange = (paginationInfo) => {
-    fetchUsers(paginationInfo.current, paginationInfo.pageSize, filters.role, filters.search);
-  };
-
   // 创建/编辑用户
   const handleUserSubmit = async (values) => {
     try {
@@ -498,7 +400,10 @@ const AdminDashboard = () => {
     try {
       await api.delete(`/admin/users/${userId}`);
       message.success('用户删除成功');
-      fetchUsers(pagination.current, pagination.pageSize, filters.role, filters.search);
+      // 学生/教师列表与顶部统计都要刷新
+      fetchStudents(pagination.current, pagination.pageSize);
+      fetchTeachersData();
+      fetchOverview();
     } catch (error) {
       message.error('删除用户失败');
     }
@@ -931,222 +836,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handlePreviewCleanup = async () => {
-    try {
-      await cleanupForm.validateFields();
-      const values = cleanupForm.getFieldsValue();
-      setValidatedFormValues(values);
-
-      if (!values.deleteOriginals && !values.deletePreviews) {
-        message.error('请至少选择一种要删除的文件类型');
-        return;
-      }
-
-      setCleanupLoading(true);
-
-      const filters = {
-        courseIds: values.courseIds,
-        classIds: values.classIds,
-        dateRange: values.dateRange ? [
-          values.dateRange[0].format('YYYY-MM-DD'),
-          values.dateRange[1].format('YYYY-MM-DD')
-        ] : undefined
-      };
-
-      const options = {
-        deleteOriginals: values.deleteOriginals,
-        deletePreviews: values.deletePreviews
-      };
-
-      try {
-        const data = await assignmentFilesAPI.previewCleanup(filters, options);
-        setPreviewData(data);
-        setCleanupLoading(false);
-        setCleanupStep(2);
-      } catch (error) {
-        setCleanupLoading(false);
-        message.error('预览清理失败');
-      }
-    } catch (error) {
-      message.error('表单验证失败');
-    }
-  };
-
-  const handleExecuteCleanup = async () => {
-    setCleanupLoading(true);
-
-    const values = validatedFormValues;
-    const filters = {
-      courseIds: values.courseIds,
-      classIds: values.classIds,
-      dateRange: values.dateRange ? [
-        values.dateRange[0].format('YYYY-MM-DD'),
-        values.dateRange[1].format('YYYY-MM-DD')
-      ] : undefined
-    };
-
-    const options = {
-      deleteOriginals: values.deleteOriginals,
-      deletePreviews: values.deletePreviews
-    };
-
-    try {
-      const data = await assignmentFilesAPI.cleanupFiles(filters, options);
-      setCleanupResult(data);
-      setCleanupLoading(false);
-      setCleanupStep(3);
-
-      // 刷新系统概览和统计
-      fetchOverview();
-      fetchSystemStats();
-    } catch (error) {
-      setCleanupLoading(false);
-      message.error('执行清理失败');
-    }
-  };
-
-  const resetCleanup = () => {
-    setCleanupStep(1);
-    setPreviewData(null);
-    setCleanupResult(null);
-    cleanupForm.resetFields();
-  };
-
-  const handleCleanupModalClose = () => {
-    if (cleanupLoading) return;
-
-    if (cleanupStep !== 1) {
-      Modal.confirm({
-        title: '确认取消',
-        icon: <ExclamationCircleOutlined />,
-        content: '取消操作将丢失当前进度，确定要退出吗？',
-        onOk() {
-          resetCleanup();
-          setCleanupModalVisible(false);
-        }
-      });
-    } else {
-      resetCleanup();
-      setCleanupModalVisible(false);
-    }
-  };
-
-  // 用户表格列定义
-  const userColumns = [
-    {
-      title: '用户名',
-      dataIndex: 'username',
-      key: 'username',
-      width: 120,
-    },
-    {
-      title: '姓名',
-      dataIndex: 'name',
-      key: 'name',
-      width: 100,
-    },
-    {
-      title: '角色',
-      dataIndex: 'role',
-      key: 'role',
-      width: 80,
-      render: (role) => {
-        const roleMap = {
-          student: '学生',
-          teacher: '教师',
-          admin: '管理员'
-        };
-        return roleMap[role] || role;
-      }
-    },
-    {
-      title: '性别',
-      dataIndex: 'gender',
-      key: 'gender',
-      width: 60,
-      render: (gender) => {
-        const genderMap = {
-          male: '男',
-          female: '女',
-          other: '其他'
-        };
-        return genderMap[gender] || '未知';
-      }
-    },
-    {
-      title: '班级',
-      dataIndex: 'classId',
-      key: 'classId',
-      width: 120,
-      render: (classId) => classId?.name || '未分配'
-    },
-    {
-      title: '状态',
-      dataIndex: 'isActive',
-      key: 'isActive',
-      width: 80,
-      render: (isActive) => isActive ? '激活' : '禁用'
-    },
-    {
-      title: '最后登录',
-      dataIndex: 'lastLogin',
-      key: 'lastLogin',
-      width: 150,
-      render: (date) => date ? new Date(date).toLocaleString() : '从未登录'
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 180,
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingUser(record);
-              form.setFieldsValue({
-                name: record.name,
-                role: record.role,
-                gender: record.gender,
-                classId: record.classId?._id,
-                isActive: record.isActive
-              });
-              setUserModalVisible(true);
-            }}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<KeyOutlined />}
-            onClick={() => {
-              setEditingUser(record);
-              setResetPasswordModalVisible(true);
-            }}
-          >
-            重置密码
-          </Button>
-          <Popconfirm
-            title="确定要删除这个用户吗？"
-            onConfirm={() => handleDeleteUser(record._id)}
-          >
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-            >
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ background: '#fff', padding: '0 24px', boxShadow: '0 1px 4px rgba(0,21,41,.08)' }}>
@@ -1246,18 +935,10 @@ const AdminDashboard = () => {
 
         {/* 管理功能标签页 */}
         <Card>
-        <Tabs defaultActiveKey="students" onChange={async (key) => {
+        <Tabs defaultActiveKey="students" onChange={(key) => {
+            setActiveTab(key);
             if (key === 'system') {
               fetchAISettings();
-            } else if (key === 'scripts') {
-              fetchScripts();
-            } else if (key === 'archive') {
-              setArchivedLoading(true);
-              try {
-                const res = await getArchivedClasses();
-                setArchivedClasses(res.data || []);
-              } catch (e) { message.error('获取归档班级失败'); }
-              finally { setArchivedLoading(false); }
             }
           }}>
             <TabPane tab="学生管理" key="students">
@@ -1410,7 +1091,7 @@ const AdminDashboard = () => {
                         </Button>
                         <Popconfirm
                           title="确定要删除这个学生吗？"
-                          onConfirm={() => deleteUser(record._id)}
+                          onConfirm={() => handleDeleteUser(record._id)}
                           okText="确定"
                           cancelText="取消"
                         >
@@ -1514,7 +1195,7 @@ const AdminDashboard = () => {
                         </Button>
                         <Popconfirm
                           title="确定要删除这个教师吗？"
-                          onConfirm={() => deleteUser(record._id)}
+                          onConfirm={() => handleDeleteUser(record._id)}
                           okText="确定"
                           cancelText="取消"
                         >
@@ -1959,266 +1640,12 @@ const AdminDashboard = () => {
             </TabPane>
 
             <TabPane tab={<><CodeOutlined /> 脚本运行</>} key="scripts">
-              <Card title="系统维护脚本" bordered={false}>
-                <Alert
-                  message="注意"
-                  description="这里列出的是系统维护脚本，部分脚本可能会修改数据库数据。请在运行前确保已备份重要数据。"
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                />
-
-                <Row gutter={16} style={{ marginBottom: 16 }}>
-                  <Col span={12}>
-                    <Select
-                      placeholder="选择要运行的脚本"
-                      style={{ width: '100%' }}
-                      value={selectedScript}
-                      onChange={(value) => {
-                        setSelectedScript(value);
-                        setScriptOutput('');
-                      }}
-                      loading={scriptsLoading}
-                    >
-                      {scripts.map(script => (
-                        <Option key={script.id} value={script.id}>
-                          <Space>
-                            {script.name}
-                            {script.dangerous && <Tag color="red">危险</Tag>}
-                          </Space>
-                        </Option>
-                      ))}
-                    </Select>
-                  </Col>
-                  <Col span={6}>
-                    <Button
-                      type="primary"
-                      icon={<PlayCircleOutlined />}
-                      onClick={handleRunScript}
-                      loading={scriptRunning}
-                      disabled={!selectedScript}
-                    >
-                      运行脚本
-                    </Button>
-                  </Col>
-                  <Col span={6}>
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={fetchScripts}
-                      loading={scriptsLoading}
-                    >
-                      刷新列表
-                    </Button>
-                  </Col>
-                </Row>
-
-                {selectedScript && (
-                  <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                    <Text strong>脚本说明: </Text>
-                    <Text>{scripts.find(s => s.id === selectedScript)?.description}</Text>
-                  </Card>
-                )}
-
-                {scriptOutput && (
-                  <Card
-                    size="small"
-                    title="运行输出"
-                    style={{ background: '#1e1e1e' }}
-                    headStyle={{ color: '#fff', background: '#333' }}
-                  >
-                    <pre style={{
-                      background: '#1e1e1e',
-                      color: '#0f0',
-                      padding: 16,
-                      borderRadius: 4,
-                      maxHeight: 400,
-                      overflow: 'auto',
-                      margin: 0,
-                      fontFamily: 'Consolas, Monaco, monospace',
-                      fontSize: 12,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-all'
-                    }}>
-                      {scriptOutput}
-                    </pre>
-                  </Card>
-                )}
-              </Card>
+              <ScriptsTab active={activeTab === 'scripts'} />
             </TabPane>
 
             {/* 归档管理 Tab */}
             <TabPane tab={<span><InboxOutlined /> 归档管理</span>} key="archive">
-              <Row gutter={24}>
-                {/* 左側：按年级归档操作区 */}
-                <Col span={10}>
-                  <Card
-                    title={<span><InboxOutlined style={{ color: '#fa8c16', marginRight: 8 }} />年级归档</span>}
-                    size="small"
-                    style={{ marginBottom: 16 }}
-                  >
-                    <Alert
-                      message="归档说明"
-                      description={
-                        <ul style={{ paddingLeft: 16, margin: 0 }}>
-                          <li>归档后，该年级所有班级的学生无法登录系统</li>
-                          <li>学生的作业、成绩、积分等历史数据完整保留</li>
-                          <li>教师可查看已归档班级的历史成绩</li>
-                          <li>归档后可选择清理作业文件节省存储</li>
-                        </ul>
-                      }
-                      type="warning"
-                      showIcon
-                      style={{ marginBottom: 16 }}
-                    />
-                    <Form form={archiveForm} layout="vertical">
-                      <Form.Item
-                        name="grade"
-                        label="入学年份（选择要归档的年级）"
-                        rules={[{ required: true, message: '请选择要归档的年级' }]}
-                      >
-                        <Select
-                          placeholder="请选择需要归档的年级"
-                          style={{ width: 200 }}
-                          allowClear
-                        >
-                          {[...new Set(classes.filter(c => c.status !== 'archived').map(c => c.grade))]
-                            .filter(Boolean)
-                            .sort((a, b) => b - a)
-                            .map(g => (
-                              <Option key={g} value={g}>{g} 级</Option>
-                            ))}
-                        </Select>
-                      </Form.Item>
-                      <Form.Item
-                        name="graduationYear"
-                        label="毕业学年（可选，如 2025-2026）"
-                      >
-                        <Input placeholder="例如：2025-2026" style={{ width: 200 }} />
-                      </Form.Item>
-                      <Form.Item>
-                        <Popconfirm
-                          title="确认归档"
-                          description={"归档后该年级所有学生将无法登录，确定执行？"}
-                          okText="确定归档"
-                          cancelText="取消"
-                          okButtonProps={{ danger: true }}
-                          onConfirm={async () => {
-                            try {
-                              const vals = await archiveForm.validateFields();
-                              setArchiving(true);
-                              const result = await archiveGradeAPI(Number(vals.grade), vals.graduationYear);
-                              message.success(result.message);
-                              archiveForm.resetFields();
-                              // 刷新归档列表
-                              const res = await getArchivedClasses();
-                              setArchivedClasses(res.data || []);
-                            } catch (e) {
-                              if (!e.errorFields) message.error(e?.response?.data?.message || '归档失败');
-                            } finally { setArchiving(false); }
-                          }}
-                        >
-                          <Button type="primary" danger loading={archiving} icon={<InboxOutlined />}>
-                            执行年级归档
-                          </Button>
-                        </Popconfirm>
-                      </Form.Item>
-                    </Form>
-                  </Card>
-                </Col>
-
-                {/* 右側：已归档班级列表 */}
-                <Col span={14}>
-                  <Card
-                    title={<span>已归档班级列表</span>}
-                    size="small"
-                    extra={
-                      <Button
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={async () => {
-                          setArchivedLoading(true);
-                          try {
-                            const res = await getArchivedClasses();
-                            setArchivedClasses(res.data || []);
-                          } catch (e) { message.error('获取失败'); }
-                          finally { setArchivedLoading(false); }
-                        }}
-                      >刷新</Button>
-                    }
-                  >
-                    <Table
-                      dataSource={archivedClasses}
-                      loading={archivedLoading}
-                      rowKey="_id"
-                      size="small"
-                      pagination={{ pageSize: 8 }}
-                      columns={[
-                        {
-                          title: '班级',
-                          key: 'class',
-                          render: (_, r) => `${r.grade}届${r.name}班`
-                        },
-                        {
-                          title: '学生数',
-                          dataIndex: 'studentCount',
-                          key: 'studentCount',
-                          render: (v) => `${v || 0} 人`
-                        },
-                        {
-                          title: '归档时间',
-                          dataIndex: 'archivedAt',
-                          key: 'archivedAt',
-                          render: (d) => d ? new Date(d).toLocaleDateString() : '-'
-                        },
-                        {
-                          title: '毕业学年',
-                          dataIndex: 'graduationYear',
-                          key: 'graduationYear',
-                          render: (v) => v || '-'
-                        },
-                        {
-                          title: '操作',
-                          key: 'actions',
-                          render: (_, r) => (
-                            <Space size="small">
-                              <Popconfirm
-                                title="确定恢复此班级为活跃状态？"
-                                okText="确定"
-                                cancelText="取消"
-                                onConfirm={async () => {
-                                  try {
-                                    const res = await restoreClassAPI(r._id);
-                                    message.success(res.message);
-                                    const listRes = await getArchivedClasses();
-                                    setArchivedClasses(listRes.data || []);
-                                  } catch (e) { message.error('恢复失败'); }
-                                }}
-                              >
-                                <Button type="link" size="small" icon={<RollbackOutlined />}>恢复</Button>
-                              </Popconfirm>
-                              <Popconfirm
-                                title="确定删除该班级学生的所有作业文件？"
-                                description="删除后文件不可恢复，成绩、评语等数据不受影响"
-                                okText="确定删除"
-                                cancelText="取消"
-                                okButtonProps={{ danger: true }}
-                                onConfirm={async () => {
-                                  try {
-                                    const res = await deleteArchivedClassFiles(r._id);
-                                    message.success(res.message);
-                                  } catch (e) { message.error('清理失败'); }
-                                }}
-                              >
-                                <Button type="link" size="small" danger icon={<DeleteOutlined />}>清理文件</Button>
-                              </Popconfirm>
-                            </Space>
-                          )
-                        }
-                      ]}
-                    />
-                  </Card>
-                </Col>
-              </Row>
+              <ArchiveTab active={activeTab === 'archive'} classes={classes} />
             </TabPane>
 
           </Tabs>
@@ -2754,244 +2181,16 @@ const AdminDashboard = () => {
       </Modal>
 
       {/* 文件清理模态框 */}
-      <Modal
-        title="作业文件清理"
+      <FileCleanupModal
         open={cleanupModalVisible}
-        onCancel={handleCleanupModalClose}
-        footer={
-          cleanupStep === 3 ? null : [
-            <Button
-              key="cancel"
-              onClick={handleCleanupModalClose}
-              disabled={cleanupLoading}
-            >
-              取消
-            </Button>,
-            cleanupStep === 2 && (
-              <Button
-                key="back"
-                onClick={() => setCleanupStep(1)}
-                disabled={cleanupLoading}
-              >
-                上一步
-              </Button>
-            ),
-            <Button
-              key="next"
-              type={cleanupStep === 2 ? "primary" : "default"}
-              danger={cleanupStep === 2}
-              onClick={cleanupStep === 1 ? handlePreviewCleanup : handleExecuteCleanup}
-              loading={cleanupLoading}
-            >
-              {cleanupStep === 1 ? '下一步' : '执行清理'}
-            </Button>
-          ]
-        }
-        width={800}
-        maskClosable={false}
-        closable={!cleanupLoading}
-        destroyOnClose
-      >
-        <Steps current={cleanupStep - 1} style={{ marginBottom: 24 }}>
-          <Step title="选择条件" />
-          <Step title="预览" />
-          <Step title="完成" />
-        </Steps>
-
-        {cleanupLoading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0' }}>
-            <Spin size="large" />
-            <p style={{ marginTop: 16 }}>
-              {cleanupStep === 1 ? '正在后台分析文件，文件较多时请耐心等待...' : '正在后台清理文件，请勿重复提交...'}
-            </p>
-          </div>
-        ) : cleanupStep === 1 ? (
-          <>
-            <Alert
-              message="作业文件清理"
-              description="您可以按条件清理旧的作业文件以释放磁盘空间。此操作不可逆，请谨慎选择。"
-              type="warning"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
-
-            <Form
-              form={cleanupForm}
-              layout="vertical"
-              initialValues={{
-                deleteOriginals: true,
-                deletePreviews: true
-              }}
-            >
-              <Row gutter={24}>
-                <Col span={12}>
-                  <Form.Item name="courseIds" label="选择课程">
-                    <Select
-                      mode="multiple"
-                      placeholder="选择要清理的课程"
-                      allowClear
-                      style={{ width: '100%' }}
-                    >
-                      {courses.map(course => (
-                        <Option key={course._id} value={course._id}>
-                          {course.title} <Tag color="blue">{course.instructor?.name || '未知教师'}</Tag>
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="classIds" label="选择班级">
-                    <Select
-                      mode="multiple"
-                      placeholder="选择要清理的班级"
-                      allowClear
-                      style={{ width: '100%' }}
-                    >
-                      {classes.map(cls => (
-                        <Option key={cls._id} value={cls._id}>{cls.grade}级{cls.name}</Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item name="dateRange" label="提交日期区间">
-                <RangePicker
-                  style={{ width: '100%' }}
-                  ranges={{
-                    '过去30天': [moment().subtract(30, 'days'), moment()],
-                    '过去90天': [moment().subtract(90, 'days'), moment()],
-                    '过去半年': [moment().subtract(6, 'months'), moment()],
-                    '过去一年': [moment().subtract(1, 'year'), moment()]
-                  }}
-                />
-              </Form.Item>
-
-              <Typography.Title level={5}>删除选项</Typography.Title>
-              <Row gutter={[24, 16]}>
-                <Col span={12}>
-                  <Form.Item name="deleteOriginals" valuePropName="checked">
-                    <Checkbox>删除原始作业文件</Checkbox>
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="deletePreviews" valuePropName="checked">
-                    <Checkbox>删除PDF预览文件</Checkbox>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Form>
-          </>
-        ) : cleanupStep === 2 ? (
-          <>
-            <Alert
-              message="清理预览"
-              description={`将删除 ${previewData?.totalCount || 0} 个文件，预计释放 ${previewData?.totalSizeFormatted || '0'} 空间。`}
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-
-            {/* 详细统计信息 */}
-            {previewData?.statistics && (
-              <div style={{ marginBottom: 16 }}>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Card size="small" title="按课程统计">
-                      {previewData.statistics.byCourse && Object.entries(previewData.statistics.byCourse).map(([courseTitle, stats]) => (
-                        <div key={courseTitle} style={{ marginBottom: 8 }}>
-                          <Text strong>{courseTitle}</Text>
-                          <br />
-                          <Text type="secondary">
-                            {stats.count} 个文件 ({stats.sizeFormatted})
-                          </Text>
-                        </div>
-                      ))}
-                    </Card>
-                  </Col>
-                  <Col span={12}>
-                    <Card size="small" title="按班级统计">
-                      {previewData.statistics.byClass && Object.entries(previewData.statistics.byClass).map(([className, stats]) => (
-                        <div key={className} style={{ marginBottom: 8 }}>
-                          <Text strong>{className}</Text>
-                          <br />
-                          <Text type="secondary">
-                            {stats.count} 个文件 ({stats.sizeFormatted})
-                          </Text>
-                        </div>
-                      ))}
-                    </Card>
-                  </Col>
-                </Row>
-              </div>
-            )}
-
-            <Table
-              dataSource={previewData?.files || []}
-              columns={[
-                {
-                  title: '文件名',
-                  dataIndex: 'fileName',
-                  key: 'fileName',
-                  ellipsis: true,
-                },
-                {
-                  title: '学生',
-                  dataIndex: 'studentName',
-                  key: 'studentName',
-                },
-                {
-                  title: '课程',
-                  dataIndex: 'courseTitle',
-                  key: 'courseTitle',
-                },
-                {
-                  title: '提交时间',
-                  dataIndex: 'submissionDate',
-                  render: date => new Date(date).toLocaleString(),
-                },
-                {
-                  title: '文件类型',
-                  dataIndex: 'type',
-                  render: type => type === 'original' ? '原始文件' : 'PDF预览',
-                },
-                {
-                  title: '文件大小',
-                  dataIndex: 'sizeFormatted',
-                  key: 'sizeFormatted',
-                }
-              ]}
-              size="small"
-              pagination={{ pageSize: 10 }}
-              rowKey={(record) => `${record.submissionId}-${record.path || ''}`}
-            />
-
-            <Typography.Paragraph type="danger" style={{ marginTop: 16 }}>
-              <ExclamationCircleOutlined style={{ marginRight: 8 }} />
-              警告: 此操作不可撤销，删除的文件将无法恢复。
-            </Typography.Paragraph>
-          </>
-        ) : (
-          <Result
-            status="success"
-            title="文件清理完成"
-            subTitle={`已成功清理 ${cleanupResult?.deletedCount || 0} 个文件，释放 ${cleanupResult?.deletedSizeFormatted || '0'} 空间。`}
-            extra={[
-              <Button
-                type="primary"
-                key="done"
-                onClick={() => {
-                  resetCleanup();
-                  setCleanupModalVisible(false);
-                }}
-              >
-                完成
-              </Button>
-            ]}
-          />
-        )}
-      </Modal>
+        onClose={() => setCleanupModalVisible(false)}
+        courses={courses}
+        classes={classes}
+        onCleaned={() => {
+          fetchOverview();
+          fetchSystemStats();
+        }}
+      />
     </Layout>
   );
 };

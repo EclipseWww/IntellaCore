@@ -7,6 +7,52 @@ const PointsManager = require('../utils/pointsManager');
 const logger = require('../utils/logger');
 const { gradeChoiceAnswer, getSelectedOptionIds } = require('../utils/choiceAnswer');
 const mongoose = require('mongoose');
+const wrongQuestionService = require('../services/wrongQuestionService');
+
+const WRONG_RETRY_COUNT = 10;
+const WRONG_RETRY_SECONDS_PER_QUESTION = 60;
+// 统计与排行只看自由练习；旧记录没有 mode 字段，按自由练习处理
+const FREE_MODE = { mode: { $ne: 'wrong_retry' } };
+
+// 创建练习会话并返回去掉答案的题目
+async function createSession(res, { studentId, questions, pointsPerQuestion, timeLimit, mode = 'free' }) {
+    const session = await PracticeSession.create({
+        studentId,
+        questions: questions.map(q => ({
+            questionId: q._id,
+            questionVersion: q.version || 1,
+            questionSnapshot: q
+        })),
+        totalQuestions: questions.length,
+        startTime: new Date(),
+        pointsPerQuestion,
+        timeLimit,
+        mode,
+        status: 'IN_PROGRESS'
+    });
+
+    const questionsForFrontend = questions.map(q => ({
+        _id: q._id,
+        title: q.title,
+        content: q.content,
+        type: q.type,
+        // 移除 isCorrect 字段
+        options: (q.options || []).map(({ isCorrect, ...rest }) => rest),
+        difficulty: q.difficulty,
+        tags: q.tags
+    }));
+
+    return res.status(201).json({
+        success: true,
+        data: {
+            sessionId: session._id,
+            questions: questionsForFrontend,
+            timeLimit: session.timeLimit,
+            totalQuestions: questions.length,
+            mode
+        }
+    });
+}
 
 // 开始练习
 exports.startPractice = async (req, res) => {
@@ -88,49 +134,11 @@ exports.startPractice = async (req, res) => {
         }
 
         // 4. 创建练习会话
-        const sessionQuestions = questions.map(q => ({
-            questionId: q._id,
-            questionVersion: q.version || 1,
-            questionSnapshot: q
-        }));
-
-        const session = await PracticeSession.create({
+        return createSession(res, {
             studentId,
-            questions: sessionQuestions,
-            totalQuestions: sessionQuestions.length,
-            startTime: new Date(),
+            questions,
             pointsPerQuestion: practiceConfig.pointsPerQuestion,
-            timeLimit: practiceConfig.timeLimit,
-            status: 'IN_PROGRESS'
-        });
-
-        // 5. 返回给前端的数据
-        const questionsForFrontend = questions.map(q => {
-            // 处理选项，移除 isCorrect 字段
-            const options = q.options.map(opt => {
-                const { isCorrect, ...rest } = opt;
-                return rest;
-            });
-
-            return {
-                _id: q._id,
-                title: q.title,
-                content: q.content,
-                type: q.type,
-                options,
-                difficulty: q.difficulty,
-                tags: q.tags
-            };
-        });
-
-        res.status(201).json({
-            success: true,
-            data: {
-                sessionId: session._id,
-                questions: questionsForFrontend,
-                timeLimit: session.timeLimit,
-                totalQuestions: questions.length
-            }
+            timeLimit: practiceConfig.timeLimit
         });
 
     } catch (error) {
@@ -191,9 +199,12 @@ exports.submitPractice = async (req, res) => {
 
         // Compare the exact ratio: a rounded 60% must not pass when below 60%.
         const totalQuestions = session.questions.length;
-        const rewardEligible = totalQuestions > 0 && correctCount * 5 >= totalQuestions * 3;
+        const isWrongRetry = session.mode === 'wrong_retry';
+        const rewardEligible = !isWrongRetry && totalQuestions > 0 && correctCount * 5 >= totalQuestions * 3;
         const pointsEarned = rewardEligible ? correctCount * pointsPerQuestion : 0;
-        const rewardMessage = rewardEligible ? null : '正确率未达到60%，本次不奖励积分';
+        const rewardMessage = isWrongRetry
+            ? '错题重练不计积分，答对的题会在错题本中标为已掌握'
+            : (rewardEligible ? null : '正确率未达到60%，本次不奖励积分');
 
         // 每日自由练习积分上限
         const DAILY_FREE_PRACTICE_LIMIT = 500;
@@ -254,6 +265,7 @@ exports.submitPractice = async (req, res) => {
                 pointsEarned: actualPointsEarned,
                 rewardEligible,
                 rewardMessage,
+                mode: session.mode || 'free',
                 limitMessage,
                 results: session.questions.map(q => ({
                     questionId: q.questionId,
@@ -294,7 +306,8 @@ exports.getHistory = async (req, res) => {
                 list: history,
                 pagination: {
                     page: parseInt(page),
-                    pages: Math.ceil(total / limit)
+                    pages: Math.ceil(total / limit),
+                    total
                 }
             }
         });
@@ -335,7 +348,7 @@ exports.getDetails = async (req, res) => {
                 correctAnswer: correctOption?._id,
                 correctAnswers: (snapshot.options || []).filter(opt => opt.isCorrect).map(opt => String(opt._id)),
                 isCorrect: q.isCorrect,
-                analysis: snapshot.analysis || '暂无解析',
+                analysis: snapshot.explanation || snapshot.analysis || '暂无解析',
                 difficulty: snapshot.difficulty,
                 tags: snapshot.tags
             };
@@ -349,7 +362,8 @@ exports.getDetails = async (req, res) => {
                     endTime: session.endTime,
                     score: session.correctCount,
                     total: session.totalQuestions,
-                    points: session.pointsEarned
+                    points: session.pointsEarned,
+                    mode: session.mode || 'free'
                 },
                 questions: details
             }
@@ -490,7 +504,8 @@ exports.getStudentRecords = async (req, res) => {
         // 3. 构建练习记录查询条件
         let sessionFilter = {
             studentId: { $in: studentIds },
-            status: 'COMPLETED'
+            status: 'COMPLETED',
+            ...FREE_MODE
         };
 
         if (startDate || endDate) {
@@ -600,6 +615,7 @@ exports.getLeaderboard = async (req, res) => {
                 $match: {
                     studentId: { $in: studentIds },
                     status: 'COMPLETED',
+                    ...FREE_MODE,
                     ...timeFilter
                 }
             },
@@ -649,5 +665,56 @@ exports.getLeaderboard = async (req, res) => {
     } catch (error) {
         logger.error('获取排行榜失败', { error: error.message, userId: req.user.id });
         res.status(500).json({ success: false, message: '获取排行榜失败', error: error.message });
+    }
+};
+
+// 获取错题本 (Student)
+exports.getWrongQuestions = async (req, res) => {
+    try {
+        const list = await wrongQuestionService.getWrongBook(req.user.id);
+        res.json({
+            success: true,
+            data: {
+                list,
+                activeCount: list.filter(i => !i.mastered).length,
+                masteredCount: list.filter(i => i.mastered).length,
+                retryableCount: list.filter(i => !i.mastered && i.canRetry).length
+            }
+        });
+    } catch (error) {
+        logger.error('获取错题本失败', { error: error.message, studentId: req.user.id });
+        res.status(500).json({ success: false, message: '获取错题本失败' });
+    }
+};
+
+// 开始错题重练 (Student)：抽取最近答错且未掌握的题目，不计积分
+exports.startWrongRetry = async (req, res) => {
+    try {
+        const studentId = req.user.id;
+        const user = await User.findById(studentId).select('classId');
+        if (!user?.classId) {
+            return res.status(403).json({ success: false, message: '未分配班级，无法进行练习' });
+        }
+        // 老师关闭自由练习时，错题重练一并关闭（错题本仍可查看）
+        const classObj = await Class.findById(user.classId).select('freePracticeSettings');
+        if (classObj?.freePracticeSettings?.isEnabled === false) {
+            return res.status(403).json({ success: false, message: '当前班级未开启自由练习，暂不能错题重练' });
+        }
+
+        const questions = await wrongQuestionService.pickRetryQuestions(studentId, WRONG_RETRY_COUNT);
+        if (questions.length === 0) {
+            return res.status(404).json({ success: false, message: '没有可以重练的错题' });
+        }
+
+        return createSession(res, {
+            studentId,
+            questions,
+            pointsPerQuestion: 0,
+            timeLimit: questions.length * WRONG_RETRY_SECONDS_PER_QUESTION,
+            mode: 'wrong_retry'
+        });
+    } catch (error) {
+        logger.error('开始错题重练失败', { error: error.message, studentId: req.user.id });
+        res.status(500).json({ success: false, message: '开始错题重练失败' });
     }
 };

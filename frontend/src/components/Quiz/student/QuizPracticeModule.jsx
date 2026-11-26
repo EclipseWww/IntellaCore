@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Card, Tabs, Typography, Row, Col } from 'antd';
-import { FormOutlined, UnorderedListOutlined, HistoryOutlined } from '@ant-design/icons';
+import { FormOutlined, UnorderedListOutlined, HistoryOutlined, BookOutlined } from '@ant-design/icons';
 import FreePractice from './FreePractice';
 import PendingQuizzes from './PendingQuizzes';
 import PracticeHistory from './PracticeHistory';
+import WrongQuestionBook from './WrongQuestionBook';
 
 const { Paragraph } = Typography;
 
@@ -25,6 +26,20 @@ const QuizPracticeModule = () => {
                     <FreePractice />
                 </div>
             ),
+        },
+        {
+            key: 'wrong-questions',
+            label: (
+                <span>
+                    <BookOutlined />
+                    错题本
+                </span>
+            ),
+            children: (
+                <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 0' }}>
+                    <WrongQuestionBook active={activeTab === 'wrong-questions'} />
+                </div>
+            )
         },
         {
             key: 'practice-history',

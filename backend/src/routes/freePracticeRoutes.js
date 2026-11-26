@@ -63,6 +63,10 @@ router.post('/submit', auth, roleCheck(['student']), freePracticeController.subm
 router.get('/history', auth, roleCheck(['student']), freePracticeController.getHistory);
 router.get('/details/:sessionId', auth, roleCheck(['student']), freePracticeController.getDetails);
 
+// Student: 错题本与错题重练
+router.get('/wrong-questions', auth, roleCheck(['student']), freePracticeController.getWrongQuestions);
+router.post('/wrong-questions/retry', auth, roleCheck(['student']), freePracticeController.startWrongRetry);
+
 /**
  * @swagger
  * /quiz/free-practice/class/{classId}/settings:
