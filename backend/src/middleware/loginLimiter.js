@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { getClientIp } = require('../utils/getClientIp');
 
 // 只统计"用户名或密码错误"(401)的登录请求，成功登录、需要确认的 409 等不计入。
 // 以 IP + 用户名 为键：教室内多名学生共用同一出口 IP 时，互不影响。
@@ -15,8 +16,9 @@ const perAccount = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   requestWasSuccessful: notWrongPassword,
-  validate: { trustProxy: false }, // 项目需 trust proxy 获取真实 IP；已知伪造 X-Forwarded-For 可绕过
-  keyGenerator: (req) => `${req.ip}|${String((req.body && req.body.username) || '').toLowerCase()}`,
+  validate: { trustProxy: false },
+  // 与登录记录使用同一 IP 来源（只信任 Nginx 设置的 X-Real-IP），伪造 X-Forwarded-For 无法绕过
+  keyGenerator: (req) => `${getClientIp(req)}|${String((req.body && req.body.username) || '').toLowerCase()}`,
   handler: tooMany
 });
 
@@ -27,6 +29,7 @@ const perIp = rateLimit({
   standardHeaders: false,
   legacyHeaders: false,
   validate: { trustProxy: false },
+  keyGenerator: (req) => getClientIp(req),
   skipSuccessfulRequests: true,
   requestWasSuccessful: notWrongPassword,
   handler: tooMany

@@ -12,7 +12,6 @@ const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
 const mkdir = promisify(fs.mkdir);
-const jwt = require('jsonwebtoken');
 const Class = require('../models/Class');
 const User = require('../models/User');
 const logger = require('../utils/logger');
@@ -245,22 +244,9 @@ exports.downloadAssignmentFile = async (req, res) => {
 exports.downloadSubmissionFile = async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const token = req.query.token || req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ message: '请先登录' });
-    }
-
-    // 验证token
-    let userId;
-    let userRole;
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      userId = decoded.id;
-      userRole = decoded.role;
-    } catch (error) {
-      return res.status(401).json({ message: '无效的token' });
-    }
+    // 路由已挂载 auth 中间件（支持 ?token=），这里直接使用其校验结果
+    const userId = String(req.user._id || req.user.id);
+    const userRole = req.user.role;
 
     const submission = await AssignmentSubmission.findById(submissionId);
 
@@ -752,23 +738,8 @@ exports.getPdfPreview = async (req, res) => {
     const { submissionId } = req.params;
     logger.info('请求预览提交ID:', { submissionId });
 
-    let viewer;
-    const token = req.query.token || req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      logger.error('未提供token');
-      return res.status(401).json({ message: '请先登录', error: 'No token provided' });
-    }
-
-    // 验证token
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      viewer = { id: decoded._id || decoded.id, role: decoded.role };
-      logger.debug('token验证成功，用户ID:', { userId: decoded.id });
-    } catch (error) {
-      logger.error('token验证失败:', { error: error.message });
-      return res.status(401).json({ message: '无效的token', error: error.message });
-    }
+    // 路由已挂载 auth 中间件（支持 ?token=），这里直接使用其校验结果
+    const viewer = { id: req.user._id || req.user.id, role: req.user.role };
 
     const submission = await AssignmentSubmission.findById(submissionId);
     if (!submission) {
@@ -919,22 +890,8 @@ exports.getExcelData = async (req, res) => {
     const MAX_COLS = 50;
     const MAX_CELLS_PER_SHEET = 10000;
 
-    let viewer;
-    const token = req.query.token || req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      logger.error('未提供token');
-      return res.status(401).json({ success: false, message: '请先登录' });
-    }
-
-    // 验证token
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      viewer = { id: decoded._id || decoded.id, role: decoded.role };
-    } catch (error) {
-      logger.error('token验证失败:', { error: error.message });
-      return res.status(401).json({ success: false, message: '无效的token' });
-    }
+    // 路由已挂载 auth 中间件（支持 ?token=），这里直接使用其校验结果
+    const viewer = { id: req.user._id || req.user.id, role: req.user.role };
 
     const submission = await AssignmentSubmission.findById(submissionId);
     if (!submission) {

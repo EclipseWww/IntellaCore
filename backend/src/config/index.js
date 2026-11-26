@@ -86,8 +86,10 @@ const corsOptions = {
     // 检查是否匹配通配符
     const wildcardMatched = allowedOrigins.some(allowed => {
       if (allowed.includes('*')) {
-        const pattern = allowed.replace(/\*/g, '.*');
-        return new RegExp(pattern).test(origin);
+        // * 只匹配一段域名、IP 或端口中的字符（不含 / ），其余字符按原样匹配，并要求整串一致：
+        // http://*.school.cn 不会匹配 http://x.school.cn.evil.com 或 http://evilxschool.cn
+        const pattern = allowed.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*');
+        return new RegExp(`^${pattern}$`).test(origin);
       }
       return allowed === origin;
     });

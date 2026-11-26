@@ -631,7 +631,7 @@ New-NetFirewallRule -DisplayName "Nginx HTTP" -Direction Inbound -LocalPort 3000
 
 #### 问题3：获取到的IP仍然不对
 
-检查 `/api/auth/ip-debug` 返回的信息，确认 `x-real-ip` 头是否正确传递。
+让两台学生电脑各登录一次，在教师端班级管理中打开学生的登录记录，确认显示的是各自电脑的 IP。若全部显示为同一个 172.x 或 192.168.65.x 地址，说明请求没有经过宿主机 Nginx，或宿主机 Nginx 的 /api 段落缺少 `proxy_set_header X-Real-IP $remote_addr;`。后端只采信代理设置的 X-Real-IP，不采信浏览器自带的 X-Forwarded-For 等请求头。
 
 ### 完整部署流程总结
 

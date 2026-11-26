@@ -183,7 +183,7 @@ node src/scripts/cleanTypingRecords.js
 ## 接口参考
 
 
-运行后可访问 `/api-docs` 查看由路由注释生成的 Swagger 文档。以下示例用于理解接口分组，权限和字段以当前路由及控制器实现为准。
+在 backend/.env 中设置 `ENABLE_API_DOCS=true` 后，运行时可访问 `/api-docs` 查看由路由注释生成的 Swagger 文档（默认关闭，生产环境不要开启）。以下示例用于理解接口分组，权限和字段以当前路由及控制器实现为准。
 
 ### API 参考文档
 

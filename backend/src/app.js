@@ -121,11 +121,13 @@ app.use(require('./middleware/hideServerErrorDetails'));
 // 静态文件目录 - 公开访问的媒体资源
 app.use('/public/media', express.static(path.join(__dirname, '../uploads/public/media')));
 
-// Swagger 文档
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "学习平台 API 文档"
-}));
+// Swagger 文档：会列出全部接口，默认关闭；开发时设置 ENABLE_API_DOCS=true 开启
+if (process.env.ENABLE_API_DOCS === 'true') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: "学习平台 API 文档"
+  }));
+}
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {
