@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { load, logger, response } = require('../testing/reviewTestSupport');
+const { teaches, load, logger, response } = require('../testing/reviewTestSupport');
 function fixture({ total = 10, correct = 5, earnedToday = 0, mode } = {}) {
   const questions = Array.from({ length: total }, (_, i) => ({ _id: 'q' + i, options: [{ _id: 'right', isCorrect: true }] }));
   const session = { _id: 'session', questions: questions.map(q => ({ questionId: q._id })), totalQuestions: 10, pointsPerQuestion: 5, status: 'IN_PROGRESS', mode, save: async () => {} };
@@ -132,7 +132,7 @@ test('free practice draws about half of the questions from the student weak tags
 test('class wrong-question stats are limited to the teacher own class', async () => {
   const controller = load(require.resolve('./freePracticeController'), {
     '../models/PracticeSession': {}, '../models/Question': {}, '../models/Setting': {}, '../utils/pointsManager': {},
-    '../models/Class': { findOne: query => ({ select: async () => (query.teacher === 'owner' || !query.teacher ? { _id: query._id } : null) }) },
+    '../models/Class': { findOne: query => ({ select: async () => (teaches(query, 'owner') || !query.$or ? { _id: query._id } : null) }) },
     '../models/User': {},
     '../services/classRoster': { findRoster: async () => [{ _id: 's1', name: '张三' }] },
     '../utils/logger': logger, '../utils/choiceAnswer': require('../utils/choiceAnswer'), mongoose: require('mongoose'),

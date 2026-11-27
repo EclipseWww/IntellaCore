@@ -1,4 +1,5 @@
 const Course = require('../models/Course');
+const access = require('../services/teachingAccess');
 const CourseUnit = require('../models/CourseUnit');
 const Lesson = require('../models/Lesson');
 const AssignmentSubmission = require('../models/AssignmentSubmission');
@@ -25,7 +26,7 @@ exports.getPendingSummary = async (req, res) => {
         }
 
         // 1. 获取教师的所有课程
-        const courseQuery = req.user.role === 'admin' ? {} : { instructor: req.user.id };
+        const courseQuery = req.user.role === 'admin' ? {} : access.courseTeacherFilter(req.user.id);
         const courses = await Course.find(courseQuery)
             .select('_id title')
             .sort('-createdAt')

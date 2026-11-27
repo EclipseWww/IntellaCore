@@ -148,7 +148,7 @@ async function resolveCourse({ classId, teacherId, pinned }) {
   const cls = await Class.findById(classId).select('currentCourse').lean();
   if (cls && cls.currentCourse) return cls.currentCourse;
   const Course = require('../models/Course');
-  const first = teacherId && await Course.findOne({ instructor: teacherId }).sort({ createdAt: 1 }).select('_id').lean();
+  const first = teacherId && await Course.findOne(require('./teachingAccess').courseTeacherFilter(teacherId)).sort({ createdAt: 1 }).select('_id').lean();
   return first ? first._id : null;
 }
 

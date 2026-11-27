@@ -119,6 +119,7 @@ router.get('/archived', classController.getArchivedClasses);
 
 // 教学班（社团、选修）：搜索可加入的学生
 router.get('/elective/student-search', classController.searchStudentsForElective);
+router.get('/teacher-options', classController.getTeacherOptions);
 
 // 按入学年级批量归档（管理员）
 router.post('/archive/grade', classController.archiveGrade);
@@ -556,6 +557,7 @@ router.post('/:classId/members/create', classController.createElectiveStudents);
 router.post('/:classId/members/remove', classController.removeElectiveMembers);
 router.patch('/:classId/members/:studentId', classController.updateElectiveMember);
 router.post('/:classId/elective-archive', classController.setElectiveArchived);
+router.put('/:classId/co-teachers', classController.setElectiveCoTeachers);
 
 /**
  * @swagger

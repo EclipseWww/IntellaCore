@@ -1,4 +1,5 @@
 const fs = require('fs').promises;
+const access = require('../services/teachingAccess');
 const path = require('path');
 const crypto = require('crypto');
 const CourseUnit = require('../models/CourseUnit');
@@ -14,7 +15,7 @@ async function authorize(req, res, next) {
     const unit = await CourseUnit.findById(req.params.unitId);
     const course = unit && await Course.findById(unit.course);
     if (!course) return res.status(404).json({ message: '课程单元不存在' });
-    if (req.user.role !== 'admin' && String(course.instructor) !== String(req.user._id)) return res.status(403).json({ message: '没有导入权限' });
+    if (!access.canMaintainCourse(req.user, course)) return res.status(403).json({ message: '没有导入权限' });
     if (!/^[a-f0-9-]{36}$/.test(req.params.transferId)) return res.status(400).json({ message: '无效的上传标识' });
     req.transferDir = path.join(root, String(req.user._id), req.params.unitId, req.params.transferId);
     await fs.mkdir(req.transferDir, { recursive: true });
@@ -82,7 +83,7 @@ async function mediaStatus(req, res, next) {
     const unit = lesson && await CourseUnit.findById(lesson.unit);
     const course = unit && await Course.findById(unit.course);
     if (!course) return res.status(404).json({ message: '课时不存在' });
-    if (req.user.role !== 'admin' && String(course.instructor) !== String(req.user._id)) return res.status(403).json({ message: '没有访问权限' });
+    if (!access.canMaintainCourse(req.user, course)) return res.status(403).json({ message: '没有访问权限' });
     const missing = [];
     for (const asset of lesson.migrationMedia || []) {
       if (!/^[a-f0-9]{64}\.[a-z0-9]{1,10}$/.test(asset.name)) continue;

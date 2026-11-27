@@ -6,7 +6,8 @@ const {
   updateCourse,
   getTeacherCourses,
   getCourseDetails,
-  deleteCourse
+  deleteCourse,
+  setCourseCoInstructors
 } = require('../controllers/courseManagementController');
 const lessonController = require('../controllers/lessonController');
 
@@ -215,6 +216,9 @@ router.route('/:id')
   .get(getCourseDetails)
   .put(updateCourse)
   .delete(deleteCourse);
+
+// 设置课程协作教师（课程创建者或管理员）
+router.put('/:id/co-instructors', setCourseCoInstructors);
 
 /**
  * @swagger

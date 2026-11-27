@@ -15,8 +15,16 @@ const rosterStub = {
   classMapOf: async () => new Map(),
   removeStudentsEverywhere: async () => 0
 };
+// 查询条件是否限定为某位教师任教（负责或共同执教）的班级
+const teaches = (query, id) => !!query && (query.teacher === id ||
+  (query.$or || []).some(c => c.teacher === id || c.coTeachers === id) ||
+  (query.$and || []).some(q => teaches(q, id)));
+const teachingAccess = require('../services/teachingAccess');
 function load(file, mocks) {
-  mocks = { '../utils/logger': silentLogger, '../services/classRoster': rosterStub, './classRoster': rosterStub, ...mocks };
+  mocks = {
+    '../utils/logger': silentLogger, '../services/classRoster': rosterStub, './classRoster': rosterStub,
+    '../services/teachingAccess': teachingAccess, './teachingAccess': teachingAccess, ...mocks
+  };
   const context = { __dirname: require('node:path').dirname(file), module: { exports: {} }, exports: {}, require: name => {
     if (!(name in mocks)) throw new Error('Unexpected dependency: ' + name);
     return mocks[name];
@@ -67,4 +75,4 @@ function apply(doc, pipeline) {
 }
 const logger = { info() {}, warn() {}, error() {}, debug() {} };
 const response = () => ({ statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } });
-module.exports = { rosterStub, load, apply, logger, response };
+module.exports = { teaches, rosterStub, load, apply, logger, response };

@@ -375,6 +375,12 @@ export const courseManagementAPI = {
     return response.data;
   },
 
+  // 设置课程协作教师（课程创建者）
+  async setCourseCoInstructors(courseId, teacherIds) {
+    const response = await api.put(`/course-management/${courseId}/co-instructors`, { teacherIds });
+    return response.data;
+  },
+
   // 获取课程单元
   async getUnits(courseId) {
     const response = await api.get(`/course-management/${courseId}/units`);
@@ -930,6 +936,16 @@ export const classAPI = {
   },
   async setElectiveArchived(classId, archived) {
     const response = await api.post(`/classes/${classId}/elective-archive`, { archived });
+    return response.data;
+  },
+  // 可选的教师（共同执教、课程协作）
+  async getTeacherOptions() {
+    const response = await api.get('/classes/teacher-options');
+    return response.data;
+  },
+  // 设置教学班共同执教的教师（负责教师）
+  async setElectiveCoTeachers(classId, teacherIds, shareCourses) {
+    const response = await api.put(`/classes/${classId}/co-teachers`, { teacherIds, shareCourses });
     return response.data;
   },
   async searchStudentsForElective(params) {

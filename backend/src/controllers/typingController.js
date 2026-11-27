@@ -1,4 +1,5 @@
 const TypingText = require('../models/TypingText');
+const access = require('../services/teachingAccess');
 const TypingRecord = require('../models/TypingRecord');
 const User = require('../models/User');
 const Class = require('../models/Class');
@@ -445,7 +446,7 @@ exports.getTeacherRecords = async (req, res) => {
     }
 
     // 获取教师的所有班级
-    const classes = await Class.find({ teacher: req.user._id })
+    const classes = await Class.find({ ...access.classTeacherFilter(req.user._id) })
       .select('name grade type title')
       .sort('grade name');
 

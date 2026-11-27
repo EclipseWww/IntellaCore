@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { load, logger, response } = require('../testing/reviewTestSupport');
+const { teaches, load, logger, response } = require('../testing/reviewTestSupport');
 
 test('login approvals reject students and other teachers before mutating sessions', async () => {
   let writes = 0;
@@ -8,7 +8,7 @@ test('login approvals reject students and other teachers before mutating session
   const controller = load(require.resolve('./loginRequestController'), {
     '../models/LoginRequest': { findById: async () => request, getPendingByClass: async () => [request], updateMany: async () => { writes++; return { modifiedCount: 1 }; } },
     '../models/User': { findByIdAndUpdate: async () => writes++ },
-    '../models/Class': { exists: async query => query.teacher === 'owner' },
+    '../models/Class': { exists: async query => teaches(query, 'owner') },
     '../models/ClassMembership': {}, '../services/classRoster': { setBoundIp: async () => writes++ },
     '../utils/getClientIp': { getClientIp: () => '127.0.0.1' }, '../utils/logger': logger
   });

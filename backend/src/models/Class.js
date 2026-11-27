@@ -96,6 +96,12 @@ const classSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // 共同执教的教师（仅教学班）：与负责教师（teacher）一样可以上课、管理成员、批阅；
+  // 修改班级信息、归档、删除和管理共同执教教师只能由负责教师操作
+  coTeachers: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: undefined
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -197,6 +203,7 @@ classSchema.index(
   { unique: true, name: 'grade_name_unique_admin', partialFilterExpression: { grade: { $type: 'number' }, name: { $type: 'number' } } }
 );
 classSchema.index({ type: 1, status: 1 });
+classSchema.index({ coTeachers: 1 });
 
 classSchema.statics.isElective = isElective;
 

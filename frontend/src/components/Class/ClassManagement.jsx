@@ -536,6 +536,7 @@ const ClassManagement = () => {
                 label: (
                   <span style={{ color: cls.status === 'archived' ? '#999' : undefined }}>
                     {cls.title}{cls.status === 'archived' ? '（已归档）' : ''}
+                    {cls.isOwner === false && <span style={{ color: '#999', fontSize: 12 }}>（共同执教）</span>}
                   </span>
                 )
               }))

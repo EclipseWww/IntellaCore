@@ -395,10 +395,10 @@ const authController = {
         ? roster.contextClassId(targetUser)
         : (mongoose.isValidObjectId(req.body.classId) ? req.body.classId : null);
       const seatClass = seatClassId && !roster.sameId(seatClassId, targetUser.classId)
-        ? await Class.findById(seatClassId).select('type teacher isInClass currentLesson currentCourse currentUnit autoRedirectToLesson')
+        ? await Class.findById(seatClassId).select('type teacher coTeachers isInClass currentLesson currentCourse currentUnit autoRedirectToLesson')
         : null;
       if (seatClass && seatClass.type === 'elective') {
-        if (req.user.role === 'teacher' && String(seatClass.teacher) !== String(req.user.id || req.user._id)) {
+        if (req.user.role === 'teacher' && !require('../services/teachingAccess').canTeachClass(req.user, seatClass)) {
           return res.status(403).json({ message: '无权修改该班级的座位' });
         }
         const membership = await ClassMembership.findOne({ class: seatClass._id, student: targetUserId });

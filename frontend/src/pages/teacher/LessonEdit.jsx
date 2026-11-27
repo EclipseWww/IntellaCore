@@ -87,6 +87,8 @@ const LessonEdit = () => {
   const [originalImageSize, setOriginalImageSize] = useState({ width: 0, height: 0 });
   const canvasRef = useRef(null);
   const exportModeRef = useRef('full');
+  // 课时内容版本：多位老师共同维护课程时，保存时带上，避免覆盖别人刚保存的修改
+  const lessonVersionRef = useRef(undefined);
 
   const [quizDetails, setQuizDetails] = useState(null);
   const [loadingQuizDetails, setLoadingQuizDetails] = useState(false);
@@ -176,6 +178,7 @@ const LessonEdit = () => {
       if (response.success) {
         const lessonData = response.data;
         setLesson(lessonData);
+        lessonVersionRef.current = lessonData.contentVersion;
         setCourse(lessonData.course);
         setUnit(lessonData.unit);
 
@@ -214,6 +217,30 @@ const LessonEdit = () => {
     }
   };
 
+  // 保存课时（所有修改课时内容的地方都通过这里）
+  const saveLesson = async (data) => {
+    try {
+      const saved = await courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+        ...data,
+        contentVersion: lessonVersionRef.current
+      });
+      if (saved && saved.contentVersion !== undefined) lessonVersionRef.current = saved.contentVersion;
+      return saved;
+    } catch (error) {
+      if (error.response?.status === 409 && error.response.data?.code === 'LESSON_CHANGED') {
+        error.lessonConflict = true;
+        Modal.confirm({
+          title: '这个课时刚被其他老师修改过',
+          content: `${error.response.data.message}。刷新后会载入最新内容，你这次没有保存成功的修改需要重新操作。`,
+          okText: '刷新',
+          cancelText: '暂不刷新',
+          onOk: () => fetchLessonDetails()
+        });
+      }
+      throw error;
+    }
+  };
+
   const handleSubmit = async (values) => {
     try {
       setLoading(true);
@@ -222,9 +249,10 @@ const LessonEdit = () => {
         activities
       };
 
-      await courseManagementAPI.updateLesson(courseId, unitId, lessonId, lessonData);
+      await saveLesson(lessonData);
       message.success('课时更新成功');
     } catch (error) {
+      if (error.lessonConflict) return;
       console.error('保存课时失败:', error);
       message.error('保存课时失败');
     } finally {
@@ -247,7 +275,7 @@ const LessonEdit = () => {
     const newActivities = [...activities, newActivity];
 
     // 更新课时信息
-    courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+    saveLesson({
       ...lesson,
       activities: newActivities
     }).then(() => {
@@ -285,6 +313,7 @@ const LessonEdit = () => {
         message.success('活动添加成功');
       });
     }).catch(error => {
+      if (error.lessonConflict) return;
       console.error('添加活动失败:', error);
       message.error('添加活动失败');
     });
@@ -338,7 +367,7 @@ const LessonEdit = () => {
           newActivities.splice(index, 1);
 
           // 更新课时信息，删除活动
-          await courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+          await saveLesson({
             ...lesson,
             activities: newActivities
           });
@@ -359,6 +388,7 @@ const LessonEdit = () => {
           await fetchLessonDetails();
           message.success('活动删除成功');
         } catch (error) {
+          if (error.lessonConflict) return;
           console.error('删除活动失败:', error);
           message.error('删除活动失败');
         }
@@ -520,7 +550,7 @@ const LessonEdit = () => {
 
       // 更新课时信息
       try {
-        await courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+        await saveLesson({
           ...lesson,
           activities: newActivities
         });
@@ -528,6 +558,7 @@ const LessonEdit = () => {
         await fetchLessonDetails();
         message.success('活动保存成功');
       } catch (error) {
+        if (error.lessonConflict) return;
         console.error('保存活动失败:', error);
         message.error('保存活动失败: ' + error.message);
       }
@@ -918,7 +949,7 @@ const LessonEdit = () => {
     newActivities[index - 1] = temp;
 
     try {
-      await courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+      await saveLesson({
         ...lesson,
         activities: newActivities
       });
@@ -937,6 +968,7 @@ const LessonEdit = () => {
       setActivities(newActivities);
       message.success('活动顺序调整成功');
     } catch (error) {
+      if (error.lessonConflict) return;
       console.error('调整活动顺序失败:', error);
       message.error('调整活动顺序失败');
     }
@@ -951,7 +983,7 @@ const LessonEdit = () => {
     newActivities[index + 1] = temp;
 
     try {
-      await courseManagementAPI.updateLesson(courseId, unitId, lessonId, {
+      await saveLesson({
         ...lesson,
         activities: newActivities
       });
@@ -970,6 +1002,7 @@ const LessonEdit = () => {
       setActivities(newActivities);
       message.success('活动顺序调整成功');
     } catch (error) {
+      if (error.lessonConflict) return;
       console.error('调整活动顺序失败:', error);
       message.error('调整活动顺序失败');
     }

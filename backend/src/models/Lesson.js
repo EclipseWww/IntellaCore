@@ -375,7 +375,10 @@ const lessonSchema = new mongoose.Schema({
     type: String,
     enum: ['draft', 'published', 'archived'],
     default: 'draft'
-  }
+  },
+  // 多位教师共同维护课程时防止互相覆盖：每次保存课时内容加 1，保存时带上打开时的版本
+  contentVersion: { type: Number, default: 0 },
+  lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 }, {
   timestamps: true
 });

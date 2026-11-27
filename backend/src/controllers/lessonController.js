@@ -1,4 +1,5 @@
 const portableMedia = require('../services/portableMedia');
+const access = require('../services/teachingAccess');
 const { normalizeOfficeRuleScores } = require('../services/officeRuleScores');
 const Lesson = require('../models/Lesson');
 const CourseUnit = require('../models/CourseUnit');
@@ -363,16 +364,36 @@ exports.downloadPptGradingFile = async (req, res) => {
 exports.updateLesson = async (req, res) => {
   try {
     const { lessonId } = req.params;
-    const updates = req.body;
+    // 版本号、编辑者、时间戳由服务器维护，不接受客户端写入
+    const { contentVersion, lastEditedBy, _id, __v, createdAt, updatedAt, ...updates } = req.body || {};
+    const me = req.user._id || req.user.id;
 
-    const lesson = await Lesson.findByIdAndUpdate(
-      lessonId,
-      updates,
+    // 带了打开时的版本号：只有版本没变（或上次是自己保存的）才保存，避免覆盖其他老师刚保存的修改
+    const filter = { _id: lessonId };
+    if (contentVersion !== undefined && contentVersion !== null && Number.isFinite(Number(contentVersion))) {
+      filter.$or = [
+        { contentVersion: Number(contentVersion) },
+        { contentVersion: { $exists: false } },
+        { lastEditedBy: me }
+      ];
+    }
+
+    const lesson = await Lesson.findOneAndUpdate(
+      filter,
+      { $set: { ...updates, lastEditedBy: me }, $inc: { contentVersion: 1 } },
       { new: true, runValidators: true }
     );
 
     if (!lesson) {
-      return res.status(404).json({ message: '课时不存在' });
+      const current = await Lesson.findById(lessonId).select('lastEditedBy updatedAt').populate('lastEditedBy', 'name').lean();
+      if (!current) return res.status(404).json({ message: '课时不存在' });
+      const name = current.lastEditedBy && current.lastEditedBy.name;
+      return res.status(409).json({
+        code: 'LESSON_CHANGED',
+        message: `${name ? `${name}老师` : '其他老师'}刚刚修改了这个课时，请刷新后再保存`,
+        editedBy: name || null,
+        editedAt: current.updatedAt
+      });
     }
 
     res.json(lesson);
@@ -672,7 +693,7 @@ exports.getTeacherLessons = async (req, res) => {
     const teacherId = req.user._id;
 
     // 1. 首先查找教师负责的所有课程
-    const teacherCourses = await Course.find({ instructor: teacherId })
+    const teacherCourses = await Course.find(access.courseTeacherFilter(teacherId))
       .select('_id');
 
     if (!teacherCourses.length) {
@@ -849,7 +870,7 @@ exports.exportLesson = async (req, res) => {
     const course = lesson.unit.course;
 
     // 检查权限（只有课程创建者或管理员可以导出）
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (!access.canMaintainCourse(req.user, course)) {
       logger.warn('导出课时失败：权限不足', {
         userId: req.user._id,
         role: req.user.role,
@@ -1085,7 +1106,7 @@ exports.importLesson = async (req, res) => {
       return res.status(404).json({ message: '课程不存在' });
     }
 
-    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (!access.canMaintainCourse(req.user, course)) {
       logger.warn('导入课时失败：权限不足', {
         userId: req.user._id,
         role: req.user.role,

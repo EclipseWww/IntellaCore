@@ -26,11 +26,13 @@ import {
   BookOutlined,
   ArrowDownOutlined,
   ArrowUpOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { courseManagementAPI } from '../../services/api';
 import { classAPI } from '../../services/api';
 import UnitList from './UnitList';
+import TeacherPickerModal from '../../components/Class/TeacherPickerModal';
 import { formatClassName, classGroupKey, compareClassGroupKeys, compareClasses } from '../../utils/className';
 
 const { Panel } = Collapse;
@@ -51,6 +53,8 @@ const CourseList = () => {
   const unitListRefs = useRef({});
   const navigate = useNavigate();
   const [teacherClasses, setTeacherClasses] = useState([]);
+  // 正在设置协作教师的课程
+  const [coCourse, setCoCourse] = useState(null);
   const [classesLoading, setClassesLoading] = useState(false);
 
   useEffect(() => {
@@ -155,6 +159,24 @@ const CourseList = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const saveCoInstructors = async (teacherIds) => {
+    try {
+      const res = await courseManagementAPI.setCourseCoInstructors(coCourse._id, teacherIds);
+      message.success(res.message);
+      setCoCourse(null);
+      fetchCourses();
+    } catch (error) {
+      message.error(error.response?.data?.message || '保存失败');
+    }
+  };
+
+  // 课程开放给了其他老师任教的班级（共同维护的课程）：编辑时这些班级不显示，保存时保持不变
+  const otherTeachersClassCount = (course) => {
+    if (!course || course.isPublic) return 0;
+    const mine = new Set(teacherClasses.map(c => String(c._id)));
+    return (course.accessibleClasses || []).filter(id => !mine.has(String(id._id || id))).length;
   };
 
   const handleDelete = async (courseId) => {
@@ -344,9 +366,21 @@ const CourseList = () => {
       dataIndex: 'title',
       key: 'title',
       render: (text, record) => (
-        <a onClick={() => setExpandedCourseId(expandedCourseId === record._id ? null : record._id)}>
-          {text}
-        </a>
+        <Space size={4} wrap>
+          <a onClick={() => setExpandedCourseId(expandedCourseId === record._id ? null : record._id)}>
+            {text}
+          </a>
+          {record.isOwner === false && (
+            <Tooltip title={`创建者：${record.instructor?.name || '其他老师'}。你是协作教师，可以编辑课程内容、批阅作业`}>
+              <Tag color="blue">协作</Tag>
+            </Tooltip>
+          )}
+          {record.isOwner !== false && record.coInstructors?.length > 0 && (
+            <Tooltip title={`协作教师：${record.coInstructors.map(t => t.name).join('、')}`}>
+              <Tag icon={<TeamOutlined />}>{record.coInstructors.length} 位协作</Tag>
+            </Tooltip>
+          )}
+        </Space>
       )
     },
     {
@@ -368,9 +402,11 @@ const CourseList = () => {
             if (typeof cls === 'object' && cls !== null) {
               return formatClassName(cls);
             }
-            // 如果是 ID 字符串，从 teacherClasses 中查找
+            // 如果是 ID 字符串，从 teacherClasses 或服务器给出的班级名称中查找（可能是其他老师任教的班级）
             const foundClass = teacherClasses.find(tc => tc._id === cls);
-            return foundClass ? formatClassName(foundClass) : cls;
+            if (foundClass) return formatClassName(foundClass);
+            const info = (record.accessibleClassInfo || []).find(c => String(c._id) === String(cls));
+            return info ? info.displayName : '其他班级';
           });
 
           const displayCount = 2; // 最多显示2个班级
@@ -426,17 +462,31 @@ const CourseList = () => {
           >
             添加单元
           </Button>
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(record._id);
-            }}
-          >
-            删除
-          </Button>
+          {record.isOwner !== false && (
+            <Button
+              type="text"
+              icon={<TeamOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCoCourse(record);
+              }}
+            >
+              协作教师
+            </Button>
+          )}
+          {record.isOwner !== false && (
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(record._id);
+              }}
+            >
+              删除
+            </Button>
+          )}
         </Space>
       )
     }
@@ -562,6 +612,9 @@ const CourseList = () => {
                 <Form.Item
                   name="accessibleClasses"
                   label="可访问班级"
+                  extra={otherTeachersClassCount(editingCourse) > 0
+                    ? `另有 ${otherTeachersClassCount(editingCourse)} 个其他老师任教的班级可以访问此课程，这里不显示，保存时保持不变`
+                    : null}
                 >
                   <Checkbox.Group style={{ width: '100%' }}>
                     <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
@@ -632,6 +685,16 @@ const CourseList = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      <TeacherPickerModal
+        open={!!coCourse}
+        title={`协作教师 - ${coCourse?.title || ''}`}
+        description="协作教师可以和你一起编辑这门课程的单元、课时、活动和测验，并查看、批阅学生提交；删除课程和设置协作教师只能由你操作。两位老师同时编辑同一课时时，后保存的一方会收到提醒，不会悄悄覆盖对方的修改。"
+        value={coCourse?.coInstructors || []}
+        excludeId={coCourse?.instructor?._id || coCourse?.instructor}
+        onCancel={() => setCoCourse(null)}
+        onSave={saveCoInstructors}
+      />
     </div>
   );
 };

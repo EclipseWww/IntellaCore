@@ -1,4 +1,5 @@
 const Course = require('../models/Course');
+const access = require('../services/teachingAccess');
 const CourseUnit = require('../models/CourseUnit');
 const Lesson = require('../models/Lesson');
 const logger = require('../utils/logger');
@@ -34,7 +35,7 @@ exports.createUnit = async (req, res) => {
     }
 
     // 检查是否为课程的教师
-    if (course.instructor.toString() !== req.user.id) {
+    if (!access.canMaintainCourse(req.user, course)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此课程'
@@ -83,7 +84,7 @@ exports.updateUnit = async (req, res) => {
     }
 
     // 检查是否为课程的教师
-    if (course.instructor.toString() !== req.user.id) {
+    if (!access.canMaintainCourse(req.user, course)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此课程'
@@ -133,7 +134,7 @@ exports.deleteUnit = async (req, res) => {
     }
 
     // 检查是否为课程的教师
-    if (course.instructor.toString() !== req.user.id) {
+    if (!access.canMaintainCourse(req.user, course)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此课程'
@@ -204,7 +205,7 @@ exports.getUnits = async (req, res) => {
     }
 
     // 检查是否为课程的教师
-    if (course.instructor.toString() !== req.user.id) {
+    if (!access.canMaintainCourse(req.user, course)) {
       return res.status(403).json({
         success: false,
         message: '没有权限查看此课程单元'
@@ -245,7 +246,7 @@ exports.updateUnitsOrder = async (req, res) => {
     }
 
     // 检查是否为课程的教师
-    if (course.instructor.toString() !== req.user.id) {
+    if (!access.canMaintainCourse(req.user, course)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此课程'

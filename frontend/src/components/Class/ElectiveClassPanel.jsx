@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Space, Tag, Tabs, Popconfirm, message, Alert, Descriptions, Typography } from 'antd';
-import { UserAddOutlined, EditOutlined, DeleteOutlined, InboxOutlined, RollbackOutlined, SearchOutlined } from '@ant-design/icons';
+import { UserAddOutlined, EditOutlined, DeleteOutlined, InboxOutlined, RollbackOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
 import { classAPI } from '../../services/api';
 import { formatClassName, parseNewStudents } from '../../utils/className';
+import TeacherPickerModal from './TeacherPickerModal';
 
 const { Text } = Typography;
 
@@ -275,6 +276,21 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
   const [seatValue, setSeatValue] = useState('');
   const [accountEditing, setAccountEditing] = useState(null);
   const [accountForm] = Form.useForm();
+  const [coTeacherOpen, setCoTeacherOpen] = useState(false);
+  // 负责教师可以修改信息、归档、删除和设置共同执教；共同执教的教师负责日常教学
+  const isOwner = cls.isOwner !== false;
+  const coTeachers = cls.coTeachers || [];
+
+  const saveCoTeachers = async (teacherIds, shareCourses) => {
+    try {
+      const res = await classAPI.setElectiveCoTeachers(cls._id, teacherIds, shareCourses);
+      message.success(res.message);
+      setCoTeacherOpen(false);
+      onChanged();
+    } catch (error) {
+      message.error(error.response?.data?.message || '保存失败');
+    }
+  };
 
   const load = useCallback(async () => {
     if (!cls?._id) return;
@@ -424,19 +440,27 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
           <Space>
             <span>{formatClassName(cls)}</span>
             <Tag color="purple">社团/选修</Tag>
+            {!isOwner && <Tag color="blue">共同执教</Tag>}
             {archived && <Tag>已归档</Tag>}
           </Space>
         )}
-        extra={(
+        extra={isOwner ? (
           <Space>
             <Button icon={<EditOutlined />} onClick={() => setEditOpen(true)}>编辑信息</Button>
+            <Button icon={<TeamOutlined />} onClick={() => setCoTeacherOpen(true)}>共同执教</Button>
             <Button icon={archived ? <RollbackOutlined /> : <InboxOutlined />} onClick={toggleArchive}>{archived ? '恢复' : '归档'}</Button>
             <Button danger icon={<DeleteOutlined />} onClick={del}>删除</Button>
           </Space>
+        ) : (
+          <Text type="secondary">修改名称、归档、删除和设置共同执教请联系负责教师</Text>
         )}
         style={{ marginBottom: 16 }}
       >
         <Descriptions size="small" column={4}>
+          <Descriptions.Item label="负责教师">{cls.teacherName || '—'}</Descriptions.Item>
+          <Descriptions.Item label="共同执教" span={3}>
+            {coTeachers.length ? coTeachers.map(t => t.name).join('、') : <Text type="secondary">无</Text>}
+          </Descriptions.Item>
           <Descriptions.Item label="学期">{cls.term || '未填写'}</Descriptions.Item>
           <Descriptions.Item label="面向年级">{cls.grades?.length ? cls.grades.map(g => `${g}级`).join('、') : '不限'}</Descriptions.Item>
           <Descriptions.Item label="人数">{members.length}{cls.capacity > 0 ? ` / ${cls.capacity}` : ''}</Descriptions.Item>
@@ -481,6 +505,16 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
         memberIds={members.map(m => m._id)}
         onCancel={() => setAddOpen(false)}
         onAdded={async () => { setAddOpen(false); await load(); onChanged(); }}
+      />
+      <TeacherPickerModal
+        open={coTeacherOpen}
+        title={`共同执教 - ${formatClassName(cls)}`}
+        description="共同执教的老师可以和你一样给本班上课、排课、管理成员和座位、审批登录、批阅作业；修改名称、归档、删除和设置共同执教只能由你操作。每位老师在自己的课表中安排本班的课。"
+        value={coTeachers}
+        excludeId={cls.teacher}
+        option={{ label: '同时把本班使用的、由我创建的课程共享给这些老师（成为课程协作教师，可一起编辑课程内容）', defaultChecked: true }}
+        onCancel={() => setCoTeacherOpen(false)}
+        onSave={saveCoTeachers}
       />
       <ElectiveFormModal
         open={editOpen}

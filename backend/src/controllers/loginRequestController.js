@@ -1,4 +1,5 @@
 const LoginRequest = require('../models/LoginRequest');
+const access = require('../services/teachingAccess');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const Class = require('../models/Class');
@@ -8,7 +9,7 @@ const roster = require('../services/classRoster');
 async function canManageClass(user, classId) {
     if (user?.role === 'admin') return true;
     if (user?.role !== 'teacher') return false;
-    return !!await Class.exists({ _id: classId, teacher: user._id || user.id });
+    return !!await Class.exists({ _id: classId, ...access.classTeacherFilter(user._id || user.id) });
 }
 const forbidden = res => res.status(403).json({ success: false, message: '无权审批该班级的登录请求' });
 

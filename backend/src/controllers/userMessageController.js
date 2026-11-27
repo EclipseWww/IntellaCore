@@ -1,4 +1,5 @@
 const Conversation = require('../models/Conversation');
+const access = require('../services/teachingAccess');
 const UserMessage = require('../models/UserMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
@@ -330,7 +331,7 @@ userMessageController.getStudentConversationsForTeacher = async (req, res) => {
     }
     const ClassModel = require('../models/Class');
     // 学生的行政班或参加的教学班由该教师任教即可审查
-    const cls = await ClassModel.findOne({ _id: { $in: await roster.classIdsOfStudent(student) }, teacher: teacherId }).select('_id');
+    const cls = await ClassModel.findOne({ _id: { $in: await roster.classIdsOfStudent(student) }, ...access.classTeacherFilter(teacherId) }).select('_id');
     if (!cls) return res.status(403).json({ success: false, message: '无权审查该学生' });
 
     const list = await Conversation.find({ participants: studentId })
@@ -357,7 +358,7 @@ userMessageController.getConversationMessagesForTeacher = async (req, res) => {
     const ClassModel = require('../models/Class');
     const students = await User.find({ _id: { $in: participants }, role: 'student' }).select('_id classId');
     const classIds = (await Promise.all(students.map(s => roster.classIdsOfStudent(s)))).flat();
-    const hasOwned = await ClassModel.exists({ _id: { $in: classIds }, teacher: teacherId });
+    const hasOwned = await ClassModel.exists({ _id: { $in: classIds }, ...access.classTeacherFilter(teacherId) });
     if (!hasOwned) return res.status(403).json({ success: false, message: '无权查看该会话' });
 
     const skip = (Number(page) - 1) * Number(limit);
@@ -386,7 +387,7 @@ userMessageController.getClassGroupConversationsForTeacher = async (req, res) =>
     logger.info('教师获取班级群聊列表', { teacherId, classId });
 
     const ClassModel = require('../models/Class');
-    const cls = await ClassModel.findOne({ _id: classId, teacher: teacherId }).select('_id');
+    const cls = await ClassModel.findOne({ _id: classId, ...access.classTeacherFilter(teacherId) }).select('_id');
     if (!cls) return res.status(403).json({ success: false, message: '无权查看该班级群聊' });
 
     // 找到该班级所有学生

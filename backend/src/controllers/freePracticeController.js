@@ -1,4 +1,5 @@
 const PracticeSession = require('../models/PracticeSession');
+const access = require('../services/teachingAccess');
 const Question = require('../models/Question');
 const Setting = require('../models/Setting');
 const User = require('../models/User');
@@ -504,7 +505,7 @@ exports.getStudentRecords = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         // 1. 获取老师所管理的班级
-        const teacherClasses = await Class.find({ teacher: req.user.id }).select('_id grade name');
+        const teacherClasses = await Class.find({ ...access.classTeacherFilter(req.user.id) }).select('_id grade name');
         const teacherClassIds = teacherClasses.map(c => c._id);
 
         if (teacherClassIds.length === 0) {
@@ -603,7 +604,7 @@ exports.getLeaderboard = async (req, res) => {
         const { classId, grade, timeRange = 'all' } = req.query;
 
         // 1. 获取老师所管理的班级
-        const teacherClasses = await Class.find({ teacher: req.user.id }).select('_id grade name');
+        const teacherClasses = await Class.find({ ...access.classTeacherFilter(req.user.id) }).select('_id grade name');
         const teacherClassIds = teacherClasses.map(c => c._id);
 
         if (teacherClassIds.length === 0) {
@@ -758,7 +759,7 @@ exports.getClassWrongQuestions = async (req, res) => {
         if (!mongoose.isValidObjectId(classId)) {
             return res.status(400).json({ success: false, message: '班级编号无效' });
         }
-        const classQuery = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user.id };
+        const classQuery = req.user.role === 'admin' ? { _id: classId } : { _id: classId, ...access.classTeacherFilter(req.user.id) };
         const classObj = await Class.findOne(classQuery).select('_id');
         if (!classObj) {
             return res.status(404).json({ success: false, message: '未找到该班级或无权查看' });

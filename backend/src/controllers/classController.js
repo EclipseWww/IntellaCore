@@ -16,6 +16,7 @@ const roster = require('../services/classRoster');
 const { formatClassName } = require('../utils/className');
 const { escapeRegex } = require('../utils/escapeRegex');
 const { studentPassword } = require('../utils/studentPassword');
+const access = require('../services/teachingAccess');
 
 // 教学班（社团、选修）的名称、学期、年级、人数上限
 function electiveFields(body) {
@@ -171,12 +172,15 @@ exports.createClass = async (req, res) => {
 exports.getTeacherClasses = async (req, res) => {
   try {
     // 默认只返回活跃班级，传 includeArchived=true 可获取所有
-    const query = { teacher: req.user._id };
+    // 负责的班级和共同执教的教学班
+    const query = { ...access.classTeacherFilter(req.user._id) };
     if (req.query.includeArchived !== 'true') {
       query.status = { $ne: 'archived' }; // 排除已归档班级
     }
     // 行政班在前，按年级（新到旧）、班号（小到大）排序；教学班在后，按名称排序
-    const classes = (await Class.find(query)).sort((a, b) => {
+    const classes = (await Class.find(query)
+      .populate('teacher', 'name')
+      .populate('coTeachers', 'name')).sort((a, b) => {
       const ea = roster.isElective(a), eb = roster.isElective(b);
       if (ea !== eb) return ea ? 1 : -1;
       if (ea) return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN');
@@ -186,8 +190,14 @@ exports.getTeacherClasses = async (req, res) => {
     // 获取每个班级的学生
     const classesWithStudents = await Promise.all(classes.map(async (classObj) => {
       const students = await roster.findRoster(classObj, { select: 'name username' });
+      const obj = classObj.toObject();
       return {
-        ...classObj.toObject(),
+        ...obj,
+        // 前端大量代码按 ID 使用 teacher；姓名另外给出
+        teacher: obj.teacher ? obj.teacher._id : obj.teacher,
+        teacherName: obj.teacher ? obj.teacher.name : '',
+        coTeachers: (obj.coTeachers || []).map(t => ({ _id: t._id, name: t.name })),
+        isOwner: access.isClassOwner(req.user, { teacher: obj.teacher }),
         type: classObj.type || 'admin',
         displayName: formatClassName(classObj),
         students
@@ -442,8 +452,7 @@ exports.getClassDetails = async (req, res) => {
 
     // 检查权限（只有班级的教师和班级的学生可以查看）
     if (
-      req.user.role !== 'admin' &&
-      req.user._id.toString() !== classObj.teacher._id.toString() &&
+      !access.canTeachClass(req.user, classObj) &&
       !students.some(student => student._id.toString() === req.user._id.toString())
     ) {
       return res.status(403).json({
@@ -652,7 +661,7 @@ exports.getStudentLoginHistory = async (req, res) => {
 
     // 检查该学生是否在教师的任何班级中（含教学班）
     const hasStudent = await Class.exists({
-      teacher: req.user._id,
+      ...access.classTeacherFilter(req.user._id),
       _id: { $in: await roster.classIdsOfStudent(student) }
     });
 
@@ -696,7 +705,7 @@ exports.getClassOnlineStudents = async (req, res) => {
     // 检查班级是否存在且属于当前教师
     const classObj = await Class.findOne({
       _id: classId,
-      teacher: req.user._id
+      ...access.classTeacherFilter(req.user._id)
     });
 
     if (!classObj) {
@@ -791,7 +800,7 @@ exports.forceLogoutStudent = async (req, res) => {
     }
 
     // 班级归属校验
-    const classObj = await Class.findOne({ _id: classId, teacher: req.user._id });
+    const classObj = await Class.findOne({ _id: classId, ...access.classTeacherFilter(req.user._id) });
     if (!classObj) {
       logger.warn('未找到班级或无权操作', { classId, teacherId: req.user._id });
       return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
@@ -827,7 +836,7 @@ exports.forceLogoutAllStudents = async (req, res) => {
     }
 
     // 班级归属校验
-    const classObj = await Class.findOne({ _id: classId, teacher: req.user._id });
+    const classObj = await Class.findOne({ _id: classId, ...access.classTeacherFilter(req.user._id) });
     if (!classObj) {
       logger.warn('未找到班级或无权操作', { classId, teacherId: req.user._id });
       return res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
@@ -1088,7 +1097,7 @@ exports.clearClassSeats = async (req, res) => {
     }
 
     // 检查班级是否存在且属于当前教师
-    const classObj = await Class.findOne({ _id: classId, teacher: userId });
+    const classObj = await Class.findOne({ _id: classId, ...access.classTeacherFilter(userId) });
     if (!classObj) {
       logger.warn('未找到班级或教师无权操作', { classId, userId });
       return res.status(404).json({
@@ -1148,7 +1157,7 @@ exports.updateClassSettings = async (req, res) => {
     // 检查班级是否存在且属于当前教师
     const classObj = await Class.findOne({
       _id: classId,
-      teacher: req.user._id
+      ...access.classTeacherFilter(req.user._id)
     });
 
     if (!classObj) {
@@ -1713,7 +1722,7 @@ exports.deleteArchivedClassFiles = async (req, res) => {
 // 教学班（社团课、选修课）成员管理
 // ============================================================
 
-async function ownedElective(req, res) {
+async function ownedElective(req, res, { ownerOnly = false } = {}) {
   const { classId } = req.params;
   if (!mongoose.isValidObjectId(classId)) {
     res.status(400).json({ success: false, message: '班级编号无效' });
@@ -1723,10 +1732,16 @@ async function ownedElective(req, res) {
     res.status(403).json({ success: false, message: '只有教师或管理员可以管理教学班成员' });
     return null;
   }
-  const query = req.user.role === 'admin' ? { _id: classId } : { _id: classId, teacher: req.user._id };
+  // 共同执教的教师可以管理成员；归档、管理共同执教教师只能由负责教师操作
+  const query = req.user.role === 'admin' ? { _id: classId }
+    : (ownerOnly ? { _id: classId, teacher: req.user._id } : { _id: classId, ...access.classTeacherFilter(req.user._id) });
   const cls = await Class.findOne(query);
   if (!cls) {
-    res.status(404).json({ success: false, message: '未找到该班级或无权操作' });
+    const coTeaching = ownerOnly && req.user.role !== 'admin' && await Class.exists({ _id: classId, coTeachers: req.user._id });
+    res.status(coTeaching ? 403 : 404).json({
+      success: false,
+      message: coTeaching ? '只有负责教师可以进行该操作' : '未找到该班级或无权操作'
+    });
     return null;
   }
   if (!roster.isElective(cls)) {
@@ -2005,7 +2020,7 @@ exports.updateElectiveMember = async (req, res) => {
 // 归档 / 恢复教学班（学期结束后由任课教师或管理员操作）
 exports.setElectiveArchived = async (req, res) => {
   try {
-    const cls = await ownedElective(req, res);
+    const cls = await ownedElective(req, res, { ownerOnly: true });
     if (!cls) return;
     const archived = req.body.archived !== false;
     if (archived) {
@@ -2027,6 +2042,64 @@ exports.setElectiveArchived = async (req, res) => {
   } catch (error) {
     logger.error('归档教学班失败', { error: error.message, classId: req.params.classId });
     res.status(500).json({ success: false, message: '操作失败' });
+  }
+};
+
+// 可选的教师（设置共同执教、课程协作教师用）：在职教师的姓名
+exports.getTeacherOptions = async (req, res) => {
+  try {
+    if (!['teacher', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: '无权操作' });
+    }
+    const teachers = await User.find({ role: 'teacher', isActive: { $ne: false } }).select('name username').sort({ name: 1 }).lean();
+    res.json({ success: true, data: teachers.map(t => ({ _id: t._id, name: t.name, username: t.username })) });
+  } catch (error) {
+    logger.error('获取教师列表失败', { error: error.message });
+    res.status(500).json({ success: false, message: '获取教师列表失败' });
+  }
+};
+
+/**
+ * 设置教学班共同执教的教师（负责教师或管理员）。
+ * shareCourses=true 时，同时把本班使用的、由负责教师创建的课程加上这些教师为协作教师，
+ * 方便大家一起维护课程内容、批阅作业。
+ */
+exports.setElectiveCoTeachers = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res, { ownerOnly: true });
+    if (!cls) return;
+    const ids = access.cleanTeacherIds(req.body.teacherIds, cls.teacher).slice(0, 20);
+    const teachers = ids.length
+      ? await User.find({ _id: { $in: ids }, role: 'teacher', isActive: { $ne: false } }).select('_id name').lean()
+      : [];
+    if (teachers.length !== ids.length) {
+      return res.status(400).json({ success: false, message: '只能选择在职的教师' });
+    }
+    const before = new Set((cls.coTeachers || []).map(String));
+    cls.coTeachers = teachers.map(t => t._id);
+    await cls.save();
+
+    let sharedCourses = 0;
+    if (req.body.shareCourses === true && teachers.length) {
+      const Course = require('../models/Course');
+      const r = await Course.updateMany(
+        { accessibleClasses: cls._id, instructor: cls.teacher },
+        { $addToSet: { coInstructors: { $each: teachers.map(t => t._id) } } }
+      );
+      sharedCourses = r.matchedCount || 0;
+    }
+    const added = teachers.filter(t => !before.has(String(t._id))).length;
+    logger.info('设置教学班共同执教教师', { classId: String(cls._id), coTeachers: ids, sharedCourses, operator: req.user._id });
+    const parts = [teachers.length ? `共同执教教师：${teachers.map(t => t.name).join('、')}` : '已取消全部共同执教教师'];
+    if (added && req.body.shareCourses === true) parts.push(`已共享 ${sharedCourses} 门课程`);
+    res.json({
+      success: true,
+      message: parts.join('；'),
+      data: { coTeachers: teachers.map(t => ({ _id: t._id, name: t.name })), sharedCourses }
+    });
+  } catch (error) {
+    logger.error('设置共同执教教师失败', { error: error.message, classId: req.params.classId });
+    res.status(500).json({ success: false, message: '设置共同执教教师失败' });
   }
 };
 

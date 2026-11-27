@@ -1,4 +1,5 @@
 const { withoutAnswers, quizContext } = require('../services/quizSecurity');
+const access = require('../services/teachingAccess');
 const Quiz = require('../models/Quiz');
 const Question = require('../models/Question');
 const Lesson = require('../models/Lesson');
@@ -43,9 +44,11 @@ exports.createQuiz = async (req, res) => {
 exports.getQuizzes = async (req, res) => {
   try {
     const { status } = req.query;
-    const query = {
-      createdBy: req.user._id // 只返回当前用户创建的测验
-    };
+    // 自己创建的测验，以及自己创建/协作的课程里用到的测验（多位教师共同维护课程）
+    const shared = req.user.role === 'teacher' ? await access.sharedQuizIds(req.user) : [];
+    const query = shared.length
+      ? { $or: [{ createdBy: req.user._id }, { _id: { $in: shared } }] }
+      : { createdBy: req.user._id };
 
     if (status) query.status = status;
 
@@ -107,7 +110,7 @@ exports.updateQuiz = async (req, res) => {
     }
 
     // 检查权限
-    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+    if (!await access.canEditQuiz(req.user, quiz)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此测验'
@@ -229,7 +232,7 @@ exports.addQuestions = async (req, res) => {
     }
 
     // 检查权限
-    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+    if (!await access.canEditQuiz(req.user, quiz)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此测验'
@@ -302,7 +305,7 @@ exports.removeQuestion = async (req, res) => {
     }
 
     // 检查权限
-    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+    if (!await access.canEditQuiz(req.user, quiz)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此测验'
@@ -357,7 +360,7 @@ exports.updateQuestionsOrder = async (req, res) => {
     }
 
     // 检查权限
-    if (quiz.createdBy.toString() !== req.user._id.toString()) {
+    if (!await access.canEditQuiz(req.user, quiz)) {
       return res.status(403).json({
         success: false,
         message: '没有权限修改此测验'
@@ -418,7 +421,7 @@ exports.duplicateQuiz = async (req, res) => {
     }
 
     // 权限检查：创建者或管理员
-    if (sourceQuiz.createdBy.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    if (!await access.canEditQuiz(req.user, sourceQuiz)) {
       return res.status(403).json({ success: false, message: '没有权限复制此测验' });
     }
 

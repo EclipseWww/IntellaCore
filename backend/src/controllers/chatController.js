@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const access = require('../services/teachingAccess');
 const { generateAIResponse, getOpenAIClient, getAIModel } = require('../config/ai');
 const Course = require('../models/Course');
 const Progress = require('../models/Progress');
@@ -59,7 +60,7 @@ const chatController = {
       });
 
       // 找到该教师负责的班级与学生
-      const classQuery = { teacher: teacherId };
+      const classQuery = { ...access.classTeacherFilter(teacherId) };
       if (grade) classQuery.grade = Number(grade);
       if (className) classQuery.name = Number(className);
       const classes = await Class.find(classQuery).select('_id');
@@ -140,7 +141,7 @@ const chatController = {
       });
 
       // 校验该学生是否属于当前教师的班级
-      const classes = await Class.find({ teacher: teacherId }).select('_id');
+      const classes = await Class.find({ ...access.classTeacherFilter(teacherId) }).select('_id');
       const classIds = classes.map(c => c._id);
       const studentInScope = (await roster.rosterIdSet(classIds)).has(String(studentId));
       if (!studentInScope) {
@@ -803,7 +804,7 @@ ${contextInfo}
 
       if (isTeacher) {
         // 如果是教师，获取他们所教班级的所有学生的消息
-        const classes = await Class.find({ teacher: userId }); // 获取教师所教的班级
+        const classes = await Class.find({ ...access.classTeacherFilter(userId) }); // 获取教师所教的班级
         const studentIds = await User.find(await roster.rosterFilter(classes.map(cls => cls._id))).distinct('_id'); // 从用户模型中获取所有学生的ID
         query.student = { $in: studentIds }; // 查询条件中包含所有学生的ID
       } else {
@@ -893,7 +894,7 @@ ${contextInfo}
 
       const query = {};
       if (role === 'teacher') {
-        const classes = await Class.find({ teacher: userId }).select('_id');
+        const classes = await Class.find({ ...access.classTeacherFilter(userId) }).select('_id');
         const classIds = classes.map(c => c._id);
         const studentIds = await User.find(await roster.rosterFilter(classIds)).distinct('_id');
         query.student = { $in: studentIds };

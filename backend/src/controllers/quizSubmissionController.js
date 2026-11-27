@@ -1378,8 +1378,8 @@ exports.deleteSubmission = async (req, res) => {
     }
 
     const quiz = await Quiz.findById(submission.quizId._id);
-    if (!quiz || String(quiz.createdBy) !== String(req.user._id)) {
-      return res.status(403).json({ success: false, message: '只有测验创建者可以删除答题记录' });
+    if (!quiz || !await require('../services/teachingAccess').canEditQuiz(req.user, quiz)) {
+      return res.status(403).json({ success: false, message: '只有测验创建者或课程协作教师可以删除答题记录' });
     }
     // Keep a tombstone so deletion and award revocation can recover together.
     const deleted = await QuizSubmission.updateOne({ _id: submissionId, status: { $ne: 'DELETED' } }, {

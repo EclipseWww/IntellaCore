@@ -78,6 +78,12 @@ const courseSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // 协作教师：与创建者（instructor）一样可以编辑课程内容、查看与批阅提交；
+  // 删除课程和管理协作教师只能由创建者操作
+  coInstructors: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: undefined
+  },
   // 添加可访问班级列表
   accessibleClasses: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -103,6 +109,7 @@ const courseSchema = new mongoose.Schema({
 // 教师“我的课程”（按创建时间排序）与学生按班级查可访问课程
 courseSchema.index({ instructor: 1, createdAt: 1 });
 courseSchema.index({ accessibleClasses: 1 });
+courseSchema.index({ coInstructors: 1 });
 
 const Course = mongoose.model('Course', courseSchema);
 

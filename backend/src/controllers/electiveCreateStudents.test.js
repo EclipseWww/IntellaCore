@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const mongoose = require('mongoose');
+const { teaches } = require('../testing/reviewTestSupport');
 
 // 在教学班里直接新建没有行政班的学生账号，以及教学班老师管理这些账号
 const ELECTIVE = '507f1f77bcf86cd799439022';
@@ -19,8 +20,8 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
   const mocks = {
     mongoose,
     '../models/Class': {
-      findOne: async q => (String(q._id) === ELECTIVE && (!q.teacher || q.teacher === 't1') ? cls : null),
-      exists: async q => q.teacher === 't1' && String(q._id) === HOME,
+      findOne: async q => (String(q._id) === ELECTIVE && ((!q.teacher && !q.$or) || teaches(q, 't1')) ? cls : null),
+      exists: async q => teaches(q, 't1') && String(q._id) === HOME,
       find: q => lean((q._id.$in || []).filter(id => archivedHomes.includes(String(id))).map(_id => ({ _id })))
     },
     '../models/User': {
@@ -45,6 +46,7 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
     '../services/classRoster': { isElective: c => !!c && c.type === 'elective' },
     '../utils/className': require('../utils/className'),
     '../utils/studentPassword': require('../utils/studentPassword'),
+    '../services/teachingAccess': require('../services/teachingAccess'),
     '../utils/logger': { info() {}, warn() {}, error() {}, debug() {} }
   };
   const context = { module: { exports: {} }, exports: {}, require: name => mocks[name] || {}, console, Date, Map, Set, Number, String };

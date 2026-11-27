@@ -241,6 +241,11 @@ const adminController = {
 
       await User.findByIdAndDelete(userId);
       await roster.removeStudentsEverywhere([userId]);
+      if (user.role === 'teacher') {
+        // 删除教师时，把他从共同执教的教学班和协作的课程中移除
+        await Class.updateMany({ coTeachers: user._id }, { $pull: { coTeachers: user._id } });
+        await Course.updateMany({ coInstructors: user._id }, { $pull: { coInstructors: user._id } });
+      }
 
       logger.info('用户删除成功', { userId, username: user.username });
       res.json({

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const access = require('../services/teachingAccess');
 const ExcelJS = require('exceljs');
 const Class = require('../models/Class');
 const Course = require('../models/Course');
@@ -23,10 +24,10 @@ const guard = (fn) => async (req, res) => {
   }
 };
 
-const ownClass = (classId, teacherId) => Class.findOne({ _id: classId, teacher: teacherId, status: { $ne: 'archived' } });
+const ownClass = (classId, teacherId) => Class.findOne({ _id: classId, ...access.classTeacherFilter(teacherId), status: { $ne: 'archived' } });
 
-/** 课程必须是本人的课程；不填课程表示「自动」 */
-const ownCourse = (id, teacherId) => Course.exists({ _id: id, instructor: teacherId });
+/** 课程必须是本人创建或协作的课程；不填课程表示「自动」 */
+const ownCourse = (id, teacherId) => Course.exists({ _id: id, ...access.courseTeacherFilter(teacherId) });
 const optionalCourse = async (courseId, teacherId) => {
   if (courseId === undefined || courseId === null || courseId === '') return { courseId: null };
   if (!isId(courseId) || !await ownCourse(courseId, teacherId)) return { error: '只能选择自己的课程' };
@@ -344,9 +345,9 @@ exports.saveAttendance = guard(async (req, res) => {
   res.json({ success: true, data: { saved: session.attendance.length } });
 });
 
-/** 本人的课程（课表里只能选自己的课程） */
+/** 本人的课程（课表里只能选自己创建或协作的课程） */
 exports.listMyCourses = guard(async (req, res) => {
-  const courses = await Course.find({ instructor: req.user._id }).select('title createdAt').sort({ createdAt: 1 }).lean();
+  const courses = await Course.find(access.courseTeacherFilter(req.user._id)).select('title createdAt').sort({ createdAt: 1 }).lean();
   res.json({ success: true, data: courses });
 });
 
