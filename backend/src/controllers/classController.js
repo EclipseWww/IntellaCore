@@ -4,6 +4,7 @@ const AssignmentSubmission = require('../models/AssignmentSubmission');
 const QuizSubmission = require('../models/QuizSubmission');
 const TypingRecord = require('../models/TypingRecord');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const xlsx = require('xlsx');
 const path = require('path');
 const fs = require('fs');
@@ -556,11 +557,10 @@ exports.updateStudent = async (req, res) => {
       ...(classId && { classId })
     };
 
-    const updatedStudent = await User.findByIdAndUpdate(
-      studentId,
-      updateData,
-      { new: true }
-    ).select('name username classId');
+    // 通过 save 保存：修改密码时会触发加密（findByIdAndUpdate 不会，密码会以明文写入）
+    Object.assign(student, updateData);
+    await student.save();
+    const updatedStudent = { _id: student._id, name: student.name, username: student.username, classId: student.classId };
 
     logger.info('学生信息更新成功', {
       studentId,
@@ -1840,7 +1840,8 @@ function passwordError(password) {
 /**
  * 直接在教学班里新建学生账号（不属于任何行政班）。
  * 用于平时不在本机房上信息课、系统里没有其行政班的学生（如只来上社团课的其他年级学生）。
- * 学号已存在的学生账号直接加入本班，不修改其姓名和密码。
+ * 学号已存在的学生账号直接加入本班，不修改其姓名。
+ * 学生在上课时免密码登录，因此密码可以不填（自动随机生成）。
  */
 exports.createElectiveStudents = async (req, res) => {
   try {
@@ -1858,11 +1859,13 @@ exports.createElectiveStudents = async (req, res) => {
       const where = `第 ${i + 1} 行`;
       if (!USERNAME_RE.test(username)) return res.status(400).json({ success: false, message: `${where}：学号只能包含字母、数字、下划线或短横线，最多 30 位` });
       if (!name || name.length > 20) return res.status(400).json({ success: false, message: `${where}：姓名不能为空且不超过 20 个字` });
-      const error = passwordError(row.password);
+      // 学生在上课时免密码登录，密码实际不使用；没填时随机生成（账号要求有密码）
+      const password = row.password ? String(row.password) : crypto.randomBytes(12).toString('hex');
+      const error = passwordError(password);
       if (error) return res.status(400).json({ success: false, message: `${where}：${error}` });
       if (seen.has(username)) return res.status(400).json({ success: false, message: `学号 ${username} 重复填写` });
       seen.add(username);
-      list.push({ username, name, password: row.password });
+      list.push({ username, name, password });
     }
 
     const existingUsers = await User.find({ username: { $in: list.map(r => r.username) } }).select('_id username role classId').lean();
@@ -1902,7 +1905,7 @@ exports.createElectiveStudents = async (req, res) => {
     }
 
     const parts = [`已新建 ${created} 个学生账号并加入本班`];
-    if (joined) parts.push(`${joined} 个学号已有账号，已直接加入（姓名和密码未改动）`);
+    if (joined) parts.push(`${joined} 个学号已有账号，已直接加入（姓名未改动）`);
     if (already) parts.push(`${already} 名已在本班`);
     if (skippedArchived.length) parts.push(`${skippedArchived.length} 名所在行政班已归档`);
     if (overCapacity) parts.push(`${overCapacity} 名因超过人数上限未添加`);

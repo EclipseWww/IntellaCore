@@ -20,11 +20,16 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
     mongoose,
     '../models/Class': {
       findOne: async q => (String(q._id) === ELECTIVE && (!q.teacher || q.teacher === 't1') ? cls : null),
+      exists: async q => q.teacher === 't1' && String(q._id) === HOME,
       find: q => lean((q._id.$in || []).filter(id => archivedHomes.includes(String(id))).map(_id => ({ _id })))
     },
     '../models/User': {
       find: q => lean(users.filter(u => q.username.$in.includes(u.username))),
       create: async doc => { const u = { ...doc, _id: `new-${doc.username}` }; created.push(u); return u; },
+      findById: async id => {
+        const u = users.find(x => x._id === id);
+        return u && { ...u, save: async function () { saved.push({ name: this.name, password: this.password }); } };
+      },
       findOne: async q => {
         const u = users.find(x => x._id === q._id && x.role === 'student');
         return u && { ...u, save: async function () { saved.push({ name: this.name, password: this.password }); } };
@@ -39,6 +44,7 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
     },
     '../services/classRoster': { isElective: c => !!c && c.type === 'elective' },
     '../utils/className': require('../utils/className'),
+    crypto: require('node:crypto'),
     '../utils/logger': { info() {}, warn() {}, error() {}, debug() {} }
   };
   const context = { module: { exports: {} }, exports: {}, require: name => mocks[name] || {}, console, Date, Map, Set, Number, String };
@@ -54,7 +60,12 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
     await controller.updateElectiveMember({ params: { classId: ELECTIVE, studentId }, user: { _id: 't1', role: 'teacher' }, body }, res);
     return res;
   };
-  return { create, update, created, memberships, saved };
+  const updateStudent = async (studentId, body) => {
+    const res = response();
+    await controller.updateStudent({ params: { studentId }, user: { _id: 't1', role: 'teacher' }, body }, res);
+    return res;
+  };
+  return { create, update, updateStudent, created, memberships, saved };
 }
 
 test('creates accounts without a home class and adds them to the elective', async () => {
@@ -120,4 +131,19 @@ test('the elective teacher can rename or reset the password only for members wit
   assert.equal((await f.update(SOLO, { password: '12' })).statusCode, 400);
   assert.equal((await f.update('507f1f77bcf86cd799439077', { name: '丁' })).statusCode, 404, 'not a member');
   assert.equal(f.saved.length, 1);
+});
+
+test('passwords are optional because students log in without one during class', async () => {
+  const f = setup();
+  const res = await f.create([{ username: 'a1', name: '甲' }]);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.data.created, 1);
+  assert.match(f.created[0].password, /^[0-9a-f]{24}$/, 'a random password fills the required field');
+});
+
+test('editing a home-class student saves through the document so a new password is hashed', async () => {
+  const f = setup({ users: [{ _id: 'homed', username: 'a2', role: 'student', classId: HOME, name: '乙' }] });
+  const res = await f.updateStudent('homed', { name: '丙', password: 'newpass1' });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(f.saved, [{ name: '丙', password: 'newpass1' }]);
 });

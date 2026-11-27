@@ -43,12 +43,12 @@ export const groupLoginClasses = (list, isLive = () => false) => {
   return groups;
 };
 
-// 解析教学班新建学生名单：每行“学号 姓名 [密码]”，没填密码的用初始密码
-export const parseNewStudents = (text, defaultPassword = '') => String(text || '')
+// 解析教学班新建学生名单：每行“学号 姓名”（学生上课时免密码登录，多出的列忽略）
+export const parseNewStudents = (text) => String(text || '')
   .split(/\r?\n/)
   .map(line => line.trim())
   .filter(Boolean)
   .map(line => {
-    const [username = '', name = '', password = ''] = line.split(/[\s,，;；]+/);
-    return { username, name, password: password || defaultPassword };
+    const [username = '', name = ''] = line.split(/[\s,，;；]+/);
+    return { username, name };
   });

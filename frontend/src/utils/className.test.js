@@ -50,10 +50,10 @@ test('login page lists home classes first and teaching classes last', () => {
 });
 
 test('parses new student lists for a teaching class', () => {
-  expect(parseNewStudents('20250101 王小明\n\n 20250102\t李小红\tabc123 \n20250103，赵六', 'init88')).toEqual([
-    { username: '20250101', name: '王小明', password: 'init88' },
-    { username: '20250102', name: '李小红', password: 'abc123' },
-    { username: '20250103', name: '赵六', password: 'init88' }
+  expect(parseNewStudents('20250101 王小明\n\n 20250102\t李小红\tabc123 \n20250103，赵六')).toEqual([
+    { username: '20250101', name: '王小明' },
+    { username: '20250102', name: '李小红' },
+    { username: '20250103', name: '赵六' }
   ]);
   expect(parseNewStudents('')).toEqual([]);
 });
