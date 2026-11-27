@@ -810,7 +810,7 @@ const ClassManagement = () => {
               { min: 6, message: '密码长度至少6位' }
             ]}
           >
-            <Input.Password placeholder="请输入密码" />
+            <Input.Password placeholder="可不填，学生上课时免密码登录" />
           </Form.Item>
         </Form>
       </Modal>
@@ -857,7 +857,7 @@ const ClassManagement = () => {
             <li>仅支持 Excel 文件格式（.xlsx, .xls）</li>
             <li>请严格按照模板格式填写</li>
             <li>学号必须是唯一的</li>
-            <li>密码长度至少6位</li>
+            <li>密码可以不填（学生上课时免密码登录）；填写时至少6位</li>
             <li>年级和班级必须是整数</li>
             <li>如果班级不存在会自动创建</li>
           </ul>

@@ -44,7 +44,7 @@ function setup({ capacity = 0, users = [], members = [], archivedHomes = [] } = 
     },
     '../services/classRoster': { isElective: c => !!c && c.type === 'elective' },
     '../utils/className': require('../utils/className'),
-    crypto: require('node:crypto'),
+    '../utils/studentPassword': require('../utils/studentPassword'),
     '../utils/logger': { info() {}, warn() {}, error() {}, debug() {} }
   };
   const context = { module: { exports: {} }, exports: {}, require: name => mocks[name] || {}, console, Date, Map, Set, Number, String };

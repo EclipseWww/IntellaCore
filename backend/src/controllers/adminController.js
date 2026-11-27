@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { studentPassword } = require('../utils/studentPassword');
 const Class = require('../models/Class');
 const Course = require('../models/Course');
 const logger = require('../utils/logger');
@@ -116,11 +117,17 @@ const adminController = {
 
       logger.info('管理员创建用户', { username, role, name });
 
-      // 验证输入
-      if (!username || !password || !name || !role) {
+      // 验证输入（学生上课时免密码登录，学生密码可以不填）
+      if (!username || !name || !role || (role !== 'student' && !password)) {
         return res.status(400).json({
-          message: '用户名、密码、姓名和角色不能为空'
+          message: role === 'student' ? '用户名、姓名和角色不能为空' : '用户名、密码、姓名和角色不能为空'
         });
+      }
+      let finalPassword = password;
+      if (role === 'student') {
+        const pw = studentPassword(password);
+        if (pw.error) return res.status(400).json({ message: pw.error });
+        finalPassword = pw.password;
       }
 
       if (await rejectElectiveAsHome(classId)) {
@@ -139,7 +146,7 @@ const adminController = {
       // 创建用户
       const user = new User({
         username,
-        password,
+        password: finalPassword,
         name,
         role,
         gender: gender || 'other',
@@ -721,19 +728,18 @@ const adminController = {
 
       // 验证数据格式
       for (const row of data) {
-        if (!row.username || !row.name || !row.password || !row.grade || !row.class) {
+        if (!row.username || !row.name || !row.grade || !row.class) {
           return res.status(400).json({
             success: false,
-            message: '文件格式错误，请确保包含学号、姓名、密码、年级和班级字段'
+            message: '文件格式错误，请确保包含学号、姓名、年级和班级字段（密码可以不填）'
           });
         }
 
-        if (row.password.length < 6) {
-          return res.status(400).json({
-            success: false,
-            message: '密码长度至少6位'
-          });
+        const pw = studentPassword(row.password);
+        if (pw.error) {
+          return res.status(400).json({ success: false, message: `学号 ${row.username}：${pw.error}` });
         }
+        row.password = pw.password;
 
         // 验证年级格式（确保是四位数年份）
         if (!/^20\d{2}$/.test(String(row.grade))) {

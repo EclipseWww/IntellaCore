@@ -127,21 +127,11 @@ const Login = () => {
 
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  // 教师登录：只填工号和密码，不选班级和姓名
-  const [teacherMode, setTeacherMode] = useState(false);
+  // 上课中的班级，学生免密码登录。输入的账号不是本班学生时（如教师在学号框输入工号）密码框自动解锁；
+  // 页面上不提示教师也从这里登录
   const typedUsername = (Form.useWatch('username', form) || '').trim();
-  // 上课中的班级，学生免密码登录；输入的账号不是本班学生（如教师工号）时可以输入密码
   const isClassStudent = !!typedUsername && students.some(s => s.username === typedUsername);
-  const passwordFree = !teacherMode && selectedClassStatus.isInClass && (!typedUsername || isClassStudent);
-  const passwordPlaceholder = passwordFree
-    ? '上课中，学生无需密码'
-    : (!teacherMode && selectedClassStatus.isInClass ? '教师请输入密码' : '请输入密码');
-
-  const switchMode = (toTeacher) => {
-    setTeacherMode(toTeacher);
-    form.setFieldsValue({ username: undefined, password: undefined, studentId: undefined, name: undefined });
-    setSelectedStudentName('');
-  };
+  const passwordFree = selectedClassStatus.isInClass && (!typedUsername || isClassStudent);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -306,7 +296,7 @@ const Login = () => {
     const values = { ...raw, username };
     setFormValues(values);
 
-    const student = teacherMode ? null : students.find(s => s.username === username);
+    const student = students.find(s => s.username === username);
 
     if (student) {
       if (student.seatNumber) {
@@ -326,10 +316,10 @@ const Login = () => {
     try {
       setLoading(true);
 
-      // 带上所选班级：选了社团/选修时，本次登录属于该教学班（教师登录不需要班级）
+      // 带上所选班级：选了社团/选修时，本次登录属于该教学班（教师账号忽略班级）
       const { classId, studentId, ...loginData } = values;
-      if (classId && !teacherMode) loginData.classId = classId;
-      if (!teacherMode && selectedClassStatus.isInClass) loginData.isInClass = true;
+      if (classId) loginData.classId = classId;
+      if (selectedClassStatus.isInClass) loginData.isInClass = true;
 
       api.post('/auth/login', loginData)
         .then(response => {
@@ -958,69 +948,65 @@ const Login = () => {
             form={form}
             requiredMark={false}
           >
-            {!teacherMode && (
-              <>
-                <Form.Item
-                  label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>选择班级</span>}
-                  name="classId"
-                  style={{ marginBottom: '20px' }}
-                >
-                  <Select
-                    loading={loadingClasses}
-                    onChange={handleClassChange}
-                    placeholder="请选择班级"
-                    size="large"
-                    suffixIcon={<IconWrap><ClassIcon /></IconWrap>}
-                    style={{ width: '100%' }}
-                    dropdownStyle={{ borderRadius: '12px' }}
-                  >
-                    {classes.map(group => (
-                      <Select.OptGroup key={group.key} label={group.label}>
-                        {group.items.map(cls => (
-                          <Option key={cls._id} value={cls._id}>
-                            {formatClassName(cls)}
-                          </Option>
-                        ))}
-                      </Select.OptGroup>
-                    ))}
-                  </Select>
-                </Form.Item>
-                {autoClassTip && (
-                  <div style={{ margin: '-12px 0 16px', color: '#16a34a', fontSize: 13 }}>{autoClassTip}</div>
-                )}
-
-                <Form.Item
-                  label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>选择姓名</span>}
-                  name="studentId"
-                  style={{ marginBottom: '20px' }}
-                >
-                  <Select
-                    placeholder="请选择姓名"
-                    onChange={handleStudentSelect}
-                    size="large"
-                    suffixIcon={<IconWrap><PersonIcon /></IconWrap>}
-                    style={{ width: '100%' }}
-                    dropdownStyle={{ borderRadius: '12px' }}
-                  >
-                    {students.map(student => (
-                      <Option key={student.username} value={student._id}>
-                        {student.name}
+            <Form.Item
+              label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>选择班级</span>}
+              name="classId"
+              style={{ marginBottom: '20px' }}
+            >
+              <Select
+                loading={loadingClasses}
+                onChange={handleClassChange}
+                placeholder="请选择班级"
+                size="large"
+                suffixIcon={<IconWrap><ClassIcon /></IconWrap>}
+                style={{ width: '100%' }}
+                dropdownStyle={{ borderRadius: '12px' }}
+              >
+                {classes.map(group => (
+                  <Select.OptGroup key={group.key} label={group.label}>
+                    {group.items.map(cls => (
+                      <Option key={cls._id} value={cls._id}>
+                        {formatClassName(cls)}
                       </Option>
                     ))}
-                  </Select>
-                </Form.Item>
-              </>
+                  </Select.OptGroup>
+                ))}
+              </Select>
+            </Form.Item>
+            {autoClassTip && (
+              <div style={{ margin: '-12px 0 16px', color: '#16a34a', fontSize: 13 }}>{autoClassTip}</div>
             )}
 
             <Form.Item
-              label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>{teacherMode ? '工号' : '学号'}</span>}
+              label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>选择姓名</span>}
+              name="studentId"
+              style={{ marginBottom: '20px' }}
+            >
+              <Select
+                placeholder="请选择姓名"
+                onChange={handleStudentSelect}
+                size="large"
+                suffixIcon={<IconWrap><PersonIcon /></IconWrap>}
+                style={{ width: '100%' }}
+                dropdownStyle={{ borderRadius: '12px' }}
+              >
+                {students.map(student => (
+                  <Option key={student.username} value={student._id}>
+                    {student.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>学号</span>}
               name="username"
-              rules={[{ required: true, message: teacherMode ? '请输入工号' : '请输入学号' }]}
+              rules={[{ required: true, message: '请输入学号' }]}
               style={{ marginBottom: '20px' }}
             >
               <Input
                 prefix={<span style={{ color: '#94a3b8', marginRight: '8px' }}><UserIcon /></span>}
-                placeholder={teacherMode ? '请输入工号' : '请输入学号（教师输入工号）'}
+                placeholder="请输入学号"
                 size="large"
                 style={{
                   borderRadius: '12px',
@@ -1037,20 +1023,12 @@ const Login = () => {
             <Form.Item
               label={<span style={{ color: '#475569', fontWeight: '500', fontSize: '14px' }}>密码</span>}
               name="password"
-              rules={teacherMode ? [{ required: true, message: '请输入密码' }] : []}
               style={{ marginBottom: '24px' }}
-              extra={passwordFree ? (
-                <span style={{ fontSize: 13 }}>
-                  老师登录？
-                  <Button type="link" size="small" style={{ padding: 0, fontSize: 13 }} onClick={() => switchMode(true)}>点此输入工号和密码</Button>
-                  ，或直接在上方输入工号
-                </span>
-              ) : null}
             >
               <Input.Password
                 prefix={<span style={{ color: '#94a3b8', marginRight: '8px' }}><LockIcon /></span>}
                 disabled={passwordFree}
-                placeholder={passwordPlaceholder}
+                placeholder={passwordFree ? '上课中，无需密码' : '请输入密码'}
                 size="large"
                 style={{
                   borderRadius: '12px',
@@ -1060,7 +1038,7 @@ const Login = () => {
               />
             </Form.Item>
 
-            {!teacherMode && students.length > 0 && (
+            {students.length > 0 && (
               <Button
                 type="default"
                 onClick={() => setSeatMapVisible(true)}
@@ -1099,14 +1077,9 @@ const Login = () => {
                   boxShadow: '0 4px 14px rgba(65, 88, 208, 0.25)'
                 }}
               >
-                {teacherMode ? '教师登录' : '登录'}
+                登录
               </Button>
             </Form.Item>
-            <div style={{ textAlign: 'center', marginTop: 12 }}>
-              <Button type="link" size="small" style={{ color: '#64748b' }} onClick={() => switchMode(!teacherMode)}>
-                {teacherMode ? '返回学生登录' : '教师登录'}
-              </Button>
-            </div>
           </Form>
         </div>
 

@@ -4,7 +4,6 @@ const AssignmentSubmission = require('../models/AssignmentSubmission');
 const QuizSubmission = require('../models/QuizSubmission');
 const TypingRecord = require('../models/TypingRecord');
 const mongoose = require('mongoose');
-const crypto = require('crypto');
 const xlsx = require('xlsx');
 const path = require('path');
 const fs = require('fs');
@@ -16,6 +15,7 @@ const ClassMembership = require('../models/ClassMembership');
 const roster = require('../services/classRoster');
 const { formatClassName } = require('../utils/className');
 const { escapeRegex } = require('../utils/escapeRegex');
+const { studentPassword } = require('../utils/studentPassword');
 
 // 教学班（社团、选修）的名称、学期、年级、人数上限
 function electiveFields(body) {
@@ -245,9 +245,16 @@ exports.addStudentToClass = async (req, res) => {
       return res.status(400).json({ success: false, message: ELECTIVE_ACCOUNT_OP });
     }
 
-    // 创建新学生用户，并设置班级ID
+    // 学生上课时免密码登录，密码可以不填（自动随机生成）
+    const pw = studentPassword(studentData.password);
+    if (pw.error) return res.status(400).json({ success: false, message: pw.error });
+
+    // 创建新学生用户，并设置班级ID（只取允许的字段）
     const newStudent = await User.create({
-      ...studentData,
+      username: studentData.username,
+      name: studentData.name,
+      gender: ['male', 'female', 'other'].includes(studentData.gender) ? studentData.gender : 'other',
+      password: pw.password,
       role: 'student',
       classId: classObj._id
     });
@@ -899,19 +906,18 @@ exports.importStudents = async (req, res) => {
 
     // 验证数据格式
     for (const row of data) {
-      if (!row.username || !row.name || !row.password || !row.grade || !row.class) {
+      if (!row.username || !row.name || !row.grade || !row.class) {
         return res.status(400).json({
           success: false,
-          message: '文件格式错误，请确保包含学号、姓名、密码、年级和班级字段'
+          message: '文件格式错误，请确保包含学号、姓名、年级和班级字段（密码可以不填）'
         });
       }
 
-      if (row.password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: '密码长度至少6位'
-        });
+      const pw = studentPassword(row.password);
+      if (pw.error) {
+        return res.status(400).json({ success: false, message: `学号 ${row.username}：${pw.error}` });
       }
+      row.password = pw.password;
 
       // 验证年级格式（确保是四位数年份）
       if (!/^20\d{2}$/.test(String(row.grade))) {
@@ -1860,8 +1866,7 @@ exports.createElectiveStudents = async (req, res) => {
       if (!USERNAME_RE.test(username)) return res.status(400).json({ success: false, message: `${where}：学号只能包含字母、数字、下划线或短横线，最多 30 位` });
       if (!name || name.length > 20) return res.status(400).json({ success: false, message: `${where}：姓名不能为空且不超过 20 个字` });
       // 学生在上课时免密码登录，密码实际不使用；没填时随机生成（账号要求有密码）
-      const password = row.password ? String(row.password) : crypto.randomBytes(12).toString('hex');
-      const error = passwordError(password);
+      const { password, error } = studentPassword(row?.password);
       if (error) return res.status(400).json({ success: false, message: `${where}：${error}` });
       if (seen.has(username)) return res.status(400).json({ success: false, message: `学号 ${username} 重复填写` });
       seen.add(username);

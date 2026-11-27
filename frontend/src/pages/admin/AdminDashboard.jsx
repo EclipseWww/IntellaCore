@@ -1990,7 +1990,7 @@ const AdminDashboard = () => {
                 <li>仅支持 Excel 文件格式（.xlsx, .xls）</li>
                 <li>请严格按照模板格式填写</li>
                 <li>学号必须是唯一的，不能与现有学生重复</li>
-                <li>密码长度至少6位</li>
+                <li>密码可以不填（学生上课时免密码登录）；填写时至少6位</li>
                 <li>年级必须是四位数年份（如2024）</li>
                 <li>班级必须是整数</li>
                 <li>如果班级不存在会自动创建（无班主任）</li>
@@ -2032,7 +2032,15 @@ const AdminDashboard = () => {
               <Form.Item
                 name="password"
                 label="密码"
-                rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少6个字符' }]}
+                dependencies={['role']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    required: getFieldValue('role') !== 'student',
+                    message: '请输入密码'
+                  }),
+                  { min: 6, message: '密码至少6个字符' }
+                ]}
+                extra="学生可不填（上课时免密码登录）；教师和管理员必须填写"
               >
                 <Input.Password placeholder="请输入密码" />
               </Form.Item>
