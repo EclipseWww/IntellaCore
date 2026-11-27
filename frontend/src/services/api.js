@@ -915,6 +915,11 @@ export const classAPI = {
     const response = await api.post(`/classes/${classId}/members`, payload);
     return response.data;
   },
+  // 直接在教学班新建学生账号（没有行政班的学生）
+  async createElectiveStudents(classId, students) {
+    const response = await api.post(`/classes/${classId}/members/create`, { students });
+    return response.data;
+  },
   async removeElectiveMembers(classId, studentIds) {
     const response = await api.post(`/classes/${classId}/members/remove`, { studentIds });
     return response.data;

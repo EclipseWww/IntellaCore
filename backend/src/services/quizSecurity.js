@@ -25,9 +25,9 @@ async function quizContext(user, quizId, lessonId, activityId, requireActivity =
   if (!!lessonId !== !!activityId) fail('课时和活动必须同时提供', 400);
   if (user.role === 'student' && requireActivity && !activityId) fail('请从课程活动中进入测验', 400);
   const student = user.role === 'student' ? await User.findById(user._id || user.id).select('classId') : null;
-  if (student && !student.classId) fail('学生未分配班级');
-  // 学生的行政班和参加的教学班都可以访问其课程
+  // 学生的行政班和参加的教学班都可以访问其课程（只上社团/选修课的学生没有行政班）
   const classIds = student ? (await roster.classIdsOfStudent(student)).map(String) : [];
+  if (student && !classIds.length) fail('学生未分配班级');
   let lesson;
   if (lessonId) lesson = await Lesson.findById(lessonId);
   else if (student) {

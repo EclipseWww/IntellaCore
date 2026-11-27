@@ -27,3 +27,28 @@ export const compareClasses = (a, b) => {
   if (ea) return String(a.title || '').localeCompare(String(b.title || ''), 'zh-CN');
   return (Number(b.grade) - Number(a.grade)) || (Number(a.name) - Number(b.name));
 };
+
+// 登录页的班级分组：正在上课的在最前；其余行政班按年级（新到旧），社团/选修放在最后
+export const groupLoginClasses = (list, isLive = () => false) => {
+  const groups = [];
+  const live = list.filter(isLive).sort(compareClasses);
+  if (live.length) groups.push({ key: 'live', label: '正在上课', items: live });
+  const byKey = list.filter(c => !isLive(c)).sort(compareClasses).reduce((acc, cls) => {
+    const key = classGroupKey(cls);
+    (acc[key] = acc[key] || []).push(cls);
+    return acc;
+  }, {});
+  Object.keys(byKey).sort(compareClassGroupKeys)
+    .forEach(key => groups.push({ key: `g${key}`, label: classGroupLabel(key), items: byKey[key] }));
+  return groups;
+};
+
+// 解析教学班新建学生名单：每行“学号 姓名 [密码]”，没填密码的用初始密码
+export const parseNewStudents = (text, defaultPassword = '') => String(text || '')
+  .split(/\r?\n/)
+  .map(line => line.trim())
+  .filter(Boolean)
+  .map(line => {
+    const [username = '', name = '', password = ''] = line.split(/[\s,，;；]+/);
+    return { username, name, password: password || defaultPassword };
+  });

@@ -12,12 +12,12 @@ const OTHER = '507f1f77bcf86cd799439033';
 const logger = { info() {}, warn() {}, error() {}, debug() {} };
 const response = () => ({ statusCode: 200, status(v) { this.statusCode = v; return this; }, json(v) { this.body = v; return this; } });
 
-function setup({ adminLive = false, electiveLive = true, member = true, boundIp = null, loginHistory = [], handoff = null, ip = '10.0.0.5', sessionId } = {}) {
+function setup({ homeClass = ADMIN, adminLive = false, electiveLive = true, member = true, boundIp = null, loginHistory = [], handoff = null, ip = '10.0.0.5', sessionId } = {}) {
   const updates = [];
   const membershipUpdates = [];
   const records = [];
   const student = {
-    _id: 'stu1', username: 's1', name: '张三', role: 'student', isActive: true, classId: ADMIN, seatNumber: 'A1',
+    _id: 'stu1', username: 's1', name: '张三', role: 'student', isActive: true, classId: homeClass, seatNumber: homeClass ? 'A1' : undefined,
     loginHistory, loginHandoff: handoff, sessionId, sessionExpiresAt: sessionId ? new Date(Date.now() + 3600e3) : undefined,
     addLoginRecord: async (...args) => { records.push(args); }
   };
@@ -118,4 +118,21 @@ test('an active session elsewhere still goes through the approval flow for the c
   assert.equal(res.statusCode, 409);
   assert.equal(res.body.code, 'DEVICE_CONFLICT');
   assert.equal(String(res.body.classId), ELECTIVE);
+});
+
+test('a student without a home class logs in only through an elective they belong to', async () => {
+  const f = setup({ homeClass: null });
+  const res = await f.login(ELECTIVE);
+  assert.equal(res.statusCode, 200);
+  assert.equal(String(res.body.classInfo.classId), ELECTIVE);
+  assert.equal(res.body.user.seatNumber, 'C3');
+  assert.equal(String(f.updates[0].sessionClassId), ELECTIVE);
+
+  const none = await setup({ homeClass: null }).login();
+  assert.equal(none.statusCode, 400);
+  assert.equal(none.body.code, 'SELECT_CLASS');
+  const notMember = await setup({ homeClass: null, member: false }).login(ELECTIVE);
+  assert.equal(notMember.body.code, 'NOT_IN_CLASS');
+  const someoneElsesHome = await setup({ homeClass: null }).login(ADMIN);
+  assert.equal(someoneElsesHome.body.code, 'NOT_IN_CLASS');
 });

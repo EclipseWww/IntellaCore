@@ -6,6 +6,9 @@ const Class = require('../models/Class');
 const ShopOperation = require('../models/ShopOperation');
 const { settleOperation } = require('../services/shopOperationService');
 
+// 积分商店按行政班老师；只上社团/选修课的学生没有行政班，按本次登录的教学班
+const shopClassId = student => student.classId || student.sessionClassId || null;
+
 // 获取所有商店商品
 exports.getAllItems = async (req, res) => {
   try {
@@ -17,10 +20,10 @@ exports.getAllItems = async (req, res) => {
     // 如果是学生，只显示其班级老师发布的商品
     if (req.user.role === 'student') {
       // 获取学生的班级
-      const student = await User.findById(req.user._id).select('classId');
-      if (student && student.classId) {
+      const student = await User.findById(req.user._id).select('classId sessionClassId');
+      if (student && shopClassId(student)) {
         // 获取班级的老师和游戏中心设置
-        const classInfo = await Class.findById(student.classId).select('teacher allowGameCenter');
+        const classInfo = await Class.findById(shopClassId(student)).select('teacher allowGameCenter');
         if (classInfo && classInfo.teacher) {
           allowGameCenter = classInfo.allowGameCenter !== false;
           query.createdBy = classInfo.teacher;
@@ -91,8 +94,8 @@ exports.getItemById = async (req, res) => {
 
     // 学生只能查看本班老师发布的商品；班级关闭游戏中心时看不到游戏商品
     if (req.user.role === 'student') {
-      const student = await User.findById(req.user._id).select('classId');
-      const classInfo = student?.classId && await Class.findById(student.classId).select('teacher allowGameCenter');
+      const student = await User.findById(req.user._id).select('classId sessionClassId');
+      const classInfo = student && shopClassId(student) && await Class.findById(shopClassId(student)).select('teacher allowGameCenter');
       if (!classInfo?.teacher || String(classInfo.teacher) !== String(item.createdBy) ||
           (item.type === 'game' && classInfo.allowGameCenter === false)) {
         return res.status(404).json({ success: false, message: '商品不存在' });
@@ -120,8 +123,8 @@ exports.redeemItem = async (req, res) => {
     if (req.user.role !== 'student') return res.status(403).json({ success: false, message: '仅学生可以兑换商品' });
     const item = await PointShopItem.findById(req.params.itemId);
     if (!item || !item.isActive) return res.status(404).json({ success: false, message: '商品不存在或已下架' });
-    const student = await User.findById(req.user._id).select('classId');
-    const classInfo = student?.classId && await Class.findById(student.classId).select('teacher allowGameCenter');
+    const student = await User.findById(req.user._id).select('classId sessionClassId');
+    const classInfo = student && shopClassId(student) && await Class.findById(shopClassId(student)).select('teacher allowGameCenter');
     if (!classInfo?.teacher || String(classInfo.teacher) !== String(item.createdBy) ||
         (item.type === 'game' && classInfo.allowGameCenter === false)) {
       return res.status(403).json({ success: false, message: '无权兑换该商品' });

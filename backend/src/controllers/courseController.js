@@ -307,19 +307,12 @@ exports.getAllCoursesNew = async (req, res) => {
         });
       }
 
-      // 查找学生所在的班级
-      const studentClass = await Class.findOne({
-        _id: user.classId
-      }).populate('teacher');
-
-      if (!studentClass) {
+      // 学生所在的全部班级（行政班 + 参加的教学班；只上社团/选修课的学生没有行政班）
+      const studentClassIds = await roster.classIdsOfStudent(user);
+      if (!studentClassIds.length) {
         return res.status(404).json({
           success: false,
-          message: '未找到学生所在班级',
-          debug: {
-            userId: userId,
-            username: user.username
-          }
+          message: '未找到学生所在班级'
         });
       }
 
@@ -327,7 +320,7 @@ exports.getAllCoursesNew = async (req, res) => {
       query.$or = [
         { isPublic: true },
         {
-          accessibleClasses: { $in: await roster.classIdsOfStudent(user) },
+          accessibleClasses: { $in: studentClassIds },
           $expr: { $gt: [{ $size: "$accessibleClasses" }, 0] } // 确保accessibleClasses不为空
         }
       ];

@@ -90,20 +90,18 @@ const authController = {
       // 学生登录：确定本次登录的班级（行政班或参加的教学班）并检查状态 + 单点登录会话处理
       else if (user.role === 'student') {
         const userWithClass = await User.findById(user._id).select('classId loginHistory seatNumber loginHandoff');
-        if (!userWithClass.classId) {
-          logger.warn('学生未分配班级:', username);
-          return res.status(404).json({ message: '未找到学生所在班级' });
-        }
-
         const CLASS_FIELDS = 'type title grade name allowIpChange isInClass currentLesson currentCourse currentUnit autoRedirectToLesson status';
-        const adminClass = await Class.findById(userWithClass.classId).select(CLASS_FIELDS);
-        if (!adminClass) {
+        // 行政班可以为空：只在本机房上社团/选修课的学生没有行政班，只能登录参加的教学班
+        const adminClass = userWithClass.classId
+          ? await Class.findById(userWithClass.classId).select(CLASS_FIELDS)
+          : null;
+        if (userWithClass.classId && !adminClass) {
           logger.warn('班级未找到:', userWithClass.classId);
           return res.status(404).json({ message: '未找到指定的班级' });
         }
 
         // 如果行政班已归档（已毕业），则禁止登录并返回友好提示
-        if (adminClass.status === 'archived') {
+        if (adminClass && adminClass.status === 'archived') {
           logger.info('学生尝试登录已归档班级', { username, classId: userWithClass.classId });
           return res.status(403).json({
             message: '您所在班级已完成本阶段学习，如有问题请联系教师',
@@ -115,7 +113,7 @@ const authController = {
         let classObj = adminClass;
         let membership = null;
         const requestedClassId = req.body.classId;
-        if (requestedClassId && String(requestedClassId) !== String(adminClass._id)) {
+        if (requestedClassId && !(adminClass && String(requestedClassId) === String(adminClass._id))) {
           const requested = mongoose.isValidObjectId(requestedClassId)
             ? await Class.findById(requestedClassId).select(CLASS_FIELDS)
             : null;
@@ -130,6 +128,10 @@ const authController = {
             return res.status(403).json({ message: '该教学班已结课', code: 'CLASS_ARCHIVED' });
           }
           classObj = requested;
+        }
+        if (!classObj) {
+          logger.warn('没有行政班的学生未选择教学班', { username });
+          return res.status(400).json({ message: '请先选择你参加的社团 / 选修课', code: 'SELECT_CLASS' });
         }
         const classId = classObj._id;
 

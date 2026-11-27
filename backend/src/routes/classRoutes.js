@@ -552,6 +552,7 @@ router.patch('/:classId/settings', classController.updateClassSettings);
 // 教学班成员管理
 router.get('/:classId/members', classController.getElectiveMembers);
 router.post('/:classId/members', classController.addElectiveMembers);
+router.post('/:classId/members/create', classController.createElectiveStudents);
 router.post('/:classId/members/remove', classController.removeElectiveMembers);
 router.patch('/:classId/members/:studentId', classController.updateElectiveMember);
 router.post('/:classId/elective-archive', classController.setElectiveArchived);

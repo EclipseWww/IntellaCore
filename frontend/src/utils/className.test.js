@@ -1,4 +1,4 @@
-import { formatClassName, compareClasses, compareClassGroupKeys, classGroupKey } from './className';
+import { formatClassName, compareClasses, compareClassGroupKeys, classGroupKey, groupLoginClasses, parseNewStudents } from './className';
 import { inSelectedClass, setElectiveRosters, electiveOptions, electiveIdOf } from '../pages/teacher/components/review/assignmentReviewUtils';
 
 test('formats home classes and teaching classes', () => {
@@ -32,4 +32,28 @@ test('review page filters a teaching class by its members', () => {
   expect(inSelectedClass('Python（社团/选修）', 2024, 3, 's3')).toBe(false);
   expect(inSelectedClass('2024级3班', 2024, 3, 's3')).toBe(true);
   expect(inSelectedClass(null, 2024, 3, 's3')).toBe(true);
+});
+
+test('login page lists home classes first and teaching classes last', () => {
+  const list = [
+    { _id: 'e1', type: 'elective', title: '机器人' },
+    { _id: 'a1', grade: 2024, name: 2 },
+    { _id: 'a2', grade: 2025, name: 1 },
+    { _id: 'e2', type: 'elective', title: '编程', isInClass: true },
+    { _id: 'a3', grade: 2024, name: 1, isInClass: true }
+  ];
+  const groups = groupLoginClasses(list, c => !!c.isInClass);
+  expect(groups.map(g => g.label)).toEqual(['正在上课', '2025级', '2024级', '社团 / 选修']);
+  expect(groups[0].items.map(c => c._id)).toEqual(['a3', 'e2']);
+  expect(groups[3].items.map(c => c._id)).toEqual(['e1']);
+  expect(groupLoginClasses(list).map(g => g.label)).toEqual(['2025级', '2024级', '社团 / 选修']);
+});
+
+test('parses new student lists for a teaching class', () => {
+  expect(parseNewStudents('20250101 王小明\n\n 20250102\t李小红\tabc123 \n20250103，赵六', 'init88')).toEqual([
+    { username: '20250101', name: '王小明', password: 'init88' },
+    { username: '20250102', name: '李小红', password: 'abc123' },
+    { username: '20250103', name: '赵六', password: 'init88' }
+  ]);
+  expect(parseNewStudents('')).toEqual([]);
 });

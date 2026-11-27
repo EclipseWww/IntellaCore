@@ -95,7 +95,7 @@ exports.startPractice = async (req, res) => {
 
         // 1. 获取学生班级及练习配置
         const user = await User.findById(studentId).select('classId sessionClassId');
-        if (!user.classId) {
+        if (!roster.contextClassId(user)) {
             return res.status(403).json({ success: false, message: '未分配班级，无法进行练习' });
         }
 

@@ -3,7 +3,7 @@ import { Form, Input, Button, message, Select, Modal, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import api, { classAPI, loginRequestAPI } from '../../services/api';
 import { ExclamationCircleOutlined, LoadingOutlined, SyncOutlined } from '@ant-design/icons';
-import { formatClassName } from '../../utils/className';
+import { formatClassName, groupLoginClasses } from '../../utils/className';
 
 const { Option } = Select;
 
@@ -170,18 +170,8 @@ const Login = () => {
         const liveIds = new Set((context?.data?.liveClasses || []).map(c => String(c._id)));
         const isLive = cls => liveIds.has(String(cls._id)) || !!cls.isInClass;
 
-        // 正在上课的班级排在最前面，其余按 社团/选修、各年级 分组
-        const groups = [];
-        const live = list.filter(isLive);
-        if (live.length) groups.push({ key: 'live', label: '正在上课', items: live });
-        const rest = list.filter(c => !isLive(c));
-        const electives = rest.filter(c => c.type === 'elective');
-        if (electives.length) groups.push({ key: 'elective', label: '社团 / 选修', items: electives });
-        const byGrade = rest.filter(c => c.type !== 'elective').reduce((acc, cls) => {
-          (acc[cls.grade] = acc[cls.grade] || []).push(cls);
-          return acc;
-        }, {});
-        Object.keys(byGrade).sort().forEach(grade => groups.push({ key: `g${grade}`, label: `${grade}级`, items: byGrade[grade] }));
+        // 正在上课的班级排在最前面；其余行政班在前，社团/选修放在最后（平时大多是行政班在上课）
+        const groups = groupLoginClasses(list, isLive);
         setClasses(groups);
 
         // 自动选择班级：被要求重新登录的班 > 本机房正在上课的班 > 全校唯一正在上课的班
@@ -399,7 +389,7 @@ const Login = () => {
               content: errorData.message || '您所在班级已完成本阶段学习，如有问题请联系教师',
               duration: 6
             });
-          } else if (errorData?.code === 'NOT_IN_CLASS') {
+          } else if (errorData?.code === 'NOT_IN_CLASS' || errorData?.code === 'SELECT_CLASS') {
             message.warning({ content: errorData.message || '你不在所选的班级里，请重新选择班级', duration: 5 });
           } else if (error.response?.status === 409) {
             message.error('该用户已登录');

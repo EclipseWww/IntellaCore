@@ -459,12 +459,13 @@ exports.getPendingQuizzes = async (req, res) => {
   try {
     const studentId = req.user._id;
     const student = await User.findById(studentId);
-    if (!student || !student.classId) {
+    const studentClassIds = student ? await roster.classIdsOfStudent(student) : [];
+    if (!studentClassIds.length) {
       return res.json({ success: true, data: [] });
     }
 
-    // 1. 查找班级可访问的所有课程
-    const courses = await Course.find({ accessibleClasses: { $in: await roster.classIdsOfStudent(student) } }).select('_id title');
+    // 1. 查找班级（行政班与参加的教学班）可访问的所有课程
+    const courses = await Course.find({ accessibleClasses: { $in: studentClassIds } }).select('_id title');
     const courseIds = courses.map(c => c._id);
 
     if (courseIds.length === 0) {

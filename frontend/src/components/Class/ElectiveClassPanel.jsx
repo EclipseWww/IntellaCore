@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Table, Button, Modal, Form, Input, InputNumber, Select, Space, Tag, Tabs, Popconfirm, message, Alert, Descriptions, Typography } from 'antd';
 import { UserAddOutlined, EditOutlined, DeleteOutlined, InboxOutlined, RollbackOutlined, SearchOutlined } from '@ant-design/icons';
 import { classAPI } from '../../services/api';
-import { formatClassName } from '../../utils/className';
+import { formatClassName, parseNewStudents } from '../../utils/className';
 
 const { Text } = Typography;
 
@@ -53,7 +53,7 @@ export const ElectiveFormModal = ({ open, editing, onCancel, onSaved }) => {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="社团课、选修课的学生可以来自不同的行政班和年级。学生账号仍属于原来的行政班，这里只管理成员。"
+        message="社团课、选修课的学生可以来自不同的行政班和年级。学生账号仍属于原来的行政班，这里只管理成员；系统里没有行政班的学生，可以在添加成员时直接新建账号。"
       />
       <Form form={form} layout="vertical" onFinish={submit}>
         <Form.Item name="title" label="名称" rules={[{ required: true, whitespace: true, message: '请填写名称' }, { max: 40, message: '不超过 40 个字' }]}>
@@ -73,7 +73,7 @@ export const ElectiveFormModal = ({ open, editing, onCancel, onSaved }) => {
   );
 };
 
-/** 添加成员：从行政班勾选、按姓名或学号搜索、粘贴学号名单 */
+/** 添加成员：从行政班勾选、按姓名或学号搜索、粘贴学号名单、直接新建没有行政班的学生账号 */
 const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
   const [adminClasses, setAdminClasses] = useState([]);
   const [pickClassId, setPickClassId] = useState(null);
@@ -82,12 +82,14 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState([]);
   const [pasted, setPasted] = useState('');
+  const [newStudents, setNewStudents] = useState('');
+  const [defaultPassword, setDefaultPassword] = useState('');
   const [tab, setTab] = useState('pick');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setSelected([]); setPasted(''); setCandidates([]); setKeyword(''); setPickClassId(null); setTab('pick');
+    setSelected([]); setPasted(''); setNewStudents(''); setDefaultPassword(''); setCandidates([]); setKeyword(''); setPickClassId(null); setTab('pick');
     classAPI.getAvailableClasses()
       .then(res => setAdminClasses((res.data || []).filter(c => c.type !== 'elective')))
       .catch(() => message.error('获取行政班列表失败'));
@@ -106,7 +108,28 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
     }
   }, []);
 
+  const parsedNew = useMemo(() => parseNewStudents(newStudents, defaultPassword), [newStudents, defaultPassword]);
+
+  const createAccounts = async () => {
+    if (!parsedNew.length) { message.warning('请填写学生名单'); return; }
+    const bad = parsedNew.findIndex(r => !r.username || !r.name);
+    if (bad >= 0) { message.warning(`第 ${bad + 1} 行缺少学号或姓名`); return; }
+    const noPassword = parsedNew.findIndex(r => r.password.length < 6);
+    if (noPassword >= 0) { message.warning(`第 ${noPassword + 1} 行的密码不足 6 位，请填写该行密码或下方的初始密码`); return; }
+    setSaving(true);
+    try {
+      const res = await classAPI.createElectiveStudents(cls._id, parsedNew);
+      message.success(res.message);
+      onAdded();
+    } catch (error) {
+      message.error(error.response?.data?.message || '新建失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const submit = async () => {
+    if (tab === 'create') { await createAccounts(); return; }
     const usernames = tab === 'paste'
       ? pasted.split(/[\s,，;；、]+/).map(s => s.trim()).filter(Boolean)
       : [];
@@ -140,7 +163,7 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
       open={open}
       onCancel={onCancel}
       onOk={submit}
-      okText="添加"
+      okText={tab === 'create' ? '新建并加入' : '添加'}
       confirmLoading={saving}
       width={760}
       destroyOnClose
@@ -212,6 +235,38 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
                 <Input.TextArea rows={10} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={'20240301\n20240302\n20240415'} />
               </>
             )
+          },
+          {
+            key: 'create',
+            label: '新建学生账号',
+            children: (
+              <>
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="用于系统里没有行政班的学生（例如平时不在本机房上信息课的学生）"
+                  description="每行一名学生：学号 姓名 密码，用空格、Tab 或逗号分隔（可以从 Excel 复制三列）。不填密码的行使用下面的初始密码。学号已有账号的学生会直接加入本班，姓名和密码不变。新建的学生只属于本教学班，在登录页选择本班登录。"
+                />
+                <Input.TextArea
+                  rows={8}
+                  value={newStudents}
+                  onChange={e => setNewStudents(e.target.value)}
+                  placeholder={'20250101 王小明\n20250102 李小红 abc123'}
+                />
+                <Space style={{ marginTop: 12 }} align="center" wrap>
+                  <span>初始密码：</span>
+                  <Input
+                    style={{ width: 200 }}
+                    value={defaultPassword}
+                    onChange={e => setDefaultPassword(e.target.value)}
+                    placeholder="至少 6 位"
+                    maxLength={72}
+                  />
+                  {parsedNew.length > 0 && <Text type="secondary">共 {parsedNew.length} 名学生</Text>}
+                </Space>
+              </>
+            )
           }
         ]}
       />
@@ -231,6 +286,8 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
   const [editOpen, setEditOpen] = useState(false);
   const [seatEditing, setSeatEditing] = useState(null);
   const [seatValue, setSeatValue] = useState('');
+  const [accountEditing, setAccountEditing] = useState(null);
+  const [accountForm] = Form.useForm();
 
   const load = useCallback(async () => {
     if (!cls?._id) return;
@@ -264,8 +321,10 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
       await classAPI.updateElectiveMember(cls._id, studentId, payload);
       message.success(okText);
       await load();
+      return true;
     } catch (error) {
       message.error(error.response?.data?.message || '修改失败');
+      return false;
     }
   };
 
@@ -293,7 +352,7 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
   const del = () => {
     Modal.confirm({
       title: `删除“${formatClassName(cls)}”`,
-      content: '只删除这个教学班和成员名单，学生账号以及他们的作业、测验、积分等记录都会保留在原来的行政班。课表中该班的课也会一并移除。',
+      content: '只删除这个教学班和成员名单，学生账号以及他们的作业、测验、积分等记录都会保留在原来的行政班（没有行政班的学生账号也会保留，但无法再登录，需要时可加入其他教学班）。课表中该班的课也会一并移除。',
       okText: '删除',
       okType: 'danger',
       onOk: async () => {
@@ -347,9 +406,26 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
       title: '操作',
       key: 'action',
       render: (_, r) => (
-        <Popconfirm title="将该学生移出本教学班？学生账号和学习记录不受影响" onConfirm={() => remove([r._id])} okText="移出">
-          <Button type="link" danger size="small">移出</Button>
-        </Popconfirm>
+        <Space size={0}>
+          {!r.adminClassId && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => { setAccountEditing(r); accountForm.setFieldsValue({ name: r.name, password: '' }); }}
+            >
+              账号
+            </Button>
+          )}
+          <Popconfirm
+            title={r.adminClassId
+              ? '将该学生移出本教学班？学生账号和学习记录不受影响'
+              : '该学生没有行政班，移出后将无法登录（账号和学习记录保留，以后可以再加入）。确定移出？'}
+            onConfirm={() => remove([r._id])}
+            okText="移出"
+          >
+            <Button type="link" danger size="small">移出</Button>
+          </Popconfirm>
+        </Space>
       )
     }
   ];
@@ -377,7 +453,10 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
           <Descriptions.Item label="学期">{cls.term || '未填写'}</Descriptions.Item>
           <Descriptions.Item label="面向年级">{cls.grades?.length ? cls.grades.map(g => `${g}级`).join('、') : '不限'}</Descriptions.Item>
           <Descriptions.Item label="人数">{members.length}{cls.capacity > 0 ? ` / ${cls.capacity}` : ''}</Descriptions.Item>
-          <Descriptions.Item label="来自">{new Set(members.map(m => m.adminClassName)).size} 个行政班</Descriptions.Item>
+          <Descriptions.Item label="来自">
+            {new Set(members.filter(m => m.adminClassId).map(m => String(m.adminClassId))).size} 个行政班
+            {members.some(m => !m.adminClassId) && `，${members.filter(m => !m.adminClassId).length} 名无行政班`}
+          </Descriptions.Item>
         </Descriptions>
         <Text type="secondary">
           上课、排课、发布课程和作业与行政班相同：在“上课管理”“课表”“课程管理”中选择这个教学班即可。
@@ -405,7 +484,7 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
           columns={columns}
           rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
           pagination={{ pageSize: 20, showSizeChanger: false }}
-          locale={{ emptyText: '还没有成员，点击“添加成员”从各行政班选择学生' }}
+          locale={{ emptyText: '还没有成员，点击“添加成员”从各行政班选择学生，或为没有行政班的学生新建账号' }}
         />
       </Card>
 
@@ -423,14 +502,38 @@ const ElectiveClassPanel = ({ cls, onChanged, onDeleted }) => {
         onSaved={() => { setEditOpen(false); onChanged(); }}
       />
       <Modal
+        title={`修改账号 - ${accountEditing?.username || ''}`}
+        open={!!accountEditing}
+        onCancel={() => setAccountEditing(null)}
+        onOk={() => accountForm.submit()}
+        destroyOnClose
+      >
+        <Form
+          form={accountForm}
+          layout="vertical"
+          onFinish={async ({ name, password }) => {
+            const payload = { name };
+            if (password) payload.password = password;
+            if (await updateMember(accountEditing._id, payload, password ? '姓名已保存，密码已重置' : '姓名已保存')) setAccountEditing(null);
+          }}
+        >
+          <Form.Item name="name" label="姓名" rules={[{ required: true, whitespace: true, message: '请填写姓名' }, { max: 20, message: '不超过 20 个字' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="password" label="新密码（留空表示不修改）" rules={[{ min: 6, message: '至少 6 位' }, { max: 72, message: '不超过 72 位' }]}>
+            <Input placeholder="至少 6 位" />
+          </Form.Item>
+        </Form>
+        <Text type="secondary">该学生没有行政班，账号由本教学班管理。若以后分到了行政班，请管理员在后台修改其所属班级。</Text>
+      </Modal>
+      <Modal
         title={`修改 ${seatEditing?.name || ''} 在本班的座位`}
         open={!!seatEditing}
         onCancel={() => setSeatEditing(null)}
         onOk={async () => {
           const seat = seatValue.trim().toUpperCase();
           if (seat && !/^[A-Z][1-9][0-9]*$/.test(seat)) { message.error('座位号格式不正确，请输入如 A1、B2 的格式'); return; }
-          await updateMember(seatEditing._id, { seatNumber: seat || null }, seat ? '座位已更新' : '座位已清空');
-          setSeatEditing(null);
+          if (await updateMember(seatEditing._id, { seatNumber: seat || null }, seat ? '座位已更新' : '座位已清空')) setSeatEditing(null);
         }}
       >
         <Input value={seatValue} onChange={e => setSeatValue(e.target.value)} placeholder="如 A1；留空表示清空座位" />

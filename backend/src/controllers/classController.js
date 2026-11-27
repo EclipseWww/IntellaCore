@@ -1730,13 +1730,14 @@ async function ownedElective(req, res) {
   return cls;
 }
 
+const NO_HOME_CLASS = '无行政班';
 const studentLabel = (u, classMap) => ({
   _id: u._id,
   name: u.name,
   username: u.username,
   gender: u.gender,
   adminClassId: u.classId || null,
-  adminClassName: u.classId ? formatClassName(classMap.get(String(u.classId))) : '未分配班级'
+  adminClassName: u.classId ? formatClassName(classMap.get(String(u.classId))) : NO_HOME_CLASS
 });
 
 async function adminClassMap(students) {
@@ -1829,6 +1830,91 @@ exports.addElectiveMembers = async (req, res) => {
   }
 };
 
+const USERNAME_RE = /^[A-Za-z0-9_-]{1,30}$/;
+function passwordError(password) {
+  if (typeof password !== 'string' || password.length < 6) return '密码至少 6 位';
+  if (password.length > 72) return '密码不能超过 72 位';
+  return null;
+}
+
+/**
+ * 直接在教学班里新建学生账号（不属于任何行政班）。
+ * 用于平时不在本机房上信息课、系统里没有其行政班的学生（如只来上社团课的其他年级学生）。
+ * 学号已存在的学生账号直接加入本班，不修改其姓名和密码。
+ */
+exports.createElectiveStudents = async (req, res) => {
+  try {
+    const cls = await ownedElective(req, res);
+    if (!cls) return;
+    if (cls.status === 'archived') return res.status(400).json({ success: false, message: '教学班已归档，请先恢复' });
+    const rows = Array.isArray(req.body.students) ? req.body.students.slice(0, 200) : [];
+    if (!rows.length) return res.status(400).json({ success: false, message: '请填写要新建的学生' });
+
+    const seen = new Set();
+    const list = [];
+    for (const [i, row] of rows.entries()) {
+      const username = typeof row?.username === 'string' ? row.username.trim() : '';
+      const name = typeof row?.name === 'string' ? row.name.trim() : '';
+      const where = `第 ${i + 1} 行`;
+      if (!USERNAME_RE.test(username)) return res.status(400).json({ success: false, message: `${where}：学号只能包含字母、数字、下划线或短横线，最多 30 位` });
+      if (!name || name.length > 20) return res.status(400).json({ success: false, message: `${where}：姓名不能为空且不超过 20 个字` });
+      const error = passwordError(row.password);
+      if (error) return res.status(400).json({ success: false, message: `${where}：${error}` });
+      if (seen.has(username)) return res.status(400).json({ success: false, message: `学号 ${username} 重复填写` });
+      seen.add(username);
+      list.push({ username, name, password: row.password });
+    }
+
+    const existingUsers = await User.find({ username: { $in: list.map(r => r.username) } }).select('_id username role classId').lean();
+    const nonStudents = existingUsers.filter(u => u.role !== 'student');
+    if (nonStudents.length) {
+      return res.status(400).json({ success: false, message: `以下学号已被教师或管理员账号使用：${nonStudents.map(u => u.username).join('、')}` });
+    }
+    const existingByName = new Map(existingUsers.map(u => [u.username, u]));
+    const members = new Set((await ClassMembership.find({ class: cls._id }).distinct('student')).map(String));
+    let room = cls.capacity > 0 ? Math.max(0, cls.capacity - members.size) : Infinity;
+
+    let created = 0, joined = 0, already = 0, overCapacity = 0;
+    const archivedHome = new Set((await Class.find({
+      _id: { $in: existingUsers.map(u => u.classId).filter(Boolean) }, status: 'archived'
+    }).select('_id').lean()).map(c => String(c._id)));
+    const skippedArchived = [];
+    for (const row of list) {
+      const existing = existingByName.get(row.username);
+      if (existing && members.has(String(existing._id))) { already++; continue; }
+      if (existing && existing.classId && archivedHome.has(String(existing.classId))) { skippedArchived.push(row.username); continue; }
+      if (room <= 0) { overCapacity++; continue; }
+      let studentId = existing && existing._id;
+      if (!studentId) {
+        const student = await User.create({ username: row.username, name: row.name, password: row.password, role: 'student', gender: 'other', classId: null });
+        studentId = student._id;
+        created++;
+      } else {
+        joined++;
+      }
+      await ClassMembership.updateOne(
+        { class: cls._id, student: studentId },
+        { $setOnInsert: { class: cls._id, student: studentId, addedBy: req.user._id } },
+        { upsert: true }
+      );
+      members.add(String(studentId));
+      room--;
+    }
+
+    const parts = [`已新建 ${created} 个学生账号并加入本班`];
+    if (joined) parts.push(`${joined} 个学号已有账号，已直接加入（姓名和密码未改动）`);
+    if (already) parts.push(`${already} 名已在本班`);
+    if (skippedArchived.length) parts.push(`${skippedArchived.length} 名所在行政班已归档`);
+    if (overCapacity) parts.push(`${overCapacity} 名因超过人数上限未添加`);
+    logger.info('教学班新建学生账号', { classId: String(cls._id), created, joined, operator: req.user._id });
+    res.json({ success: true, message: parts.join('，'), data: { created, joined, already, overCapacity } });
+  } catch (error) {
+    logger.error('教学班新建学生账号失败', { error: error.message, classId: req.params.classId });
+    const duplicate = error.code === 11000;
+    res.status(duplicate ? 400 : 500).json({ success: false, message: duplicate ? '学号已被使用，请刷新后重试' : '新建学生账号失败' });
+  }
+};
+
 // 移出成员（只移出教学班，不影响学生账号和学习记录）
 exports.removeElectiveMembers = async (req, res) => {
   try {
@@ -1870,8 +1956,36 @@ exports.updateElectiveMember = async (req, res) => {
       $set.seatNumber = seat || null;
     }
     if (req.body.clearBoundIp === true) $set.boundIp = null;
-    if (!Object.keys($set).length) return res.status(400).json({ success: false, message: '没有要修改的内容' });
-    const m = await ClassMembership.findOneAndUpdate({ class: cls._id, student: studentId }, { $set }, { new: true });
+
+    // 修改姓名、重置密码：只允许没有行政班的学生（有行政班的由行政班老师管理账号）
+    const account = {};
+    if (req.body.name !== undefined) {
+      const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+      if (!name || name.length > 20) return res.status(400).json({ success: false, message: '姓名不能为空且不超过 20 个字' });
+      account.name = name;
+    }
+    if (req.body.password !== undefined) {
+      const error = passwordError(req.body.password);
+      if (error) return res.status(400).json({ success: false, message: error });
+      account.password = req.body.password;
+    }
+    if (!Object.keys($set).length && !Object.keys(account).length) {
+      return res.status(400).json({ success: false, message: '没有要修改的内容' });
+    }
+    if (!await ClassMembership.exists({ class: cls._id, student: studentId })) {
+      return res.status(404).json({ success: false, message: '该学生不在本教学班' });
+    }
+    if (Object.keys(account).length) {
+      const student = await User.findOne({ _id: studentId, role: 'student' });
+      if (!student) return res.status(404).json({ success: false, message: '未找到该学生' });
+      if (student.classId) return res.status(400).json({ success: false, message: ELECTIVE_ACCOUNT_OP });
+      Object.assign(student, account);
+      await student.save(); // 通过 save 触发密码加密
+      logger.info('教学班老师修改无行政班学生账号', { classId: String(cls._id), studentId, fields: Object.keys(account), operator: req.user._id });
+    }
+    const m = Object.keys($set).length
+      ? await ClassMembership.findOneAndUpdate({ class: cls._id, student: studentId }, { $set }, { new: true })
+      : await ClassMembership.findOne({ class: cls._id, student: studentId });
     if (!m) return res.status(404).json({ success: false, message: '该学生不在本教学班' });
     res.json({ success: true, message: '已更新', data: { seatNumber: m.seatNumber, boundIp: m.boundIp } });
   } catch (error) {
@@ -1920,10 +2034,13 @@ exports.searchStudentsForElective = async (req, res) => {
     const activeAdmin = await Class.find({ type: { $ne: 'elective' }, status: { $ne: 'archived' } }).select('_id').lean();
     const activeIds = activeAdmin.map(c => String(c._id));
     if (classId && !activeIds.includes(String(classId))) return res.json({ success: true, data: [] });
-    const filter = { role: 'student', classId: classId || { $in: activeIds } };
+    // 不限行政班时，也能搜到没有行政班的学生（只在本机房上社团/选修课的学生）
+    const filter = classId
+      ? { role: 'student', classId }
+      : { role: 'student', $or: [{ classId: { $in: activeIds } }, { classId: null }] };
     if (keyword) {
       const re = new RegExp(escapeRegex(keyword), 'i');
-      filter.$or = [{ name: re }, { username: re }];
+      filter.$and = [{ $or: [{ name: re }, { username: re }] }];
     }
     const students = await User.find(filter).select('name username gender classId').sort({ username: 1 }).limit(200).lean();
     const classMap = await adminClassMap(students);
