@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const LessonController = require('../controllers/lessonController');
 const auth = require('../middleware/auth');
+const requireCourseMaintainer = require('../middleware/courseMaintainer');
 const roleCheck = require('../middleware/roleCheck');
 const teacherOnly = roleCheck(['teacher', 'admin']);
 const multer = require('multer');
@@ -133,7 +134,7 @@ const excelGradingUpload = multer({
  *       404:
  *         description: 课时或活动不存在
  */
-router.put('/:lessonId/activities/:activityId/publish', auth, teacherOnly, LessonController.updateActivityPublishStatus);
+router.put('/:lessonId/activities/:activityId/publish', auth, teacherOnly, requireCourseMaintainer, LessonController.updateActivityPublishStatus);
 
 /**
  * @swagger
@@ -254,11 +255,12 @@ router.post('/units/:unitId/import', auth, upload.single('lessonFile'), LessonCo
  *       404:
  *         description: 课时或活动不存在
  */
-router.put('/:lessonId/activities/:activityId/details', auth, teacherOnly, LessonController.updateActivityDetails);
+router.put('/:lessonId/activities/:activityId/details', auth, teacherOnly, requireCourseMaintainer, LessonController.updateActivityDetails);
 
 router.post(
   '/:lessonId/activities/:activityId/ppt-grading/upload',
   auth,
+  requireCourseMaintainer,
   pptGradingUpload.single('file'),
   LessonController.uploadPptGradingFile
 );
@@ -266,12 +268,14 @@ router.post(
 router.put(
   '/:lessonId/activities/:activityId/ppt-grading/settings',
   auth,
+  requireCourseMaintainer,
   LessonController.updatePptGradingSettings
 );
 
 router.post(
   '/:lessonId/activities/:activityId/ppt-grading/regenerate',
   auth,
+  requireCourseMaintainer,
   LessonController.regeneratePptGradingRules
 );
 
@@ -286,6 +290,7 @@ module.exports = router;
 router.post(
   '/:lessonId/activities/:activityId/excel-grading/upload',
   auth,
+  requireCourseMaintainer,
   excelGradingUpload.single('file'),
   LessonController.uploadExcelGradingFile
 );
@@ -293,12 +298,14 @@ router.post(
 router.put(
   '/:lessonId/activities/:activityId/excel-grading/settings',
   auth,
+  requireCourseMaintainer,
   LessonController.updateExcelGradingSettings
 );
 
 router.post(
   '/:lessonId/activities/:activityId/excel-grading/regenerate',
   auth,
+  requireCourseMaintainer,
   LessonController.regenerateExcelGradingRules
 );
 

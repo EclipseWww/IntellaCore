@@ -3,6 +3,7 @@ const router = express.Router();
 const courseUnitController = require('../controllers/courseUnitController');
 const lessonController = require('../controllers/lessonController');
 const auth = require('../middleware/auth');
+const requireCourseMaintainer = require('../middleware/courseMaintainer');
 
 // 课程单元路由
 // 所有路由都需要认证
@@ -85,7 +86,7 @@ router.get('/course/:courseId/units', courseUnitController.getCourseUnits);
  *       404:
  *         description: 课程不存在
  */
-router.post('/course/:courseId/units', courseUnitController.createCourseUnit);
+router.post('/course/:courseId/units', requireCourseMaintainer, courseUnitController.createCourseUnit);
 
 /**
  * @swagger
@@ -154,7 +155,7 @@ router.get('/units/:unitId', courseUnitController.getCourseUnitDetails);
  *       404:
  *         description: 单元不存在
  */
-router.put('/units/:unitId', courseUnitController.updateCourseUnit);
+router.put('/units/:unitId', requireCourseMaintainer, courseUnitController.updateCourseUnit);
 
 /**
  * @swagger
@@ -181,7 +182,7 @@ router.put('/units/:unitId', courseUnitController.updateCourseUnit);
  *       404:
  *         description: 单元不存在
  */
-router.delete('/units/:unitId', courseUnitController.deleteCourseUnit);
+router.delete('/units/:unitId', requireCourseMaintainer, courseUnitController.deleteCourseUnit);
 
 /**
  * @swagger
@@ -224,7 +225,7 @@ router.delete('/units/:unitId', courseUnitController.deleteCourseUnit);
  *       404:
  *         description: 课程或单元不存在
  */
-router.post('/course/:courseId/units/reorder', courseUnitController.reorderUnits);
+router.post('/course/:courseId/units/reorder', requireCourseMaintainer, courseUnitController.reorderUnits);
 
 // 课时相关路由
 
@@ -278,7 +279,7 @@ router.post('/course/:courseId/units/reorder', courseUnitController.reorderUnits
  *       404:
  *         description: 单元不存在
  */
-router.post('/units/:unitId/lessons', lessonController.createLesson);
+router.post('/units/:unitId/lessons', requireCourseMaintainer, lessonController.createLesson);
 
 /**
  * @swagger
@@ -384,7 +385,7 @@ router.get('/lessons/:lessonId', lessonController.getLessonDetails);
  *       404:
  *         description: 课时不存在
  */
-router.put('/lessons/:lessonId', lessonController.updateLesson);
+router.put('/lessons/:lessonId', requireCourseMaintainer, lessonController.updateLesson);
 
 /**
  * @swagger
@@ -411,7 +412,7 @@ router.put('/lessons/:lessonId', lessonController.updateLesson);
  *       404:
  *         description: 课时不存在
  */
-router.delete('/lessons/:lessonId', lessonController.deleteLesson);
+router.delete('/lessons/:lessonId', requireCourseMaintainer, lessonController.deleteLesson);
 
 /**
  * @swagger
@@ -448,7 +449,7 @@ router.delete('/lessons/:lessonId', lessonController.deleteLesson);
  *       404:
  *         description: 课时不存在
  */
-router.put('/lessons/:lessonId/teaching-plan', lessonController.updateTeachingPlan);
+router.put('/lessons/:lessonId/teaching-plan', requireCourseMaintainer, lessonController.updateTeachingPlan);
 
 /**
  * @swagger
@@ -495,7 +496,7 @@ router.put('/lessons/:lessonId/teaching-plan', lessonController.updateTeachingPl
  *       404:
  *         description: 课时不存在
  */
-router.put('/lessons/:lessonId/resources', lessonController.updateResources);
+router.put('/lessons/:lessonId/resources', requireCourseMaintainer, lessonController.updateResources);
 
 /**
  * @swagger

@@ -349,28 +349,30 @@ const LessonEdit = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 如果活动有资源，先删除所有资源
-          if (hasResources) {
-            for (const resource of activity.resources) {
-              const filename = resource.path.split('/').pop();
-              try {
-                await courseManagementAPI.deleteResource(courseId, unitId, lessonId, filename);
-                console.log(`已删除资源: ${filename}`);
-              } catch (error) {
-                console.error(`删除资源失败: ${filename}`, error);
-                // 继续删除其他资源
-              }
-            }
-          }
-
           const newActivities = [...activities];
           newActivities.splice(index, 1);
 
-          // 更新课时信息，删除活动
+          // 先保存课时（删除活动）。保存失败（如其他老师刚修改过这个课时）时不删除任何文件
           await saveLesson({
             ...lesson,
             activities: newActivities
           });
+
+          // 保存成功后再删除该活动的资源文件；其他活动仍在使用的文件保留
+          if (hasResources) {
+            const fileOf = r => String(r?.path || '').split('/').pop();
+            const stillUsed = new Set(newActivities.flatMap(a => (a.resources || []).map(fileOf)));
+            for (const resource of activity.resources) {
+              const filename = fileOf(resource);
+              if (!filename || stillUsed.has(filename)) continue;
+              try {
+                await courseManagementAPI.deleteResource(courseId, unitId, lessonId, filename);
+              } catch (error) {
+                console.error(`删除资源失败: ${filename}`, error);
+                // 继续删除其他资源；活动已经删除，残留的文件不影响使用
+              }
+            }
+          }
 
           // 调整选中的活动索引
           if (newActivities.length === 0) {

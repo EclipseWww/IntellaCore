@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const requireCourseMaintainer = require('../middleware/courseMaintainer');
 const {
   createCourse,
   updateCourse,
@@ -270,6 +271,7 @@ router.put('/:id/co-instructors', setCourseCoInstructors);
  */
 router.put(
   '/:courseId/units/:unitId/lessons/order',
+  requireCourseMaintainer,
   lessonController.updateLessonsOrder
 );
 
@@ -328,6 +330,7 @@ router.put(
  */
 router.put(
   '/:courseId/units/:unitId/lessons/:lessonId/status',
+  requireCourseMaintainer,
   lessonController.updateLessonStatus
 );
 
@@ -371,6 +374,7 @@ router.put(
  */
 router.delete(
   '/:courseId/units/:unitId/lessons/:lessonId',
+  requireCourseMaintainer,
   lessonController.deleteLesson
 );
 

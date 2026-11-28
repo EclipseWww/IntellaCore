@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const auth = require('../middleware/auth');
+const requireCourseMaintainer = require('../middleware/courseMaintainer');
 const { guardPathParams } = require('../utils/safeDownloadPath');
 const roleCheck = require('../middleware/roleCheck');
 const teacherOnly = roleCheck(['teacher', 'admin']);
@@ -145,6 +146,7 @@ router.post(
   '/courses/:courseId/units/:unitId/lessons/:lessonId/upload',
   auth,
   teacherOnly,
+  requireCourseMaintainer,
   upload.single('media'),
   mediaController.uploadMedia
 );
@@ -353,6 +355,7 @@ router.delete(
   '/courses/:courseId/units/:unitId/lessons/:lessonId/media/:filename',
   auth,
   teacherOnly,
+  requireCourseMaintainer,
   mediaController.deleteMedia
 );
 

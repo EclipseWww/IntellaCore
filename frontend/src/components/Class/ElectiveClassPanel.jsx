@@ -89,7 +89,7 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
 
   useEffect(() => {
     if (!open) return;
-    setSelected([]); setPasted(''); setNewStudents(''); setCandidates([]); setKeyword(''); setPickClassId(null); setTab('pick');
+    setSelected([]); setPasted(''); setNewStudents(''); setSearched(''); setCandidates([]); setKeyword(''); setPickClassId(null); setTab('pick');
     classAPI.getAvailableClasses()
       .then(res => setAdminClasses((res.data || []).filter(c => c.type !== 'elective')))
       .catch(() => message.error('获取行政班列表失败'));
@@ -107,6 +107,16 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
       setLoading(false);
     }
   }, []);
+
+  // 输入姓名或学号后自动搜索（停顿片刻后），在全部行政班和没有行政班的学生中搜索；
+  // 之前只有按回车或点按钮才搜索，并且只在已选的行政班里搜，容易误以为“搜不到”
+  const [searched, setSearched] = useState('');
+  useEffect(() => {
+    const kw = keyword.trim();
+    if (!open || !kw) return undefined;
+    const timer = setTimeout(() => { setPickClassId(null); setSearched(kw); search(null, kw); }, 350);
+    return () => clearTimeout(timer);
+  }, [keyword, open, search]);
 
   const parsedNew = useMemo(() => parseNewStudents(newStudents), [newStudents]);
 
@@ -184,16 +194,16 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
                     optionFilterProp="label"
                     value={pickClassId}
                     options={adminClasses.map(c => ({ value: c._id, label: formatClassName(c) }))}
-                    onChange={v => { setPickClassId(v || null); search(v, keyword.trim()); }}
+                    onChange={v => { setPickClassId(v || null); setKeyword(''); setSearched(''); search(v, ''); }}
                   />
                   <Input.Search
                     style={{ width: 260 }}
-                    placeholder="按姓名或学号搜索（可跨班级）"
+                    placeholder="输入姓名或学号，在全部班级中搜索"
                     allowClear
                     enterButton={<SearchOutlined />}
                     value={keyword}
                     onChange={e => setKeyword(e.target.value)}
-                    onSearch={v => search(pickClassId, v.trim())}
+                    onSearch={v => { const kw = v.trim(); if (!kw) return; setPickClassId(null); setSearched(kw); search(null, kw); }}
                   />
                 </Space>
                 <Table
@@ -213,7 +223,11 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
                     { title: '姓名', dataIndex: 'name', render: (v, r) => <>{v}{memberSet.has(String(r._id)) && <Tag style={{ marginLeft: 8 }}>已在本班</Tag>}</> },
                     { title: '行政班', dataIndex: 'adminClassName' }
                   ]}
-                  locale={{ emptyText: '请选择行政班或输入姓名、学号搜索' }}
+                  locale={{
+                    emptyText: searched
+                      ? `没有找到“${searched}”。已毕业（行政班已归档）的学生不能加入；系统里还没有账号的学生请用“新建学生账号”`
+                      : '请选择行政班，或输入姓名、学号搜索'
+                  }}
                 />
                 {selected.length > 0 && <Text type="secondary">已勾选 {selected.length} 名学生（换班级或重新搜索后，已勾选的学生仍会保留）</Text>}
               </>

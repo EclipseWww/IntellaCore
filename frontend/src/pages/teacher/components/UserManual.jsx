@@ -747,11 +747,20 @@ const UserManual = () => {
                     >
                         <Title level={3}>更新日志 (Changelog)</Title>
                         <Paragraph>
-                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.8.1</Tag>
+                            以下是平台各版本的更新内容及发布日期。当前版本：<Tag color="blue">v1.8.2</Tag>
                         </Paragraph>
 
                         <div style={{ marginTop: 24 }}>
                             <Timeline>
+                                <Timeline.Item color="green">
+                                    <strong>v1.8.2 (2026-11-28)</strong>
+                                    <ul>
+                                        <li>修复社团 / 选修“添加成员”中按姓名或学号搜不到学生的问题：输入后自动搜索（不用再按回车），并且总是在全部行政班和没有行政班的学生中搜索，不再只在之前选过的行政班里找；选择行政班则列出该班全部学生。搜不到时会说明原因。</li>
+                                        <li>权限加固：修改课程内容（单元、课时、活动、活动详情与发布、PPT / Excel 自动评分设置、课时媒体与资源）现在只有课程创建者、协作教师和管理员可以操作，其他老师不能再通过接口修改别人的课程。</li>
+                                        <li>删除活动时先保存课时，成功后才删除该活动的资源文件；保存失败（例如其他老师刚修改过这个课时）时文件不会被误删，其他活动仍在使用的文件也会保留。</li>
+                                    </ul>
+                                </Timeline.Item>
+
                                 <Timeline.Item color="green">
                                     <strong>v1.8.1 (2026-11-27)</strong>
                                     <ul>
