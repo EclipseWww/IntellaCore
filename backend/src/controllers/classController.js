@@ -1844,7 +1844,17 @@ exports.addElectiveMembers = async (req, res) => {
     if (found.length - usable.length) parts.push(`${found.length - usable.length} 名所在行政班已归档`);
     if (notFound.length) parts.push(`${notFound.length} 个学号未找到`);
     logger.info('教学班添加成员', { classId: String(cls._id), added: toAdd.length, operator: req.user._id });
-    res.json({ success: true, message: parts.join('，'), data: { added: toAdd.length, overCapacity, notFound } });
+    // 有学号没找到时附上调试信息（最多 5 个，浏览器控制台会打印出来）
+    const debug = notFound.length || found.length - usable.length
+      ? {
+        requested: usernames.length,
+        found: found.length,
+        archivedHome: found.length - usable.length,
+        notFound: await Promise.all(notFound.slice(0, 5).map(u => diagnoseStudentLookup(u)))
+      }
+      : undefined;
+    if (debug) logger.info('教学班按学号添加有未找到', { classId: String(cls._id), operator: req.user._id, debug });
+    res.json({ success: true, message: parts.join('，'), data: { added: toAdd.length, overCapacity, notFound, ...(debug && { debug }) } });
   } catch (error) {
     logger.error('添加教学班成员失败', { error: error.message, classId: req.params.classId });
     res.status(500).json({ success: false, message: '添加教学班成员失败' });
@@ -2103,6 +2113,57 @@ exports.setElectiveCoTeachers = async (req, res) => {
   }
 };
 
+/**
+ * 调试用：说明某个姓名或学号为什么没有搜到（临时，查清问题后可删除）。
+ * 不限角色和班级直接查账号，报告每个匹配账号的角色、学号的存储类型、所在班级的类型与状态，
+ * 以及学号是否带空格、是否以数字类型存储（这两种情况普通查询都匹配不到）。
+ */
+async function diagnoseStudentLookup(keyword, options) {
+  try {
+    return await diagnoseStudentLookupUnsafe(keyword, options);
+  } catch (error) {
+    return { keyword: String(keyword || ''), diagnoseError: error.message };
+  }
+}
+
+async function diagnoseStudentLookupUnsafe(keyword, { classId = null } = {}) {
+  const kw = String(keyword || '').trim();
+  if (!kw) return null;
+  const re = new RegExp(escapeRegex(kw), 'i');
+  const raw = User.collection;
+  const or = [{ username: kw }, { username: { $regex: `^\\s*${escapeRegex(kw)}\\s*$` } }, { name: kw }];
+  if (/^\d+$/.test(kw) && kw.length < 16) or.push({ username: Number(kw) });
+  const exact = await raw.find({ $or: or }).project({ username: 1, name: 1, role: 1, classId: 1, isActive: 1 }).limit(10).toArray();
+  const containsCount = await raw.countDocuments({ $or: [{ username: re }, { name: re }] });
+  const containsStudents = await raw.countDocuments({ role: 'student', $or: [{ username: re }, { name: re }] });
+  const classIds = [...new Set(exact.map(u => u.classId).filter(Boolean).map(String))];
+  const classes = classIds.length ? await Class.find({ _id: { $in: classIds } }).select('type status grade name title').lean() : [];
+  const classInfo = new Map(classes.map(c => [String(c._id), c]));
+  return {
+    keyword: kw,
+    restrictedToClass: classId ? String(classId) : null,
+    containsCount,
+    containsStudents,
+    matches: exact.map(u => {
+      const c = u.classId ? classInfo.get(String(u.classId)) : null;
+      return {
+        role: u.role,
+        name: u.role === 'student' ? u.name : '(非学生)',
+        username: u.role === 'student' ? u.username : '(非学生)',
+        usernameType: typeof u.username,
+        usernameHasSpaces: typeof u.username === 'string' && u.username !== u.username.trim(),
+        isActive: u.isActive,
+        classId: u.classId ? String(u.classId) : null,
+        classIdType: u.classId == null ? null : (u.classId._bsontype || typeof u.classId),
+        classExists: u.classId ? !!c : null,
+        classType: c ? (c.type || '(空，视为行政班)') : null,
+        classStatus: c ? (c.status || '(空，视为正常)') : null,
+        className: c ? formatClassName(c) : null
+      };
+    })
+  };
+}
+
 // 按姓名或学号搜索学生（添加教学班成员用；可限定行政班）
 exports.searchStudentsForElective = async (req, res) => {
   try {
@@ -2125,7 +2186,12 @@ exports.searchStudentsForElective = async (req, res) => {
     }
     const students = await User.find(filter).select('name username gender classId').sort({ username: 1 }).limit(200).lean();
     const classMap = await adminClassMap(students);
-    res.json({ success: true, data: students.map(s => studentLabel(s, classMap)) });
+    // 搜不到时附上调试信息（浏览器控制台会打印出来）
+    const debug = keyword && !students.length
+      ? { activeAdminClassCount: activeIds.length, ...await diagnoseStudentLookup(keyword, { classId }) }
+      : undefined;
+    if (debug) logger.info('教学班成员搜索无结果', { operator: req.user._id, debug });
+    res.json({ success: true, data: students.map(s => studentLabel(s, classMap)), ...(debug && { debug }) });
   } catch (error) {
     logger.error('搜索学生失败', { error: error.message });
     res.status(500).json({ success: false, message: '搜索学生失败' });

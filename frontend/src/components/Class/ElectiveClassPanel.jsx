@@ -74,6 +74,18 @@ export const ElectiveFormModal = ({ open, editing, onCancel, onSaved }) => {
   );
 };
 
+// 调试：添加成员时把请求和结果打印到浏览器控制台（在控制台筛选“添加成员调试”即可看到）
+const debugLog = (title, info) => {
+  try {
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(`[添加成员调试] ${title}`);
+    // eslint-disable-next-line no-console
+    console.log(JSON.stringify({ time: new Date().toLocaleString('zh-CN'), ...info }, null, 2));
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  } catch (e) { /* 忽略 */ }
+};
+
 /** 添加成员：从行政班勾选、按姓名或学号搜索、粘贴学号名单、直接新建没有行政班的学生账号 */
 const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
   const [adminClasses, setAdminClasses] = useState([]);
@@ -99,9 +111,17 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
     if (!classId && !kw) { setCandidates([]); return; }
     setLoading(true);
     try {
-      const res = await classAPI.searchStudentsForElective({ ...(classId && { classId }), ...(kw && { keyword: kw }) });
+      const params = { ...(classId && { classId }), ...(kw && { keyword: kw }) };
+      const res = await classAPI.searchStudentsForElective(params);
       setCandidates(res.data || []);
+      debugLog(`搜索 ${kw ? `“${kw}”` : '按行政班'}：${(res.data || []).length} 人`, {
+        params,
+        count: (res.data || []).length,
+        first: (res.data || []).slice(0, 5).map(s => ({ username: s.username, name: s.name, adminClassName: s.adminClassName })),
+        serverDebug: res.debug || '(有结果或未搜索关键字，服务器未附调试信息)'
+      });
     } catch (error) {
+      debugLog('搜索出错', { classId, keyword: kw, status: error.response?.status, response: error.response?.data, message: error.message });
       message.error(error.response?.data?.message || '搜索学生失败');
     } finally {
       setLoading(false);
@@ -150,6 +170,13 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
     try {
       const res = await classAPI.addElectiveMembers(cls._id, { studentIds, usernames });
       const notFound = res.data?.notFound || [];
+      debugLog(`添加成员：${res.message}`, {
+        tab,
+        sentStudentIds: studentIds.length,
+        sentUsernames: usernames.slice(0, 20),
+        notFound,
+        serverDebug: res.data?.debug || '(全部找到，服务器未附调试信息)'
+      });
       if (notFound.length) {
         Modal.info({ title: res.message, content: `未找到的学号：${notFound.join('、')}` });
       } else {
@@ -157,6 +184,7 @@ const AddMembersModal = ({ open, cls, memberIds, onCancel, onAdded }) => {
       }
       onAdded();
     } catch (error) {
+      debugLog('添加成员出错', { tab, status: error.response?.status, response: error.response?.data, message: error.message });
       message.error(error.response?.data?.message || '添加失败');
     } finally {
       setSaving(false);
